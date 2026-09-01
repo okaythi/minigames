@@ -1,9 +1,7 @@
 import type { GameManifest } from '../types'
-import type { GameRuntime } from './types'
 import type { GameSnapshot } from './snapshot'
 
 interface GameHudProps {
-  readonly runtime: GameRuntime
   readonly manifest: GameManifest
   readonly snapshot: GameSnapshot
 }
@@ -11,7 +9,7 @@ interface GameHudProps {
  * The readout panel every game gets: the live score, whatever tiles the engine
  * published, the state tags, the three controls, and the game's own key list.
  */
-export function GameHud({ runtime, manifest, snapshot }: GameHudProps) {
+export function GameHud({ manifest, snapshot }: GameHudProps) {
   return (
     <aside className="nx-play-hud" aria-label="Run readout">
       <div className="nx-play-score">
