@@ -20,11 +20,34 @@ export interface GameStatsRecord {
 
 export type StatsMap = Readonly<Record<string, GameStatsRecord>>
 
+/** One game, as this player left it. */
+export interface PlayerGameRecord {
+  readonly highscore: number | null
+  readonly candy: number
+}
+
+/**
+ * The player's own row from `players` + `player_games`. This is what makes a
+ * highscore survive a cache clear: it lives against the uuid, not the device.
+ */
+export interface PlayerRecord {
+  readonly id: string
+  /** `XXXX-XXXX`, the code you type on another device to take over this one. */
+  readonly syncCode: string | null
+  /** Best score across every game - the number shown to the player. */
+  readonly highscore: number | null
+  /** Global candy bank. */
+  readonly candy: number
+  readonly games: Readonly<Record<string, PlayerGameRecord>>
+}
+
 export interface StatsResponseBody {
   readonly ok: true
   readonly games: StatsMap
-  /** Distinct anonymous visitors ever seen. `0` when the DB is not bound. */
+  /** Distinct anonymous players. `0` when the DB is not bound. */
   readonly uniquePlayers: number
+  /** `null` when the edge has no row for this browser yet. */
+  readonly player: PlayerRecord | null
   /** `false` when the deployment has no D1 database bound, so the client can
    *  stay quiet about a "global" number that is really only its own. */
   readonly distributed: boolean
@@ -44,21 +67,27 @@ export interface VisitEvent {
   readonly type: 'visit'
 }
 
-export type StatsEvent = PlayEvent | ScoreEvent | VisitEvent
+/** A pickup banked by this player - global and per game, never an aggregate. */
+export interface CandyEvent {
+  readonly type: 'candy'
+  readonly amount: number
+}
+
+export type StatsEvent = PlayEvent | ScoreEvent | VisitEvent | CandyEvent
 
 export interface StatsEventRequestBody {
   readonly game: string
   readonly event: StatsEvent
   /** Stops a client from re-sending the same finished run (e.g. on retry). */
   readonly nonce: string
-  /** Anonymous, stable per browser. Absent means "don't count a player". */
-  readonly playerId?: string
 }
 
 export interface StatsEventResponseBody {
   readonly ok: boolean
   readonly stats: GameStatsRecord | null
   readonly uniquePlayers?: number
+  /** The player's own row after the event was applied, when there is one. */
+  readonly player?: PlayerRecord | null
 }
 
 export const EMPTY_STATS_RECORD: GameStatsRecord = {
@@ -78,6 +107,10 @@ export function applyStatsEvent(
 ): GameStatsRecord {
   // A visit only touches the players table, never a game's counters.
   if (event.type === 'visit') {
+    return record
+  }
+  // Candy is banked against the player; the public record does not care.
+  if (event.type === 'candy') {
     return record
   }
   if (event.type === 'play') {
@@ -171,33 +204,20 @@ export function parseStatsEventBody(value: unknown): StatsEventRequestBody | nul
     return null
   }
   const cleanNonce = nonce.slice(0, 64)
-  const playerId = readPlayerId(value)
   const eventRaw = readField(value, 'event')
   const type = readField(eventRaw, 'type')
-  if (type === 'visit') {
-    // A visit needs somebody to visit; without an id there is nothing to count.
-    return playerId === null ? null : { game, event: { type: 'visit' }, nonce: cleanNonce, playerId }
+  if (type === 'visit' || type === 'play') {
+    return { game, event: { type }, nonce: cleanNonce }
   }
-  if (type === 'play') {
-    return { game, event: { type: 'play' }, nonce: cleanNonce, ...(playerId === null ? {} : { playerId }) }
-  }
-  const score = readField(eventRaw, 'score')
-  if (type === 'score' && typeof score === 'number' && Number.isFinite(score)) {
-    return {
-      game,
-      event: { type: 'score', score },
-      nonce: cleanNonce,
-      ...(playerId === null ? {} : { playerId }),
+  if (type === 'score' || type === 'candy') {
+    const key = type === 'score' ? 'score' : 'amount'
+    const amount = readField(eventRaw, key)
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+      return null
     }
+    return type === 'score'
+      ? { game, event: { type: 'score', score: Math.floor(amount) }, nonce: cleanNonce }
+      : { game, event: { type: 'candy', amount: Math.floor(amount) }, nonce: cleanNonce }
   }
   return null
-}
-
-/** The anonymous browser id, shape-checked (`crypto.randomUUID()` output). */
-export function readPlayerId(value: unknown): string | null {
-  const raw = readField(value, 'playerId')
-  if (typeof raw !== 'string' || raw.length < 8 || raw.length > 64) {
-    return null
-  }
-  return /^[A-Za-z0-9_-]+$/.test(raw) ? raw : null
 }

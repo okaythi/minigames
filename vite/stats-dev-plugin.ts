@@ -1,50 +1,49 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
+import { ALLOWED_SLUGS, isAllowedGameSlug } from '../shared/game-slugs'
+import { statsStoreFrom } from '../shared/memory-store'
 import {
-  applyStatsEvent,
-  EMPTY_STATS_RECORD,
-  parseGameStatsRecord,
-  parseStatsEventBody,
-  readField,
-  STATS_ENDPOINT,
-  type GameStatsRecord,
-  type StatsMap,
-} from '../shared/stats-protocol'
+  isFingerprint,
+  isPlayerId,
+  parseSyncCode,
+  PLAYER_COOKIE_NAME,
+  PLAYER_FINGERPRINT_HEADER,
+  PLAYER_ID_HEADER,
+  readCookie,
+  serializePlayerCookie,
+} from '../shared/player-cookie'
+import { resolvePlayer, type ResolvedPlayer } from '../shared/resolve-player'
+import { parseStatsEventBody, readField, isRecordOfStats, STATS_ENDPOINT } from '../shared/stats-protocol'
+import type { StatsMemory } from '../shared/memory-store'
+import type { StatsStore } from '../shared/stats-store'
+import { loadStatsMemory, saveStatsMemory } from './stats-file'
 
 /**
- * Local stand-in for `functions/api/stats/index.ts`.
+ * Local stand-in for the Pages Function, route for route: `/api/stats` and
+ * `/api/stats/sync`, the same identity waterfall (cookie -> stored id ->
+ * device hash -> new uuid), the same cookie, the same nonce window.
  *
- * On Cloudflare Pages the counters live in D1; `vite dev` has no database, so
- * this middleware implements the exact same endpoint (including the
- * unique-player count and the nonce guard) against a JSON file. The browser
- * code is therefore identical in both environments.
+ * It is not a second implementation of the rules. It hydrates the shared
+ * memory store from `.nixlabs/stats.json`, so the only thing that differs from
+ * production is the storage at the bottom.
  */
 
-interface PersistedStats {
-  games: Record<string, GameStatsRecord>
-  players: string[]
-  recentNonces: string[]
-}
-
-const MAX_TRACKED_NONCES = 64
 const MAX_BODY_BYTES = 2048
+const SYNC_PATH = `${STATS_ENDPOINT}/sync`
 
-const emptyStats = (): PersistedStats => ({ games: {}, players: [], recentNonces: [] })
-
-const parseBody = (raw: string): ReturnType<typeof parseStatsEventBody> => {
-  try {
-    return parseStatsEventBody(JSON.parse(raw) as unknown)
-  } catch {
-    return null
-  }
+const headerOf = (req: IncomingMessage, name: string): string | null => {
+  const value = req.headers[name.toLowerCase()]
+  return typeof value === 'string' ? value : null
 }
 
-const sendJson = (res: ServerResponse, status: number, payload: unknown): void => {
+const sendJson = (res: ServerResponse, status: number, payload: unknown, cookie: string | null): void => {
   res.statusCode = status
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('content-type', 'application/json; charset=utf-8')
+  res.setHeader('cache-control', 'no-store')
+  if (cookie !== null) {
+    res.setHeader('set-cookie', cookie)
+  }
   res.end(JSON.stringify(payload))
 }
 
@@ -62,36 +61,37 @@ const readBody = async (req: IncomingMessage): Promise<string> => {
   return Buffer.concat(chunks).toString('utf8')
 }
 
+const parseJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
+}
+
+/** The three signals, read the way the Pages Function reads them. */
+interface DevIdentity extends ResolvedPlayer {
+  readonly fingerprint: string | null
+}
+
+const token = (value: string | null, valid: (candidate: string) => boolean): string | null =>
+  value !== null && valid(value) ? value : null
+
+const identitySignals = async (req: IncomingMessage, store: StatsStore): Promise<DevIdentity> => {
+  const fingerprint = token(headerOf(req, PLAYER_FINGERPRINT_HEADER), isFingerprint)
+  const resolved = await resolvePlayer(
+    {
+      cookieId: token(readCookie(headerOf(req, 'cookie'), PLAYER_COOKIE_NAME), isPlayerId),
+      storedId: token(headerOf(req, PLAYER_ID_HEADER), isPlayerId),
+      fingerprint,
+    },
+    { byFingerprint: store.findPlayerByFingerprint },
+  )
+  return { ...resolved, fingerprint }
+}
+
 export function statsDevPlugin(): Plugin {
   let filePath = resolve('.nixlabs/stats.json')
-
-  const load = async (): Promise<PersistedStats> => {
-    try {
-      const parsed: unknown = JSON.parse(await readFile(filePath, 'utf8'))
-      const gamesRaw = readField(parsed, 'games')
-      const playersRaw = readField(parsed, 'players')
-      const noncesRaw = readField(parsed, 'recentNonces')
-      const games: Record<string, GameStatsRecord> = {}
-      if (typeof gamesRaw === 'object' && gamesRaw !== null) {
-        for (const [key, value] of Object.entries(gamesRaw as Record<string, unknown>)) {
-          const candidate = parseGameStatsRecord(value)
-          if (candidate !== null) {
-            games[key] = candidate
-          }
-        }
-      }
-      const list = (input: unknown): string[] =>
-        Array.isArray(input) ? input.filter((entry): entry is string => typeof entry === 'string') : []
-      return { games, players: list(playersRaw), recentNonces: list(noncesRaw) }
-    } catch {
-      return emptyStats()
-    }
-  }
-
-  const save = async (stats: PersistedStats): Promise<void> => {
-    await mkdir(dirname(filePath), { recursive: true })
-    await writeFile(filePath, `${JSON.stringify(stats, null, 2)}\n`, 'utf8')
-  }
 
   return {
     name: 'nixlabs:stats-dev',
@@ -100,57 +100,97 @@ export function statsDevPlugin(): Plugin {
       filePath = resolve(config.root, '.nixlabs/stats.json')
     },
     configureServer(server) {
+      const withStore = async <T>(run: (store: StatsStore, memory: StatsMemory) => Promise<T>): Promise<T> => {
+        const memory = await loadStatsMemory(filePath, ALLOWED_SLUGS)
+        const result = await run(statsStoreFrom(memory, false), memory)
+        await saveStatsMemory(filePath, memory)
+        return result
+      }
+
+      const handleStats = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+        if (req.method === 'GET' || req.method === 'HEAD') {
+          await withStore(async (store) => {
+            const identity = await identitySignals(req, store)
+            const { games, uniquePlayers, player } = await store.snapshot(identity.id)
+            // No shared cache in dev: the file changes under the response.
+            sendJson(
+              res,
+              200,
+              { ok: true, games, uniquePlayers, player, distributed: store.distributed },
+              identity.reanchor ? serializePlayerCookie(identity.id) : null,
+            )
+          })
+          return
+        }
+        if (req.method !== 'POST') {
+          sendJson(res, 405, { ok: false, stats: null, player: null, error: 'method not allowed' }, null)
+          return
+        }
+        const body = parseStatsEventBody(parseJson(await readBody(req)))
+        if (body === null) {
+          sendJson(res, 400, { ok: false, stats: null, player: null, error: 'invalid payload' }, null)
+          return
+        }
+        // A site-wide visit carries no slug; everything else must be a known game.
+        if (body.event.type !== 'visit' && !isAllowedGameSlug(body.game)) {
+          sendJson(res, 400, { ok: false, stats: null, player: null, error: 'unknown game' }, null)
+          return
+        }
+        await withStore(async (store) => {
+          const identity = await identitySignals(req, store)
+          const result = await store.apply({
+            game: body.game,
+            event: body.event,
+            nonce: body.nonce,
+            playerId: identity.id,
+            fingerprint: identity.fingerprint,
+          })
+          sendJson(
+            res,
+            200,
+            { ok: true, stats: result.stats, uniquePlayers: result.uniquePlayers, player: result.player },
+            identity.reanchor ? serializePlayerCookie(identity.id) : null,
+          )
+        })
+      }
+
+      const handleSync = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+        if (req.method !== 'POST') {
+          sendJson(res, 405, { ok: false, player: null, error: 'method not allowed' }, null)
+          return
+        }
+        const raw = parseJson(await readBody(req))
+        const code = isRecordOfStats(raw) ? parseSyncCode(readField(raw, 'syncCode')) : null
+        if (code === null) {
+          sendJson(res, 400, { ok: false, player: null, error: 'expected { syncCode: "K9F2-P7X1" }' }, null)
+          return
+        }
+        await withStore(async (store) => {
+          const identity = await identitySignals(req, store)
+          const claimed = await store.claimSyncCode(code, identity.id)
+          if (claimed === null) {
+            sendJson(res, 404, { ok: false, player: null, error: 'unknown code' }, null)
+            return
+          }
+          sendJson(res, 200, { ok: true, player: claimed }, serializePlayerCookie(claimed.id))
+        })
+      }
+
       server.middlewares.use(async (req, res, next) => {
-        if (!(req.url ?? '').startsWith(STATS_ENDPOINT)) {
+        const url = req.url ?? ''
+        if (!url.startsWith(STATS_ENDPOINT)) {
           next()
           return
         }
         try {
-          if (req.method === 'GET' || req.method === 'HEAD') {
-            const stats = await load()
-            const games: StatsMap = stats.games
-            sendJson(res, 200, {
-              ok: true,
-              games,
-              uniquePlayers: stats.players.length,
-              // Local file, not a real fleet-wide database.
-              distributed: false,
-            })
+          if (url.startsWith(SYNC_PATH)) {
+            await handleSync(req, res)
             return
           }
-          if (req.method === 'POST') {
-            const body = parseBody(await readBody(req))
-            if (body === null) {
-              sendJson(res, 400, { ok: false, stats: null, error: 'invalid payload' })
-              return
-            }
-            const stats = await load()
-            if (!stats.recentNonces.includes(body.nonce)) {
-              if (body.game.length > 0) {
-                stats.games[body.game] = applyStatsEvent(
-                  stats.games[body.game] ?? EMPTY_STATS_RECORD,
-                  body.event,
-                  Date.now(),
-                )
-              }
-              const playerId = body.playerId
-              if (typeof playerId === 'string' && !stats.players.includes(playerId)) {
-                stats.players.push(playerId)
-              }
-              stats.recentNonces = [body.nonce, ...stats.recentNonces].slice(0, MAX_TRACKED_NONCES)
-              await save(stats)
-            }
-            sendJson(res, 200, {
-              ok: true,
-              stats: stats.games[body.game] ?? EMPTY_STATS_RECORD,
-              uniquePlayers: stats.players.length,
-            })
-            return
-          }
-          sendJson(res, 405, { ok: false, stats: null, error: 'method not allowed' })
+          await handleStats(req, res)
         } catch (error) {
           const message = error instanceof Error ? error.message : 'unknown error'
-          sendJson(res, 500, { ok: false, stats: null, error: message })
+          sendJson(res, 500, { ok: false, stats: null, player: null, error: message }, null)
         }
       })
     },

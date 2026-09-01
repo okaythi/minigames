@@ -1,19 +1,12 @@
-import type {
-  GameStatsRecord,
-  PlayerRecord,
-  StatsEvent,
-  StatsMap,
-} from '../../../shared/stats-protocol'
+import type { GameStatsRecord, PlayerRecord, StatsEvent, StatsMap } from './stats-protocol'
 
 /**
- * Storage for every counter on the site, behind one interface.
+ * The storage contract for every counter on the site.
  *
- *  - `d1Store()`     Cloudflare D1 (binding `NIXLABS_DB`, see migrations/)
- *  - `memoryStore()` no binding: a fork, a bare `pages dev`, a preview build
- *
- * The HTTP layer only sees these five operations, so the route behaves the same
- * with or without a database; it just reports `distributed: false` and keeps
- * the player's own row out of the response.
+ * Three implementations, one interface: D1 (online), the shared memory store
+ * (a Pages deployment with no binding) and the same memory store hydrated from
+ * a JSON file (Vite dev). The HTTP layers on both sides only ever call these
+ * four operations, so no environment can grow a behaviour the others lack.
  */
 
 export interface StatsRequest {
@@ -22,7 +15,7 @@ export interface StatsRequest {
   readonly nonce: string
   /** The resolved player. `null` means "count the aggregate, nobody in it". */
   readonly playerId: string | null
-  /** Recorded on the player row so a wiped device can still find its way back. */
+  /** Recorded against the player so a wiped device can find its way back. */
   readonly fingerprint: string | null
 }
 
@@ -47,5 +40,8 @@ export interface StatsStore {
   /** Last-resort identity anchor: which player owns this device hash? */
   readonly findPlayerByFingerprint: (fingerprint: string) => Promise<string | null>
   /** Folds `sourcePlayerId` into whoever owns `syncCode`, and retires it. */
-  readonly claimSyncCode: (syncCode: string, sourcePlayerId: string | null) => Promise<PlayerRecord | null>
+  readonly claimSyncCode: (
+    syncCode: string,
+    sourcePlayerId: string | null,
+  ) => Promise<PlayerRecord | null>
 }

@@ -11,10 +11,9 @@
     "typecheck": "tsc -b --pretty false",
     "clean": "rm -rf dist .nixlabs node_modules/.tmp",
     "deploy": "npm run build && npx --yes wrangler pages deploy dist --project-name nixlabs-games",
-    "preview:functions": "npm run build && npx --yes wrangler pages dev dist --d1 NIXLABS_DB=nixlabs-games",
-    "db:create": "npx --yes wrangler d1 create nixlabs-games",
-    "db:init": "npx --yes wrangler d1 migrations apply nixlabs-games --local",
-    "db:migrate": "npx --yes wrangler d1 migrations apply nixlabs-games --remote",
+    "preview:functions": "npm run build && npx --yes wrangler pages dev dist --d1 NIXLABS_DB=nix-minigames",
+    "db:init": "npx --yes wrangler d1 migrations apply nix-minigames --local",
+    "db:migrate": "npx --yes wrangler d1 migrations apply nix-minigames --remote",
     "simulate": "esbuild scripts/simulate-avoid.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/simulate.mjs --log-level=warning && node node_modules/.tmp/simulate.mjs"
   },
   "dependencies": {

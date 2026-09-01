@@ -3,105 +3,78 @@ import {
   type StatsEventResponseBody,
   type StatsResponseBody,
 } from '../../../shared/stats-protocol'
-import { d1Store, memoryStore, type StatsStore } from './store'
+import { isAllowedGameSlug } from '../../../shared/game-slugs'
+import { readJsonBody } from './body'
+import { identifyPlayer } from './identity'
+import { badRequest, jsonResponse } from './respond'
+import { storeFor, type StatsEnv } from './store-for'
 
 /**
- * Cloudflare Pages Function for the counters.
+ * The counters API.
  *
- * GET  /api/stats  -> every game's record + the unique-player total
- * POST /api/stats  -> one event (visit | play | score), nonce-guarded
+ * GET  /api/stats        every game's record, the unique-player total, and this
+ *                        player's own row (highscore + candy, global and per game)
+ * POST /api/stats        one event - visit | play | score | candy, nonce-guarded
+ * POST /api/stats/sync   claim a sync code from another device (sync.ts)
  *
- * Backed by D1 (binding `NIXLABS_DB`, schema in `migrations/0001_init.sql`).
- * Without the binding it answers from memory and reports `distributed: false`,
- * so the front end labels its numbers honestly instead of failing.
+ * Identity is resolved from the request itself - cookie first, then the id this
+ * browser kept, then the device hash - and a response that mints or recovers an
+ * id re-plants the cookie. Backed by D1 (`NIXLABS_DB`); without the binding the
+ * same routes answer from memory and report `distributed: false`.
  */
-
-interface Env {
-  readonly NIXLABS_DB?: D1Database
-}
 
 interface PagesContext {
   readonly request: Request
-  readonly env: Env
+  readonly env: StatsEnv
 }
 
-/**
- * Slugs are allow-listed so a hostile client cannot make the function mint
- * unbounded rows. Adding a game means adding it here as well as to the
- * registry - see docs/adding-a-game.md.
- */
-const ALLOWED_SLUGS: readonly string[] = ['avoid-the-spikes']
-
-const MAX_BODY_BYTES = 2048
-
-const json = (status: number, payload: unknown, cacheSeconds = 25): Response =>
-  new Response(JSON.stringify(payload), {
-    status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': status === 200 ? `public, max-age=${cacheSeconds}` : 'no-store',
-    },
-  })
-
-const badRequest = (reason: string): Response =>
-  json(400, { ok: false, stats: null, error: reason } satisfies StatsEventResponseBody & {
-    error: string
-  })
-
-const validSlug = (slug: string): boolean => /^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)
-
-const storeFor = (env: Env): StatsStore =>
-  env.NIXLABS_DB === undefined ? memoryStore(ALLOWED_SLUGS) : d1Store(env.NIXLABS_DB)
-
-async function readJsonBody(request: Request): Promise<unknown> {
-  const buffer = await request.arrayBuffer()
-  if (buffer.byteLength > MAX_BODY_BYTES) {
-    return null
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(buffer)) as unknown
-  } catch {
-    return null
-  }
-}
-
-export const onRequestGet = async ({ env }: PagesContext): Promise<Response> => {
+export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
   const store = storeFor(env)
-  const { games, uniquePlayers } = await store.snapshot()
+  const { playerId, cookie } = await identifyPlayer(request, store)
+  const { games, uniquePlayers, player } = await store.snapshot(playerId)
   const payload: StatsResponseBody = {
     ok: true,
     games,
     uniquePlayers,
+    player,
     distributed: store.distributed,
   }
-  return json(200, payload)
+  // The aggregate half of the answer is the same for everyone and worth
+  // caching; the moment a player's own row is in there, it is not.
+  return jsonResponse(200, payload, {
+    cacheSeconds: player === null ? 25 : undefined,
+    cookie,
+  })
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
-  const contentType = request.headers.get('content-type') ?? ''
-  if (!contentType.includes('application/json')) {
+  if (!(request.headers.get('content-type') ?? '').includes('application/json')) {
     return badRequest('expected application/json')
   }
   const body = parseStatsEventBody(await readJsonBody(request))
   if (body === null) {
     return badRequest('invalid payload')
   }
-  // Site-wide visits carry no game slug; everything else must name a known one.
-  const gameOk =
-    body.event.type === 'visit'
-      ? body.game.length === 0
-      : validSlug(body.game) && ALLOWED_SLUGS.includes(body.game)
+  // A site-wide visit carries no game slug; everything else must name a known one.
+  const gameOk = body.event.type === 'visit' ? body.game.length === 0 : isAllowedGameSlug(body.game)
   if (!gameOk) {
     return badRequest('unknown game')
   }
 
   const store = storeFor(env)
-  const stats = await store.apply({
+  const { playerId, cookie, fingerprint } = await identifyPlayer(request, store)
+  const result = await store.apply({
     game: body.game,
     event: body.event,
     nonce: body.nonce,
-    playerId: body.playerId ?? null,
+    playerId,
+    fingerprint,
   })
-  const { uniquePlayers } = await store.snapshot()
-  return json(200, { ok: true, stats, uniquePlayers } satisfies StatsEventResponseBody, 0)
+  const response: StatsEventResponseBody = {
+    ok: true,
+    stats: result.stats,
+    uniquePlayers: result.uniquePlayers,
+    player: result.player,
+  }
+  return jsonResponse(200, response, { cookie })
 }
