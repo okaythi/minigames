@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "clean": "rm -rf dist .nixlabs node_modules/.tmp",
-    "deploy": "npm run build && npx --yes wrangler pages deploy dist --project-name nixlabs-games",
+    "deploy": "npm run build && npx --yes wrangler pages deploy dist --project-name minigames",
     "preview:functions": "npm run build && npx --yes wrangler pages dev dist --d1 NIXLABS_DB=nix-minigames",
     "db:init": "npx --yes wrangler d1 migrations apply nix-minigames --local",
     "db:migrate": "npx --yes wrangler d1 migrations apply nix-minigames --remote",
