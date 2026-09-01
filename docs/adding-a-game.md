@@ -2,23 +2,25 @@
 
 A game is a folder. The site discovers it through one registry line; nothing else changes.
 
-**A game never ships a component.** The page around the canvas - readout panel, overlay cards,
+**A game never ships a custom page component.** The page around the canvas - readout panel, overlay cards,
 pause on scroll-away, mute, the stats round trip - is drawn once, in `src/games/template/`, for
 every game. A folder contributes an engine, a manifest of strings, and one function that builds
-the runtime. That is what keeps nine games looking like one site.
+the runtime. That is what keeps all games looking like one cohesive platform.
 
 ## 1. Create the folder
 
 ```
 src/games/<slug>/
-  index.ts          exports the GameModule: { manifest, createRuntime }
+  index.tsx         exports default React component: <GameTemplate game={{ manifest, createRuntime }} />
   manifest.ts       every word the chrome shows, plus the card and page copy
   state.ts          the engine's own immutable snapshot
-  view-model.ts     state.ts -> the shared GameSnapshot (tiles, badges, run summary)
+  view-model.ts     state.ts -> the shared GameSnapshot (tiles, badges, run summary, formatters)
   runtime.ts        builds the engine, owns audio/random, exposes the five actions
-  cover.jpg         3:2 card art (keep it under ~40 KB)
-  engine/           the simulation
-  render/           canvas layers
+  create-<slug>-game.ts attaches the GameHost, canvas layers, rAF loop, input listeners
+  cover.jpg         3:4 portrait card and game-stage cover art
+  banner.jpg        21:8 wide hero banner art for the top of the game page
+  engine/           the simulation (grid, physics, AI veto engines, procedural audio)
+  render/           canvas layers (renderer, layout transform, particles, hud, menus)
 ```
 
 `<slug>` is kebab-case and becomes the URL (`/games/<slug>`) and the localStorage/stats key, so
@@ -28,7 +30,9 @@ pick it once and keep it.
 
 ```ts
 import cover from './cover.jpg'
+import banner from './banner.jpg'
 import type { GameManifest } from '../types'
+import { formatMyScore } from './view-model'
 
 export const MY_SLUG = 'my-game' as const
 
@@ -38,29 +42,35 @@ export const myGameManifest: GameManifest = {
   tagline: 'One line for the card.',
   description: 'A short paragraph for the game page.',
   status: 'playable', // 'playable' | 'prototype' | 'coming-soon'
-  accent: 'green', // 'orange' | 'amber' | 'blue' | 'green' | 'red'
-  tags: ['puzzle'],
-  cover,
-  controls: [{ input: 'Click', action: 'Do the thing' }],
+  accent: 'orange', // 'orange' | 'amber' | 'blue' | 'green' | 'red'
+  tags: ['arcade', 'retro', 'canvas'],
+  cover, // 3:4 portrait image
+  banner, // 21:8 wide hero banner image
+  controls: [{ input: 'Click / Space', action: 'Do the thing' }],
   mechanics: [{ title: 'The hook', body: 'Why it works.' }],
   year: 2026,
 
   // Copy for the shared chrome - the only way a game can talk about its own page.
   aspect: 3 / 4, // canvas box: width / height
-  scoreLabel: 'Points',
-  bonusLabel: 'Coins',
-  primaryLabel: 'Jump', // label on the primary button while running
-  scoringNote: 'One point per ring cleared.',
+  scoreLabel: 'Clear Time', // e.g. 'Points', 'Bounces', 'Clear Time'
+  formatScore: formatMyScore, // optional: custom formatter for time (mm:ss:ms) or units across cards/HUD/stats
+  bonusLabel: 'Turbos', // e.g. 'Candy', 'Turbos', 'Coins'
+  runDurationLabel: 'Clear Time', // optional label for run duration in game-over card
+  primaryLabel: 'Play', // label on the primary button
+  scoringNote: 'How score and records are calculated.',
   startLine: 'Click, tap or hit Space.',
   intro: 'Two sentences on the start card.',
   pauseNote: 'One line on the pause card.',
   tip: 'One line at the bottom of the readout.',
-  legend: [{ swatch: 'orange', text: 'the thing you must not touch' }],
+  legend: [
+    { swatch: 'blue', text: 'player object' },
+    { swatch: 'orange', text: 'hazard or AI' },
+  ],
 }
 ```
 
-The grid, the search bar, the card and the game page are all driven off this object. Titles are
-matched with a fuzzy matcher over `title`, `tags` and `slug`, so no search registration is needed.
+The grid, search bar, card, and game page are all driven off this object. Titles are
+matched with a fuzzy matcher over `title`, `tags`, and `slug`, so no search registration is needed.
 
 The template renders exactly what a game publishes (`src/games/template/snapshot.ts`):
 
@@ -72,54 +82,63 @@ interface GameSnapshot {
   bonus: number
   tiles: readonly { label: string; value: string; note: string }[] // the readout panel
   badges: readonly string[] // tags under it
-  run: { score; bonus; seconds; note; isRecord; beatBestBy } | null // the game-over card
+  run: { score: number; bonus: number; seconds: number; note: string; isRecord: boolean; beatBestBy: number | null } | null
   muted: boolean
 }
 ```
 
-So a game shows a number on the page by putting it in `tiles`. It never adds markup.
+## 3. Scoring & Cloudflare D1 Leaderboards
 
-## 3. Export the module
+The backend stores `highscore INTEGER` centrally per game and uses `MAX()` on writes.
+Games choose how to map their domain scores into this integer:
 
-```ts
-import type { GameModule } from '../types'
+- **Point / Bounce Games (e.g. Avoid the Spikes, Pong):**
+  Score is raw points/hits. `formatScore` defaults to numeric strings.
+- **Speedrun / Time-Elapsed Games (e.g. FL Tron 3.0):**
+  Lower elapsed time is better. Winning runs store `score = Math.floor(1000000 - elapsedSeconds * 1000)`.
+  Faster runs produce higher integer values, winning runs always beat non-winning runs, and `formatScore` converts `(1000000 - score) / 1000` back to `mm:ss:ms` on all UI surfaces (Card, Header, HUD, and Game Over).
+
+## 4. Start Flow & In-Canvas Menus
+
+Games support two starting styles:
+
+1. **Direct Start (e.g. Avoid the Spikes):**
+   Clicking "Start" immediately launches the physics and gameplay.
+2. **In-Canvas Start Menu (e.g. FL Tron 3.0):**
+   - Engine initializes with `isStarted = false` and `phase = 'menu'`. `toGameSnapshot` returns `status: 'ready'`.
+   - When the user clicks "Start" on the page overlay, `engine.start()` sets `isStarted = true` and publishes `status: 'running'`.
+   - The page overlay dismisses, revealing the canvas start menu (`drawMainMenu`) where players can view mode cards and instructions.
+   - Clicking "START CAMPAIGN" (or pressing Enter/Space) inside the canvas menu calls `engine.startCampaign()` to start the match.
+
+## 5. Export the module & Register
+
+In `src/games/<slug>/index.tsx`:
+```tsx
+import { GameTemplate } from '../template/game-template'
 import { myGameManifest } from './manifest'
 import { createMyGameRuntime } from './runtime'
 
-export const myGame: GameModule = { manifest: myGameManifest, createRuntime: createMyGameRuntime }
-```
-
-`createRuntime(deps)` returns the one object the chrome drives:
-
-```ts
-{
-  store: Store<GameSnapshot>,                 // what the HUD renders
-  actions: { primary, pause, resume, restart, toggleMute },
-  attach: (host) => Disposable,               // the canvas layers
-  dispose: () => void,                        // audio, listeners, anything else
+export default function MyGame() {
+  return <GameTemplate game={{ manifest: myGameManifest, createRuntime: createMyGameRuntime }} />
 }
 ```
 
-`deps` is a live ref, so the engine reads `deps.current.best` when a run starts instead of
-capturing a stale value: `{ best, bonus, beginRun(), finishRun(score), bankBonus(amount) }` -
-the whole interface between a game and the stats service. Nothing in `engine/` imports React.
-
-## 4. Register it
-
+In `src/games/registry.ts`:
 ```ts
-// src/games/registry.ts
-import { myGame } from './my-game'
+const MyGame = lazy(() => import('./my-game'))
 
-export const GAMES: readonly GameModule[] = [avoidTheSpikes, myGame]
+export const GAMES: readonly GameModule[] = [
+  // ...
+  { manifest: myGameManifest, Component: MyGame },
+]
 ```
 
-Then add the slug to `ALLOWED_SLUGS` in `shared/game-slugs.ts` so the edge is willing to
-store counters for it (both the Pages Function and the dev middleware read that one list, and
-refuse unknown slugs on purpose - otherwise anyone could mint D1 rows).
+In `shared/game-slugs.ts`:
+Add `<slug>` to `ALLOWED_SLUGS` so Cloudflare D1 and dev middleware accept stats events for this game.
 
-## 5. The engine contract
+## 6. The engine contract
 
-React gives the game a `GameHost` (`src/games/runtime/types.ts`) and nothing else:
+React gives the game a `GameHost` (`src/games/runtime/types.ts`):
 
 ```ts
 const host: GameHost = {
@@ -127,26 +146,22 @@ const host: GameHost = {
 }
 ```
 
-`<GameSurface attach={...} aspect={width / height} label="..." />` owns the canvas element, the
-DPR-aware backing store, the resize observer and the rAF loop. `attach` receives the host,
-subscribes to whatever it needs and returns a `Disposable`. Teardown is that disposable's only
-job: remove listeners, close the AudioContext, stop timers.
+`createRuntime(deps)` builds the engine and wires `attach`:
+```ts
+{
+  store: Store<GameSnapshot>,
+  actions: { primary, pause, resume, restart, toggleMute },
+  attach: (host) => Disposable,
+  dispose: () => void,
+}
+```
 
-Rules that keep a game out of trouble:
+Rules that keep a game performant and reliable:
 
-- **Fixed timestep inside, variable outside.** `onFrame` hands you a clamped delta; accumulate it
-  and step the simulation at a constant rate (`1/120` in Avoid the Spikes). Never integrate on the
-  raw delta.
-- **World units, not screen units.** Simulate in a fixed box (360×480 here) and let one function -
-  `render/layout.ts` - map that box to the canvas. Physics then behave identically on a phone and
-  a 27" monitor.
-- **The engine does not know React exists.** It publishes an immutable snapshot into a store
-  (`src/lib/observable-store.ts`); HUD components subscribe with `useSyncExternalStore`. Push a
-  snapshot when a value a human can read changes, not per frame.
-- **No `Math.random()` in the simulation.** Take a seeded `Random` from `src/lib/random.ts` so a
-  run can be reproduced, and pass an explicit seed in tests.
-- **Persistence goes through the service layer.** `src/services/storage/local-store.ts` for the
-  browser's own data, `useGameStats(slug)` for plays and scores. Games never touch
-  `window.localStorage` directly, and they never fetch.
-- **Draw layers, not a Draw Everything file.** One module per visual system: arena, spikes,
-  player, fx, and a composer that applies the world transform (and the shake offset) once.
+- **Fixed timestep inside, variable outside.** `onFrame` hands a clamped delta; step the simulation via fixed accumulator (`1/120`). Calibrate for high refresh displays (e.g. screen FPS <= 61 targets 58.5 FPS).
+- **World units, not screen units.** Simulate in a fixed coordinate box (e.g. 480×640) and use `render/layout.ts` to map coordinates to the canvas with DPR scaling.
+- **Two-Layer Veto AI Architecture.** For intelligent NPCs, decouple the **Personality Engine** (what the AI *wants* to do) from the **Survival Engine** (what it is *mathematically allowed* to do via flood-fill safety checks). The Veto system runs every single frame to prevent accidental suicides even when decision timers are slow.
+- **No `Math.random()` in core simulation.** Use seeded `Random` from `src/lib/random.ts` for deterministic replays and simulation test suites (`npm run simulate:<game>`).
+- **Persistence through services.** Use `useGameStats(slug)` and `deps.current.finishRun(score)`. Never touch raw storage or fetch directly.
+- **Separation of Render Layers.** Compose visual systems into isolated modules: arena background, light trails, vehicles/sprites, particles, HUD, and phase menus.
+
