@@ -26,8 +26,8 @@ export const RULES = {
   turboSpeedMultiplier: 1.8,
   baseCycleSpeed: 135, // pixels per second (~22.5 grid cells / sec)
   cycleLength: 14,
-  cycleWidth: 6,
-  trailWidth: 4,
+  cycleWidth: 7,
+  trailWidth: 7,
 } as const
 
 /** Target physics tick rates depending on screen refresh rate. */

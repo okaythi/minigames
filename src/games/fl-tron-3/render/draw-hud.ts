@@ -19,28 +19,28 @@ export function drawHud(
 }
 
 function drawTopBar(ctx: CanvasRenderingContext2D, state: TronState, fonts: TronFonts): void {
-  const barY = 24
+  const barY = 28
   const aiConfig = AI_CONFIGS[state.level]
 
   // Left: Level & AI Archetype
-  setCanvasFont(ctx, 800, 11, fonts.mono)
+  setCanvasFont(ctx, 800, 13, fonts.mono)
   ctx.fillStyle = PALETTE.ink
   ctx.textAlign = 'left'
-  ctx.fillText(`LVL ${state.level} // ${aiConfig.name.toUpperCase()}`, 16, barY)
+  ctx.fillText(`LVL ${state.level} // ${aiConfig.name.toUpperCase()}`, 19, barY)
 
   // Center: Round Score Pips (First to 3)
-  drawRoundScorePips(ctx, state.p1RoundWins, state.aiRoundWins, ARENA.width / 2, barY - 4)
+  drawRoundScorePips(ctx, state.p1RoundWins, state.aiRoundWins, ARENA.width / 2, barY - 4.7)
 
   // Right: Speedrun Clock (mm:ss:ms with ms rendered as smaller subscript)
   const { mmss, ms } = formatRunTimeComponents(state.elapsedRunSeconds)
   ctx.textAlign = 'right'
-  setCanvasFont(ctx, 800, 12, fonts.mono)
+  setCanvasFont(ctx, 800, 14.2, fonts.mono)
   ctx.fillStyle = PALETTE.ink
-  ctx.fillText(mmss, ARENA.width - 38, barY)
+  ctx.fillText(mmss, ARENA.width - 45, barY)
 
-  setCanvasFont(ctx, 700, 8.5, fonts.mono)
+  setCanvasFont(ctx, 700, 10, fonts.mono)
   ctx.fillStyle = PALETTE.slate
-  ctx.fillText(`.${ms}`, ARENA.width - 16, barY)
+  ctx.fillText(`.${ms}`, ARENA.width - 19, barY)
 }
 
 function drawRoundScorePips(
@@ -50,9 +50,9 @@ function drawRoundScorePips(
   centerX: number,
   centerY: number,
 ): void {
-  const pipRadius = 3.5
-  const gap = 9
-  const sideOffset = 18
+  const pipRadius = 4.1
+  const gap = 10.6
+  const sideOffset = 21
 
   // P1 Pips (Blue) on left
   for (let i = 0; i < RULES.roundsToWinLevel; i += 1) {
@@ -74,9 +74,9 @@ function drawRoundScorePips(
 
   // VS divider text
   ctx.fillStyle = withAlpha(PALETTE.slate, 0.7)
-  ctx.font = '600 8px monospace'
+  ctx.font = '600 9.5px monospace'
   ctx.textAlign = 'center'
-  ctx.fillText('VS', centerX, centerY + 2.5)
+  ctx.fillText('VS', centerX, centerY + 3)
 
   // AI Pips (Orange) on right
   for (let i = 0; i < RULES.roundsToWinLevel; i += 1) {
@@ -120,14 +120,14 @@ function drawPlayerTurbos(
   y: number,
   fonts: TronFonts,
 ): void {
-  setCanvasFont(ctx, 750, 8.5, fonts.mono)
+  setCanvasFont(ctx, 750, 10, fonts.mono)
   ctx.fillStyle = isTurbo ? PALETTE.blueDeep : PALETTE.slate
   ctx.textAlign = 'left'
-  ctx.fillText('P1 TURBO [SPACE]', x, y - 6)
+  ctx.fillText('P1 TURBO [SPACE]', x, y - 7)
 
-  const cellW = 18
-  const cellH = 7
-  const gap = 4
+  const cellW = 21
+  const cellH = 8
+  const gap = 4.7
 
   for (let i = 0; i < RULES.playerTurbosPerRound; i += 1) {
     const cx = x + i * (cellW + gap)
@@ -155,22 +155,22 @@ function drawAITurbos(
   fonts: TronFonts,
 ): void {
   const config = AI_CONFIGS[state.level]
-  setCanvasFont(ctx, 750, 8.5, fonts.mono)
+  setCanvasFont(ctx, 750, 10, fonts.mono)
   ctx.fillStyle = state.ai.isTurbo ? PALETTE.orangeDeep : PALETTE.slate
   ctx.textAlign = 'right'
-  ctx.fillText('AI TURBO', x, y - 6)
+  ctx.fillText('AI TURBO', x, y - 7)
 
   if (config.infiniteTurbos) {
     // Infinite Turbos (Level 6 Master Core): Pulsing Infinite Symbol
     const pulse = 0.75 + Math.sin(time * 8) * 0.25
-    setCanvasFont(ctx, 800, 13, fonts.mono)
+    setCanvasFont(ctx, 800, 15.3, fonts.mono)
     ctx.fillStyle = withAlpha(PALETTE.orangeDeep, pulse)
-    ctx.fillText('∞ INFINITE', x, y + 8)
+    ctx.fillText('∞ INFINITE', x, y + 9)
   } else if (config.level === 5) {
     // Level 5: 6 Turbos, bar flickers on use
-    const cellW = 10
-    const cellH = 7
-    const gap = 3
+    const cellW = 11.8
+    const cellH = 8
+    const gap = 3.5
     const totalW = 6 * cellW + 5 * gap
     const startX = x - totalW
 
@@ -193,15 +193,15 @@ function drawAITurbos(
     // Normal AI Turbos (0 to 3)
     const max = config.maxTurbos
     if (max === 0) {
-      setCanvasFont(ctx, 700, 8.5, fonts.mono)
+      setCanvasFont(ctx, 700, 10, fonts.mono)
       ctx.fillStyle = withAlpha(PALETTE.slate, 0.6)
-      ctx.fillText('NONE', x, y + 7)
+      ctx.fillText('NONE', x, y + 8)
       return
     }
 
-    const cellW = 16
-    const cellH = 7
-    const gap = 4
+    const cellW = 19
+    const cellH = 8
+    const gap = 4.7
     const totalW = max * cellW + (max - 1) * gap
     const startX = x - totalW
 

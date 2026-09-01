@@ -48,6 +48,14 @@ export function drawFrame({ context: ctx, engine, viewport, time, fonts }: TronF
   drawHud(ctx, engine.state, time, fonts)
 
   // 8. Render Game Phase Overlays
+  ctx.save()
+  const scale = 1.18
+  const cx = 480 / 2 // ARENA.width / 2
+  const cy = 640 / 2 // ARENA.height / 2
+  ctx.translate(cx, cy)
+  ctx.scale(scale, scale)
+  ctx.translate(-cx, -cy)
+
   if (engine.state.phase === 'menu') {
     drawMainMenu(ctx, fonts)
   } else if (engine.state.phase === 'intermission') {
@@ -57,6 +65,7 @@ export function drawFrame({ context: ctx, engine, viewport, time, fonts }: TronF
   } else if (engine.state.phase === 'victory' || engine.state.phase === 'game_over') {
     drawGameOverOrVictory(ctx, engine, fonts)
   }
+  ctx.restore()
 
   // 9. Reset transform
   ctx.setTransform(1, 0, 0, 1, 0, 0)

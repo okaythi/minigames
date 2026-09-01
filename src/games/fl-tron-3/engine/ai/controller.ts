@@ -24,15 +24,15 @@ export class AIController {
     this.reactionTimer += dt
     const config = AI_CONFIGS[this.level]
 
-    if (this.reactionTimer < config.reactionTime) {
-      return
+    let proposal = { desiredDir: aiCycle.dir, wantsTurbo: false, intent: 'wander' as const }
+
+    if (this.reactionTimer >= config.reactionTime) {
+      proposal = this.personality.proposeMove(aiCycle, playerCycle, grid, this.reactionTimer)
+      this.reactionTimer = 0
     }
-    this.reactionTimer = 0
 
-    // 1. Personality Engine decides what it WANTS to do
-    const proposal = this.personality.proposeMove(aiCycle, playerCycle, grid, dt)
-
-    // 2. Survival Engine decides what it is ALLOWED to do (The Veto System)
+    // 2. Survival Engine ALWAYS runs every frame (The Veto System)
+    // This ensures Level 1 & 2 AI don't randomly crash into walls between their slow reaction ticks!
     const verdict = SurvivalEngine.evaluateVeto(aiCycle, proposal, grid)
 
     // 3. Execute the final approved direction

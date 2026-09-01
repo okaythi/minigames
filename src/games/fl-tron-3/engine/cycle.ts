@@ -36,7 +36,7 @@ export function createCycle(id: CycleId, col: number, row: number, dir: Directio
     turboTimer: 0,
     turboCooldown: 0,
     turboFlickerTimer: 0,
-    trail: [worldPos],
+    trail: [worldPos, { ...worldPos }],
   }
 }
 

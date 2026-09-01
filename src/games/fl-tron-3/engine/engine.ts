@@ -284,7 +284,7 @@ export class TronEngine {
       cycle.trail[cycle.trail.length - 1] = { x: cycle.x, y: cycle.y }
     }
 
-    const gridCoord = OccupancyGrid.worldToGrid(cycle.x, cycle.y)
+    const gridCoord = OccupancyGrid.worldToGridUnclamped(cycle.x, cycle.y)
     if (gridCoord.col !== cycle.col || gridCoord.row !== cycle.row) {
       // Check collision on entry into new grid cell
       if (!this.grid.isFree(gridCoord.col, gridCoord.row)) {

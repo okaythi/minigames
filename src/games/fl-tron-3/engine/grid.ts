@@ -50,6 +50,13 @@ export class OccupancyGrid {
     }
   }
 
+  public static worldToGridUnclamped(x: number, y: number): GridCoord {
+    return {
+      col: Math.floor((x - ARENA.paddingX) / ARENA.cellSize),
+      row: Math.floor((y - ARENA.paddingY) / ARENA.cellSize),
+    }
+  }
+
   public static worldToGrid(x: number, y: number): GridCoord {
     const col = Math.floor((x - ARENA.paddingX) / ARENA.cellSize)
     const row = Math.floor((y - ARENA.paddingY) / ARENA.cellSize)

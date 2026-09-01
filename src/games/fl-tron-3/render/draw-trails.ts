@@ -25,22 +25,9 @@ function drawSingleTrail(
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
-  // 1. Soft Outer Neon Glow
-  const glowAlpha = isTurbo ? 0.45 + Math.sin(time * 18) * 0.12 : 0.22
-  ctx.lineWidth = isTurbo ? 9 : 6
-  ctx.strokeStyle = withAlpha(glowColor, glowAlpha)
-  renderPolyline(ctx, trail)
-  ctx.stroke()
-
-  // 2. Primary Solid Light Wall
-  ctx.lineWidth = 4
+  // Primary Solid Light Wall
+  ctx.lineWidth = 7 // Matches RULES.trailWidth
   ctx.strokeStyle = baseColor
-  renderPolyline(ctx, trail)
-  ctx.stroke()
-
-  // 3. Inner Laser Core Highlight
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = withAlpha('#fffdf9', isTurbo ? 0.95 : 0.75)
   renderPolyline(ctx, trail)
   ctx.stroke()
 
