@@ -108,6 +108,10 @@ export function statsDevPlugin(): Plugin {
       }
 
       const handleStats = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+        if (headerOf(req, 'x-nixlabs-client') !== '1') {
+          sendJson(res, 400, { ok: false, error: 'invalid client' }, null)
+          return
+        }
         if (req.method === 'GET' || req.method === 'HEAD') {
           await withStore(async (store) => {
             const identity = await identitySignals(req, store)
@@ -155,6 +159,10 @@ export function statsDevPlugin(): Plugin {
       }
 
       const handleSync = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+        if (headerOf(req, 'x-nixlabs-client') !== '1') {
+          sendJson(res, 400, { ok: false, error: 'invalid client' }, null)
+          return
+        }
         if (req.method !== 'POST') {
           sendJson(res, 405, { ok: false, player: null, error: 'method not allowed' }, null)
           return

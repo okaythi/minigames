@@ -35,11 +35,13 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
           <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
             About
           </Link>
-          <button className="nx-nav-link" onClick={() => setSyncOpen(true)} style={{ marginLeft: 8 }}>
-            Sync
-          </button>
+          <div style={{ position: 'relative', marginLeft: 8, display: 'flex' }} id="nx-sync-container">
+            <button className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
+              Sync
+            </button>
+            <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
+          </div>
         </nav>
-        <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
       </div>
     </header>
   )

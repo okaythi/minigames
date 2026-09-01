@@ -45,7 +45,7 @@ export async function fetchAllStats(): Promise<StatsPayload | null> {
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
       method: 'GET',
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', 'x-nixlabs-client': '1' },
       cache: 'no-store',
       signal,
     })
@@ -66,7 +66,7 @@ const post = async (game: string, event: StatsEvent): Promise<PushPayload | null
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-nixlabs-client': '1' },
       body,
       signal,
     })
@@ -110,7 +110,7 @@ export async function claimSyncCode(code: string): Promise<unknown | null> {
   return withTimeout(async (signal) => {
     const response = await fetch(`${STATS_ENDPOINT}/sync`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-nixlabs-client': '1' },
       body: JSON.stringify({ syncCode: code }),
       signal,
     })
