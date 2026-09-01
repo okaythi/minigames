@@ -83,7 +83,7 @@ export function drawMainMenu(ctx: CanvasRenderingContext2D, fonts: TronFonts): v
   const btnX = (ARENA.width - btnW) / 2
   const btnY = panelY + panelH - 68
 
-  drawPrimaryButton(ctx, btnX, btnY, btnW, btnH, 'START CAMPAIGN', PALETTE.blue, PALETTE.blueDeep, fonts)
+  drawPrimaryButton(ctx, btnX, btnY, btnW, btnH, 'START CAMPAIGN', PALETTE.orange, PALETTE.orangeDeep, fonts)
 
   setCanvasFont(ctx, 650, 9, fonts.mono)
   ctx.fillStyle = withAlpha(PALETTE.slate, 0.8)

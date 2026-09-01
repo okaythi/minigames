@@ -15,10 +15,14 @@ export function GameHud({ manifest, snapshot }: GameHudProps) {
       <div className="nx-play-score">
         <span className="nx-eyebrow">{manifest.scoreLabel}</span>
         <strong className="nx-play-score-value" aria-live="polite" aria-atomic="true">
-          {snapshot.score}
+          {manifest.formatScore !== undefined
+            ? manifest.formatScore(snapshot.score)
+            : snapshot.score}
         </strong>
         <span className="nx-play-score-sub">
-          {snapshot.best === null ? 'no personal best yet' : `your best · ${snapshot.best}`}
+          {snapshot.best === null
+            ? 'no personal best yet'
+            : `your best · ${manifest.formatScore !== undefined ? manifest.formatScore(snapshot.best) : snapshot.best}`}
         </span>
       </div>
 

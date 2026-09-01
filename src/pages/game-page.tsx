@@ -56,12 +56,24 @@ export function GamePage({ slug }: GamePageProps) {
             <dd>{compactCount(stats.plays)}</dd>
           </div>
           <div>
-            <dt>Highscore</dt>
-            <dd>{highscore === null ? '' : highscore}</dd>
+            <dt>{manifest.formatScore !== undefined ? 'Best time' : 'Highscore'}</dt>
+            <dd>
+              {manifest.formatScore !== undefined
+                ? manifest.formatScore(highscore)
+                : highscore === null
+                  ? ''
+                  : highscore}
+            </dd>
           </div>
           <div>
             <dt>Global record</dt>
-            <dd>{stats.globalRecord === null ? '' : compactCount(stats.globalRecord)}</dd>
+            <dd>
+              {manifest.formatScore !== undefined
+                ? manifest.formatScore(stats.globalRecord)
+                : stats.globalRecord === null
+                  ? ''
+                  : compactCount(stats.globalRecord)}
+            </dd>
           </div>
           <div>
             <dt>{`${manifest.bonusLabel} bank`}</dt>

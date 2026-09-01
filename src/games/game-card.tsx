@@ -61,8 +61,14 @@ export function GameCard({ manifest }: { readonly manifest: GameManifest }) {
             </dd>
           </div>
           <div>
-            <dt>Highscore</dt>
-            <dd>{highscore === null ? '' : `${highscore}`}</dd>
+            <dt>{manifest.formatScore !== undefined ? 'Record' : 'Highscore'}</dt>
+            <dd>
+              {manifest.formatScore !== undefined
+                ? manifest.formatScore(highscore)
+                : highscore === null
+                  ? ''
+                  : `${highscore}`}
+            </dd>
           </div>
         </dl>
 

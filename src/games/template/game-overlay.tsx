@@ -28,7 +28,11 @@ export function GameOverlay({ runtime, manifest, snapshot }: GameOverlayProps) {
           <dl className="nx-play-card-stats">
             <div>
               <dt>{manifest.scoreLabel}</dt>
-              <dd>{snapshot.score}</dd>
+              <dd>
+                {manifest.formatScore !== undefined
+                  ? manifest.formatScore(snapshot.score)
+                  : snapshot.score}
+              </dd>
             </div>
             <div>
               <dt>{manifest.bonusLabel}</dt>
@@ -42,7 +46,11 @@ export function GameOverlay({ runtime, manifest, snapshot }: GameOverlayProps) {
             )}
             <div>
               <dt>Your best</dt>
-              <dd>{snapshot.best ?? 0}</dd>
+              <dd>
+                {manifest.formatScore !== undefined
+                  ? manifest.formatScore(snapshot.best)
+                  : snapshot.best ?? 0}
+              </dd>
             </div>
           </dl>
           {result?.isRecord === true && (
@@ -105,7 +113,12 @@ export function GameOverlay({ runtime, manifest, snapshot }: GameOverlayProps) {
           <Button variant="primary" size="large" onClick={() => runtime.actions.primary()}>
             Start
           </Button>
-          <span className="nx-play-card-hint">best {snapshot.best ?? 0}</span>
+          <span className="nx-play-card-hint">
+            best{' '}
+            {manifest.formatScore !== undefined
+              ? manifest.formatScore(snapshot.best)
+              : snapshot.best ?? 0}
+          </span>
         </div>
       </div>
     </div>

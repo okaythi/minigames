@@ -1,6 +1,7 @@
 import cover from './cover.jpg'
 import banner from './banner.jpg'
 import type { GameManifest, GameLegendItem } from '../types'
+import { formatTronScore } from './view-model'
 
 export const TRON_SLUG = 'fl-tron-3' as const
 
@@ -46,7 +47,8 @@ export const flTron3Manifest: GameManifest = {
 
   // --- copy for the shared chrome -------------------------------------------
   aspect: 3 / 4,
-  scoreLabel: 'Level',
+  scoreLabel: 'Clear Time',
+  formatScore: formatTronScore,
   bonusLabel: 'Turbos',
   runDurationLabel: 'Clear Time',
   primaryLabel: 'Play',

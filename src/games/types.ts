@@ -55,6 +55,8 @@ export interface GameManifest {
   readonly aspect: number
   /** What a point is called, e.g. `Bounces`. Uppercase-ish, it is a label. */
   readonly scoreLabel: string
+  /** Optional custom formatter for scores and records (e.g. time mm:ss:ms). */
+  readonly formatScore?: (score: number | null) => string
   /** What the bonus pickup is called, e.g. `Candy`. */
   readonly bonusLabel: string
   /** Optional run-duration label; Pong ends on points rather than elapsed time. */

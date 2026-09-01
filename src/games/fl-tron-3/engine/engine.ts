@@ -16,6 +16,7 @@ export class TronEngine {
   private aiController: AIController
   private accumulator = 0
   private isPaused = false
+  public isStarted = false
 
   public constructor(
     public readonly deps: { readonly current: GameRuntimeDeps },
@@ -29,10 +30,19 @@ export class TronEngine {
   }
 
   public publish(): void {
-    this.store.set(toGameSnapshot(this.state, this.deps.current.best, this.audio.isMuted))
+    this.store.set(toGameSnapshot(this.state, this.deps.current.best, this.audio.isMuted, this.isStarted))
   }
 
   public start(): void {
+    if (!this.isStarted) {
+      this.isStarted = true
+      this.state.phase = 'menu'
+      this.audio.unlock()
+      this.audio.play('ui')
+      this.publish()
+      return
+    }
+
     if (this.state.phase === 'menu') {
       this.startCampaign()
     } else if (this.state.phase === 'intermission') {

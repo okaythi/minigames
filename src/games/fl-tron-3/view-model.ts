@@ -29,9 +29,20 @@ export function formatRunTimeComponents(totalSeconds: number): { mmss: string; m
   }
 }
 
-export function toGameSnapshot(state: TronState, bestLevel: number | null, isMuted: boolean): GameSnapshot {
-  let status: GameRunStatus = 'ready'
-  if (state.phase === 'menu') {
+export function formatTronScore(score: number | null): string {
+  if (score === null || score <= 1000) return '--'
+  const elapsedSeconds = (1000000 - score) / 1000
+  return formatRunTime(elapsedSeconds)
+}
+
+export function toGameSnapshot(
+  state: TronState,
+  bestLevel: number | null,
+  isMuted: boolean,
+  isStarted = true,
+): GameSnapshot {
+  let status: GameRunStatus = 'running'
+  if (!isStarted) {
     status = 'ready'
   } else if (state.phase === 'victory' || state.phase === 'game_over') {
     status = 'over'
@@ -60,19 +71,10 @@ export function toGameSnapshot(state: TronState, bestLevel: number | null, isMut
     ? Math.floor(1000000 - state.elapsedRunSeconds * 1000)
     : state.level
 
-  const formatBest = (score: number | null) => {
-    if (score === null) return '--'
-    if (score > 1000) {
-      return formatRunTime((1000000 - score) / 1000)
-    }
-    return `LVL ${score}`
-  }
-
   const tiles: readonly GameStatTile[] = [
     {
       label: 'BEST RUN',
-      value: formatBest(bestLevel),
-      note: 'Global record',
+      value: formatTronScore(bestLevel),
     },
     {
       label: 'MATCH SCORE',
@@ -82,7 +84,6 @@ export function toGameSnapshot(state: TronState, bestLevel: number | null, isMut
     {
       label: 'ELAPSED TIME',
       value: timeFormatted,
-      note: 'Speedrun timer',
     },
     {
       label: 'TURBOS',
