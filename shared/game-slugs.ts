@@ -6,7 +6,7 @@
  * dev middleware read this file, so `vite dev` refuses exactly what production
  * refuses. Adding a game means one line here and one in the registry.
  */
-export const ALLOWED_SLUGS: readonly string[] = ['avoid-the-spikes', 'pong']
+export const ALLOWED_SLUGS: readonly string[] = ['avoid-the-spikes', 'pong', 'fl-tron-3']
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
 

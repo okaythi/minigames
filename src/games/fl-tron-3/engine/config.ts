@@ -1,0 +1,138 @@
+import type { AILevelConfig, DifficultyLevel } from './types'
+
+/**
+ * Logical arena dimensions.
+ *
+ * 480×640 maintains the 3:4 portrait aspect ratio while providing
+ * high spatial fidelity for discrete 6px light-grid cells.
+ */
+export const ARENA = {
+  width: 480,
+  height: 640,
+  cols: 80,
+  rows: 106,
+  cellSize: 6,
+  paddingX: 0,
+  paddingY: 2,
+} as const
+
+/** Match victory conditions. */
+export const RULES = {
+  totalLevels: 6,
+  roundsToWinLevel: 3,
+  playerTurbosPerRound: 3,
+  turboDurationSeconds: 1.2,
+  turboCooldownSeconds: 1.0,
+  turboSpeedMultiplier: 1.8,
+  baseCycleSpeed: 135, // pixels per second (~22.5 grid cells / sec)
+  cycleLength: 14,
+  cycleWidth: 6,
+  trailWidth: 4,
+} as const
+
+/** Target physics tick rates depending on screen refresh rate. */
+export const FRAMERATE_CONFIG = {
+  lowFpsThreshold: 61,
+  lowFpsTarget: 58.5,
+  minDt: 1 / 240,
+  maxDt: 1 / 30,
+} as const
+
+export const AI_CONFIGS: Readonly<Record<DifficultyLevel, AILevelConfig>> = {
+  1: {
+    level: 1,
+    name: 'Novice',
+    tagline: 'Basic navigation, predictable stair-steps',
+    description: 'Level 1: The Novice wanders in predictable stair-step patterns and has poor spatial awareness.',
+    reactionTime: 0.20,
+    lookaheadSteps: 2,
+    stairProbability: 0.50,
+    enjoysStairs: true,
+    fillQuality: 'none',
+    maxTurbos: 0,
+    infiniteTurbos: false,
+    offensiveTurbo: false,
+    useVoronoi: false,
+    interceptAggression: 0.0,
+  },
+  2: {
+    level: 2,
+    name: 'Scout',
+    tagline: 'Defensive evasion, exploratory space filling',
+    description: 'Level 2: The Scout attempts basic space fills and area clearing, but occasionally boxes itself in.',
+    reactionTime: 0.14,
+    lookaheadSteps: 4,
+    stairProbability: 0.35,
+    enjoysStairs: true,
+    fillQuality: 'imperfect',
+    maxTurbos: 0,
+    infiniteTurbos: false,
+    offensiveTurbo: false,
+    useVoronoi: false,
+    interceptAggression: 0.15,
+  },
+  3: {
+    level: 3,
+    name: 'Hunter',
+    tagline: 'Aggressive cutoff, flawless chamber fills',
+    description: 'Level 3: The Hunter shifts to active aggression, computing cutoff paths and clean dead-end-free fills.',
+    reactionTime: 0.09,
+    lookaheadSteps: 8,
+    stairProbability: 0.25,
+    enjoysStairs: true,
+    fillQuality: 'perfect',
+    maxTurbos: 2,
+    infiniteTurbos: false,
+    offensiveTurbo: false,
+    useVoronoi: false,
+    interceptAggression: 0.65,
+  },
+  4: {
+    level: 4,
+    name: 'Tactician',
+    tagline: 'Voronoi territory control & offensive turbos',
+    description: 'Level 4: The Tactician maximizes claimed territory with Voronoi evaluation and offensive turbo cutoffs.',
+    reactionTime: 0.06,
+    lookaheadSteps: 12,
+    stairProbability: 0.20,
+    enjoysStairs: true,
+    fillQuality: 'perfect',
+    maxTurbos: 3,
+    infiniteTurbos: false,
+    offensiveTurbo: true,
+    useVoronoi: true,
+    interceptAggression: 0.85,
+  },
+  5: {
+    level: 5,
+    name: 'Assassin',
+    tagline: '6-Turbo blitz, multi-heuristic trap calculator',
+    description: 'Level 5: The Assassin commands 6 turbos and evaluates 10 tactical criteria to pinch and box you against walls.',
+    reactionTime: 0.035,
+    lookaheadSteps: 16,
+    stairProbability: 0.18,
+    enjoysStairs: true,
+    fillQuality: 'perfect',
+    maxTurbos: 6,
+    infiniteTurbos: false,
+    offensiveTurbo: true,
+    useVoronoi: true,
+    interceptAggression: 0.95,
+  },
+  6: {
+    level: 6,
+    name: 'Master Core',
+    tagline: 'Infinite turbos, supreme minimax intercept',
+    description: 'Level 6: The ultimate cyber intelligence with infinite turbos and relentless predictive corridor constriction.',
+    reactionTime: 0.018,
+    lookaheadSteps: 22,
+    stairProbability: 0.15,
+    enjoysStairs: true,
+    fillQuality: 'perfect',
+    maxTurbos: Infinity,
+    infiniteTurbos: true,
+    offensiveTurbo: true,
+    useVoronoi: true,
+    interceptAggression: 1.0,
+  },
+}

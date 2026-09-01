@@ -1,0 +1,5 @@
+export { AIController } from './ai/controller'
+export { PersonalityEngine } from './ai/personality-engine'
+export { SurvivalEngine } from './ai/survival-engine'
+export { AIPatterns } from './ai/patterns'
+export type { AIIntent, MoveProposal, VetoVerdict, ChamberDiagnosis } from './ai/types'
