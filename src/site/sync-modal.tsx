@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { claimSyncCode } from '../services/stats/stats-api'
 import { Button } from '../components/ui/button'
+import './sync-modal.css'
+import { parseSyncCode } from '../../shared/player-cookie'
 
 export function SyncModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [code, setCode] = useState('')
@@ -15,24 +17,30 @@ export function SyncModal({ open, onClose }: { open: boolean; onClose: () => voi
         <h3>Enter Sync Code</h3>
         <p>Type the code shown on your other device to load your data.</p>
         <input
+          className="nx-input"
           aria-label="sync code"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="K9F2-P7X1"
+          placeholder="XXXX-XXXX"
         />
         <div style={{ marginTop: 12 }}>
           <Button onClick={onClose} variant="ghost">Cancel</Button>
           <Button
             onClick={async () => {
               setError(null)
+              const normalized = parseSyncCode(code)
+              if (normalized === null) {
+                setError('Code must be in the form XXXX-XXXX')
+                return
+              }
               setLoading(true)
-              const result = await claimSyncCode(code)
+              const result = await claimSyncCode(normalized)
               setLoading(false)
               if (result === null) {
                 setError('Invalid code or network error')
                 return
               }
-              // A cookie was set by the server; reload to pick up player row.
+              // A cookie was set by the server, reload to pick up player row *-*
               window.location.reload()
             }}
             variant="primary"

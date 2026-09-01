@@ -1,0 +1,56 @@
+.nx-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.6);
+  z-index: 60;
+}
+
+.nx-modal {
+  width: min(520px, 92%);
+  background: var(--nx-card);
+  border-radius: var(--nx-radius-lg);
+  padding: 20px;
+  box-shadow: var(--nx-shadow-lg);
+  color: var(--nx-ink);
+}
+
+.nx-modal h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+
+.nx-modal p {
+  margin: 0 0 12px 0;
+  color: var(--nx-slate);
+  font-size: 13px;
+}
+
+.nx-modal .nx-input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--nx-radius);
+  border: var(--nx-hairline);
+  background: var(--nx-card);
+  color: var(--nx-ink);
+  font-size: 14px;
+}
+
+.nx-modal .nx-input::placeholder {
+  color: var(--nx-slate);
+}
+
+.nx-modal [role="status"] {
+  margin-top: 8px;
+}
+
+@media (min-width: 420px) {
+  .nx-modal > div {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}
