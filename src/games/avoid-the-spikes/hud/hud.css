@@ -152,9 +152,12 @@
 
 /* Overlay ------------------------------------------------------------ */
 
+/* The scrim must not eat input: a click anywhere on the arena flaps, only the
+   card itself is interactive. */
 .avoid-overlay {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -170,6 +173,7 @@
 }
 
 .avoid-card {
+  pointer-events: auto;
   width: min(330px, 100%);
   display: grid;
   gap: 10px;
