@@ -8,8 +8,8 @@ export const PADDLE_EXTENSION_STEP = 0.15
 
 export const AI_SPEED_FACTORS: Readonly<Record<Difficulty, number>> = {
   easy: 0.7,
-  normal: 0.85,
-  hard: 0.95,
+  normal: 0.75,
+  hard: 0.8,
   'very-hard': 1,
 } as const
 

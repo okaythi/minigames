@@ -44,6 +44,8 @@ export function checkCollisions(state: PongState, handlers: CollisionHandlers): 
         s.notifications.push({ text: 'MAGNETIZED', time: 1.5, y: player.y - 30 })
       } else {
         bounceBall(s, player, -1)
+        s.aiReactionTimer = 0.08
+        s.aiErrorOffset = (Math.random() - 0.5) * (s.ai.w * 0.7)
         handlers.onPaddleHit()
       }
     } else if (s.playerGlassWallActive && ball.y > player.y) {
@@ -52,6 +54,8 @@ export function checkCollisions(state: PongState, handlers: CollisionHandlers): 
       ball.y = player.y - ball.radius
       ball.vy *= -1
       s.lastHitBy = 'player'
+      s.aiReactionTimer = 0.08
+      s.aiErrorOffset = (Math.random() - 0.5) * (s.ai.w * 0.7)
       s.notifications.push({ text: 'GLASS WALL SHATTERED', time: 2, y: player.y - 30 })
       handlers.onPaddleHit()
     }

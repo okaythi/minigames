@@ -70,4 +70,6 @@ export interface PongState {
 
   lastHitBy: 'player' | 'ai' | null
   notifications: PongNotification[]
+  aiReactionTimer: number
+  aiErrorOffset: number
 }

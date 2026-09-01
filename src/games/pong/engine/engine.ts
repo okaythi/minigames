@@ -78,6 +78,8 @@ export class PongEngine {
       playerGlassWallTimeRemaining: 0,
       lastHitBy: null,
       notifications: [],
+      aiReactionTimer: 0,
+      aiErrorOffset: 0,
     }
   }
 
@@ -129,6 +131,13 @@ export class PongEngine {
     this.state.lastHitBy = null
     this.state.candy = []
     this.state.candySpawnTimer = 8 + Math.random() * 6
+    if (dir === -1) {
+      this.state.aiReactionTimer = 0.08
+      this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
+    } else {
+      this.state.aiReactionTimer = 0
+      this.state.aiErrorOffset = 0
+    }
   }
 
   public releaseMagnetBall(): void {
@@ -136,6 +145,8 @@ export class PongEngine {
     this.state.ball.stuckToPlayer = false
     this.state.ball.stuckTime = 0
     bounceBall(this.state, this.state.player, -1)
+    this.state.aiReactionTimer = 0.08
+    this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
     this.audio.play('flap')
     this.state.notifications.push({ text: 'BALL RELEASED', time: 1.2, y: this.state.player.y - 30 })
   }
