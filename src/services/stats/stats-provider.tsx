@@ -11,7 +11,6 @@ import type { ReactNode } from 'react'
 import type {
   GameStatsRecord,
   PlayerRecord,
-  PongDifficulty,
   StatsMap,
 } from '../../../shared/stats-protocol'
 import { announceVisit, fetchAllStats, pushStatsEvent } from './stats-api'
@@ -41,8 +40,8 @@ export interface GameStatsView {
   readonly personalBest: number | null
   readonly globalRecord: number | null
   readonly candy: number
-  /** D1-backed Pong progression for this player. */
-  readonly completedDifficulties: readonly Exclude<PongDifficulty, 'very-hard'>[]
+  /** Game milestones or difficulties completed by this player. */
+  readonly completedDifficulties: readonly string[]
   /** True when the deployment really is counting across visitors. */
   readonly distributed: boolean
   /** False while the first fetch is in flight or after it failed. */

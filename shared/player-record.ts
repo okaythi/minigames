@@ -1,19 +1,15 @@
 import {
   isRecordOfStats,
-  isUnlockablePongDifficulty,
   readField,
   type PlayerGameRecord,
   type PlayerRecord,
   type StatsEvent,
-  type UnlockablePongDifficulty,
 } from './stats-protocol'
 import { isPlayerId, parseSyncCode } from './player-cookie'
 
 /**
  * The rules that decide what one event does to a player's own row. Pure, and
- * shared by every storage implementation (D1 mirrors the same arithmetic in
- * SQL, the in-memory store and the Vite dev file run this), so "banked candy"
- * cannot mean three different things.
+ * shared by every storage implementation.
  */
 
 export function emptyPlayerRecord(id: string): PlayerRecord {
@@ -50,7 +46,7 @@ export function applyPlayerEvent(
     return null
   }
   const perGame = perGameFor(record, game)
-  const completedDifficulties = completedDifficultiesFor(game, perGame, event)
+  const completedDifficulties = completedDifficultiesFor(perGame, event)
   return {
     ...record,
     highscore: maxScore(record.highscore, score),
@@ -69,11 +65,15 @@ export function applyPlayerEvent(
 }
 
 const completedDifficultiesFor = (
-  game: string,
   record: PlayerGameRecord,
   event: StatsEvent,
-): readonly UnlockablePongDifficulty[] => {
-  if (game !== 'pong' || event.type !== 'score' || event.won !== true || !isUnlockablePongDifficulty(event.difficulty)) {
+): readonly string[] => {
+  if (
+    event.type !== 'score' ||
+    event.won !== true ||
+    typeof event.difficulty !== 'string' ||
+    event.difficulty.length === 0
+  ) {
     return record.completedDifficulties
   }
   return record.completedDifficulties.includes(event.difficulty)
@@ -83,8 +83,7 @@ const completedDifficultiesFor = (
 
 /**
  * What a device that had never seen this account knows, folded into the account
- * it just claimed. Scores take the maximum, banks add up: two devices each
- * collected their own candy, and neither of those drops should be lost.
+ * it just claimed. Scores take the maximum, banks add up.
  */
 export function mergePlayerRecords(target: PlayerRecord, incoming: PlayerRecord): PlayerRecord {
   const games: Record<string, PlayerGameRecord> = { ...target.games }
@@ -99,7 +98,10 @@ export function mergePlayerRecords(target: PlayerRecord, incoming: PlayerRecord)
                 ? record.highscore
                 : maxScore(existing.highscore, record.highscore ?? 0),
             candy: existing.candy + record.candy,
-            completedDifficulties: mergeDifficulties(existing.completedDifficulties, record.completedDifficulties),
+            completedDifficulties: mergeDifficulties(
+              existing.completedDifficulties,
+              record.completedDifficulties,
+            ),
           }
   }
   return {
@@ -112,9 +114,9 @@ export function mergePlayerRecords(target: PlayerRecord, incoming: PlayerRecord)
 }
 
 const mergeDifficulties = (
-  left: readonly UnlockablePongDifficulty[],
-  right: readonly UnlockablePongDifficulty[],
-): readonly UnlockablePongDifficulty[] => [...new Set([...left, ...right])]
+  left: readonly string[],
+  right: readonly string[],
+): readonly string[] => [...new Set([...left, ...right])]
 
 const perGameFor = (record: PlayerRecord, game: string): PlayerGameRecord =>
   record.games[game] ?? { highscore: null, candy: 0, completedDifficulties: [] }
@@ -128,13 +130,13 @@ const MAX_SCORE = 1_000_000
 
 // --- parsing: the same shape, validated on the way in -------------------------
 
-export function readCompletedDifficulties(value: unknown): readonly UnlockablePongDifficulty[] {
+export function readCompletedDifficulties(value: unknown): readonly string[] {
   if (!Array.isArray(value)) {
     return []
   }
-  const result: UnlockablePongDifficulty[] = []
+  const result: string[] = []
   for (const entry of value) {
-    if (isUnlockablePongDifficulty(entry) && !result.includes(entry)) {
+    if (typeof entry === 'string' && entry.length > 0 && entry.length <= 32 && !result.includes(entry)) {
       result.push(entry)
     }
   }

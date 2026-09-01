@@ -1,10 +1,10 @@
 import { Highlighted } from './highlight'
-import type { SearchHit } from './use-game-search'
+import type { SearchResult } from './use-game-search'
 
 interface SearchResultsProps {
   readonly listId: string
   readonly showPanel: boolean
-  readonly results: readonly SearchHit[]
+  readonly results: readonly SearchResult[]
   readonly trimmed: string
   readonly activeIndex: number
   readonly status: string
@@ -56,7 +56,7 @@ export function SearchResults({
                     <span className="nx-search-tagline">{result.manifest.tagline}</span>
                   </span>
                   <span className="nx-search-meta">
-                    {result.matchedTags.slice(0, 1).map((tag) => (
+                    {result.matchedTags.slice(0, 1).map((tag: string) => (
                       <em key={tag}>{tag}</em>
                     ))}
                     <svg viewBox="0 0 16 16" aria-hidden="true">

@@ -3,7 +3,8 @@ import { ARENA, COSTS } from './engine/config'
 import type { PongEngine } from './engine/engine'
 import type { GameHost } from '../runtime/types'
 import { drawFrame, fontsFor, createFx, captureFx, advanceFx, type PongFx } from './render/render'
-import { itemYFor, SHOP_ITEMS } from './render/draw-menus'
+import { SHOP_ITEMS } from './render/draw-menus'
+import { itemYFor } from './render/draw-powerups'
 
 export function attachPongGame(host: GameHost, engine: PongEngine): DisposableBag {
   const bag = new DisposableBag()

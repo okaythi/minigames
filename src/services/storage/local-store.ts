@@ -6,7 +6,7 @@
 const PREFIX = 'nixlabs.'
 
 interface SafeStorage {
-  read<T>(key: string, fallback: T): T
+  read<T>(key: string, fallback: T, validator?: (val: unknown) => val is T): T
   write<T>(key: string, value: T): boolean
   remove(key: string): void
 }
@@ -41,13 +41,19 @@ const revive = (raw: string | null): unknown => {
 }
 
 export const localStore: SafeStorage = {
-  read<T>(key: string, fallback: T): T {
+  read<T>(key: string, fallback: T, validator?: (val: unknown) => val is T): T {
     const driver = storage()
     if (driver === null) {
       return fallback
     }
     const value = revive(driver.getItem(PREFIX + key))
-    return value === undefined ? fallback : (value as T)
+    if (value === undefined) {
+      return fallback
+    }
+    if (validator !== undefined) {
+      return validator(value) ? value : fallback
+    }
+    return value as T
   },
 
   write<T>(key: string, value: T): boolean {

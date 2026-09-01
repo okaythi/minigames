@@ -76,7 +76,7 @@ export interface GameManifest {
 
 export interface GameModule {
   readonly manifest: GameManifest
-  readonly Component: React.LazyExoticComponent<React.ComponentType<any>>
+  readonly Component: React.LazyExoticComponent<React.ComponentType<Record<string, never>>>
 }
 
 export const isPlayable = (manifest: GameManifest): boolean => manifest.status !== 'coming-soon'

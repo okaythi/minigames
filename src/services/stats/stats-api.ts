@@ -118,7 +118,7 @@ export async function announceVisit(): Promise<number | null> {
  * merged `player` row and sets a cookie on success. On success the caller
  * should refresh remote state so the UI reflects the new player row.
  */
-export async function claimSyncCode(code: string): Promise<unknown | null> {
+export async function claimSyncCode(code: string): Promise<PlayerRecord | null> {
   return withTimeout(async (signal) => {
     const response = await fetch(`${STATS_ENDPOINT}/sync`, {
       method: 'POST',
@@ -130,6 +130,6 @@ export async function claimSyncCode(code: string): Promise<unknown | null> {
       return null
     }
     const payload: unknown = await response.json()
-    return readField(payload, 'player') ?? null
+    return parsePlayerRecord(readField(payload, 'player'))
   })
 }

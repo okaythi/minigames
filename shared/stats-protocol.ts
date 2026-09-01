@@ -20,21 +20,11 @@ export interface GameStatsRecord {
 
 export type StatsMap = Readonly<Record<string, GameStatsRecord>>
 
-/** One game, as this player left it. */
-export type PongDifficulty = 'easy' | 'normal' | 'hard' | 'very-hard'
-export type UnlockablePongDifficulty = Exclude<PongDifficulty, 'very-hard'>
-
-export const isPongDifficulty = (value: unknown): value is PongDifficulty =>
-  value === 'easy' || value === 'normal' || value === 'hard' || value === 'very-hard'
-
-export const isUnlockablePongDifficulty = (value: unknown): value is UnlockablePongDifficulty =>
-  value === 'easy' || value === 'normal' || value === 'hard'
-
 export interface PlayerGameRecord {
   readonly highscore: number | null
   readonly candy: number
-  /** Pong difficulties this player has won at least once. */
-  readonly completedDifficulties: readonly UnlockablePongDifficulty[]
+  /** Game milestones or difficulties this player has completed. */
+  readonly completedDifficulties: readonly string[]
 }
 
 /**
@@ -71,8 +61,8 @@ export interface PlayEvent {
 export interface ScoreEvent {
   readonly type: 'score'
   readonly score: number
-  /** Optional game progression metadata, currently used by Pong. */
-  readonly difficulty?: PongDifficulty
+  /** Optional game progression metadata. */
+  readonly difficulty?: string
   readonly won?: boolean
 }
 
@@ -236,11 +226,9 @@ export function parseStatsEventBody(value: unknown): StatsEventRequestBody | nul
       return { game, event: { type: 'candy', amount: Math.floor(amount) }, nonce: cleanNonce }
     }
 
-    const difficulty = readField(eventRaw, 'difficulty')
+    const difficultyRaw = readField(eventRaw, 'difficulty')
+    const difficulty = typeof difficultyRaw === 'string' && difficultyRaw.length > 0 && difficultyRaw.length <= 32 ? difficultyRaw : undefined
     const won = readField(eventRaw, 'won')
-    if (difficulty !== undefined && !isPongDifficulty(difficulty)) {
-      return null
-    }
     if (won !== undefined && typeof won !== 'boolean') {
       return null
     }
