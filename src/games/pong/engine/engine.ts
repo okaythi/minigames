@@ -4,6 +4,7 @@ import type { GameSnapshot, GameRunStatus, GameStatTile } from '../../template/s
 import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE, AI_SPEED_FACTORS, extensionScale } from './config'
 import { activatePowerupState } from './powerups'
 import { updateAI } from './ai'
+import type { AudioEngine } from './audio/audio-engine'
 
 export type Difficulty = 'easy' | 'normal' | 'hard' | 'very-hard'
 export type Mode = 11 | 21 | 30
@@ -50,13 +51,15 @@ export class PongEngine {
   state: PongState
   deps: { readonly current: GameRuntimeDeps }
   store: Store<GameSnapshot>
+  audio: AudioEngine
   frameId = 0
   pointerX = ARENA.width / 2
   pointerDown = false
 
-  constructor(deps: { readonly current: GameRuntimeDeps }, store: Store<GameSnapshot>) {
+  constructor(deps: { readonly current: GameRuntimeDeps }, store: Store<GameSnapshot>, audio: AudioEngine) {
     this.deps = deps
     this.store = store
+    this.audio = audio
     this.state = this.initialState()
   }
 
@@ -114,9 +117,11 @@ export class PongEngine {
   }
 
   startMatch() {
+    this.audio.unlock()
     this.state.phase = 'playing'
     this.deps.current.beginRun()
     this.resetBall(1)
+    this.audio.play('start')
   }
 
   resetBall(dir: 1 | -1) {
@@ -145,13 +150,17 @@ export class PongEngine {
     this.state = this.initialState()
     this.publish('ready')
   }
-  toggleMute() {}
+  toggleMute() { this.audio.toggleMute() }
   dispose() {}
 
   update(dt: number) {
     if (this.state.phase === 'playing') {
        this.stepPhysics(dt)
-       updateAI(this.state, dt, (idx) => activatePowerupState(this.state, idx, false))
+       updateAI(this.state, dt, (idx) => {
+         if (activatePowerupState(this.state, idx, false)) {
+           this.audio.play('powerup')
+         }
+       })
        this.checkCollisions()
        this.updatePowerups(dt)
        this.updateCandy(dt)
@@ -198,9 +207,11 @@ export class PongEngine {
     if (s.ball.x - s.ball.radius <= 0) {
        s.ball.x = s.ball.radius
        s.ball.vx *= -1
+       this.audio.play('bounce')
     } else if (s.ball.x + s.ball.radius >= ARENA.width) {
        s.ball.x = ARENA.width - s.ball.radius
        s.ball.vx *= -1
+       this.audio.play('bounce')
     }
 
     for (let i = s.notifications.length - 1; i >= 0; i--) {
@@ -225,6 +236,8 @@ export class PongEngine {
 
     s.ball.vx = s.ball.speed * Math.sin(angle)
     s.ball.vy = s.ball.speed * Math.cos(angle) * dir
+    
+    this.audio.play('flap')
   }
 
   checkCollisions() {
@@ -266,10 +279,12 @@ export class PongEngine {
 
     if (ball.y < 0) {
        s.playerScore++
+       this.audio.play('bounce')
        this.checkWin()
        if (s.phase === 'playing') this.resetBall(-1)
     } else if (ball.y > ARENA.height) {
        s.aiScore++
+       this.audio.play('bounce')
        this.checkWin()
        if (s.phase === 'playing') this.resetBall(1)
     }
@@ -304,6 +319,7 @@ export class PongEngine {
           if (dist <= s.ball.radius + c.radius && s.lastHitBy === 'player') {
              c.active = false
              c.claimedBy = 'player'
+             this.audio.play('candy')
              this.deps.current.bankBonus(5)
              s.notifications.push({ text: '+5 CANDY', time: 1.5, y: c.y - 20 })
           }
@@ -359,7 +375,9 @@ export class PongEngine {
       if (['1','2','3','4','5','6','7'].includes(key)) {
         const idx = parseInt(key) - 1
         if (idx < this.state.slots.length && this.state.slots[idx]) {
-          activatePowerupState(this.state, idx, true)
+          if (activatePowerupState(this.state, idx, true)) {
+            this.audio.play('powerup')
+          }
         }
       }
     }

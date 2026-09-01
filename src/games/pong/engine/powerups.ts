@@ -1,10 +1,10 @@
 import type { PongState } from './engine'
 import { POWERUP_DURATIONS } from './config'
 
-export function activatePowerupState(state: PongState, slotIndex: number, isPlayer: boolean): void {
+export function activatePowerupState(state: PongState, slotIndex: number, isPlayer: boolean): boolean {
   const slots = isPlayer ? state.slots : state.aiSlots
   const type = slots[slotIndex]
-  if (!type) return
+  if (!type) return false
 
   slots[slotIndex] = null
 
@@ -32,4 +32,5 @@ export function activatePowerupState(state: PongState, slotIndex: number, isPlay
   } else if (type === 'fast-ball') {
     state.ball.speed *= 1.5
   }
+  return true
 }

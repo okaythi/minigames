@@ -4,11 +4,18 @@ import type { GameRuntime, GameRuntimeDeps } from '../template/types'
 import { emptyGameSnapshot } from '../template/snapshot'
 import { PongEngine } from './engine/engine'
 import { attachPongRender } from './render/render'
+import { AudioEngine } from './engine/audio/audio-engine'
 
 export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): GameRuntime {
   const store = createStore<GameSnapshot>(emptyGameSnapshot())
 
-  const engine = new PongEngine(deps, store)
+  const audio = new AudioEngine({
+    onMutedChange: () => {
+      store.update((snapshot) => ({ ...snapshot, muted: audio.isMuted }))
+    },
+  })
+
+  const engine = new PongEngine(deps, store, audio)
 
   return {
     store,
@@ -20,6 +27,10 @@ export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): 
       toggleMute: () => engine.toggleMute(),
     },
     attach: (host) => attachPongRender(engine, host),
-    dispose: () => engine.dispose(),
+    dispose: () => {
+      engine.dispose()
+      audio.dispose()
+    },
   }
 }
+
