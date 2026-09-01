@@ -2,19 +2,23 @@
 
 A game is a folder. The site discovers it through one registry line; nothing else changes.
 
+**A game never ships a component.** The page around the canvas - readout panel, overlay cards,
+pause on scroll-away, mute, the stats round trip - is drawn once, in `src/games/template/`, for
+every game. A folder contributes an engine, a manifest of strings, and one function that builds
+the runtime. That is what keeps nine games looking like one site.
+
 ## 1. Create the folder
 
 ```
 src/games/<slug>/
-  index.ts          exports the GameModule
-  manifest.ts       what the menu, the cards and the search box show
-  <slug>-view.tsx   the React shell: canvas host + HUD + overlays
-  state.ts          the immutable snapshot the HUD is allowed to read
-  runtime.ts        builds the engine, owns audio/random/persistence
+  index.ts          exports the GameModule: { manifest, createRuntime }
+  manifest.ts       every word the chrome shows, plus the card and page copy
+  state.ts          the engine's own immutable snapshot
+  view-model.ts     state.ts -> the shared GameSnapshot (tiles, badges, run summary)
+  runtime.ts        builds the engine, owns audio/random, exposes the five actions
   cover.jpg         3:2 card art (keep it under ~40 KB)
   engine/           the simulation
   render/           canvas layers
-  hud/              DOM readout
 ```
 
 `<slug>` is kebab-case and becomes the URL (`/games/<slug>`) and the localStorage/stats key, so
@@ -39,24 +43,66 @@ export const myGameManifest: GameManifest = {
   cover,
   controls: [{ input: 'Click', action: 'Do the thing' }],
   mechanics: [{ title: 'The hook', body: 'Why it works.' }],
-  scores: true, // submits highscores to the global record
-  scoreUnit: 'points',
   year: 2026,
+
+  // Copy for the shared chrome - the only way a game can talk about its own page.
+  aspect: 3 / 4, // canvas box: width / height
+  scoreLabel: 'Points',
+  bonusLabel: 'Coins',
+  primaryLabel: 'Jump', // label on the primary button while running
+  scoringNote: 'One point per ring cleared.',
+  startLine: 'Click, tap or hit Space.',
+  intro: 'Two sentences on the start card.',
+  pauseNote: 'One line on the pause card.',
+  tip: 'One line at the bottom of the readout.',
+  legend: [{ swatch: 'orange', text: 'the thing you must not touch' }],
 }
 ```
 
 The grid, the search bar, the card and the game page are all driven off this object. Titles are
 matched with a fuzzy matcher over `title`, `tags` and `slug`, so no search registration is needed.
 
+The template renders exactly what a game publishes (`src/games/template/snapshot.ts`):
+
+```ts
+interface GameSnapshot {
+  status: 'ready' | 'running' | 'paused' | 'over'
+  score: number
+  best: number | null
+  bonus: number
+  tiles: readonly { label: string; value: string; note: string }[] // the readout panel
+  badges: readonly string[] // tags under it
+  run: { score; bonus; seconds; note; isRecord; beatBestBy } | null // the game-over card
+  muted: boolean
+}
+```
+
+So a game shows a number on the page by putting it in `tiles`. It never adds markup.
+
 ## 3. Export the module
 
 ```ts
 import type { GameModule } from '../types'
 import { myGameManifest } from './manifest'
-import { MyGameView } from './my-game-view'
+import { createMyGameRuntime } from './runtime'
 
-export const myGame: GameModule = { manifest: myGameManifest, View: MyGameView }
+export const myGame: GameModule = { manifest: myGameManifest, createRuntime: createMyGameRuntime }
 ```
+
+`createRuntime(deps)` returns the one object the chrome drives:
+
+```ts
+{
+  store: Store<GameSnapshot>,                 // what the HUD renders
+  actions: { primary, pause, resume, restart, toggleMute },
+  attach: (host) => Disposable,               // the canvas layers
+  dispose: () => void,                        // audio, listeners, anything else
+}
+```
+
+`deps` is a live ref, so the engine reads `deps.current.best` when a run starts instead of
+capturing a stale value: `{ best, bonus, beginRun(), finishRun(score), bankBonus(amount) }` -
+the whole interface between a game and the stats service. Nothing in `engine/` imports React.
 
 ## 4. Register it
 

@@ -1,6 +1,7 @@
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { Tag } from '../components/ui/tag'
+import { GameTemplate } from '../games/template/game-template'
 import { compactCount } from '../lib/format'
 import { findGame } from '../games/registry'
 import { useGameStats } from '../services/stats/stats-provider'
@@ -26,7 +27,7 @@ export function GamePage({ slug }: GamePageProps) {
     return <NotFoundPage path={`/games/${slug}`} />
   }
 
-  const { manifest, View } = game
+  const { manifest } = game
   const highscore = stats.personalBest ?? stats.globalRecord
 
   return (
@@ -63,7 +64,7 @@ export function GamePage({ slug }: GamePageProps) {
             <dd>{stats.globalRecord === null ? '' : compactCount(stats.globalRecord)}</dd>
           </div>
           <div>
-            <dt>Candy bank</dt>
+            <dt>{`${manifest.bonusLabel} bank`}</dt>
             <dd>{compactCount(stats.candy)}</dd>
           </div>
         </dl>
@@ -74,7 +75,7 @@ export function GamePage({ slug }: GamePageProps) {
       )}
 
       <div className="nx-game-play">
-        <View />
+        <GameTemplate game={game} />
       </div>
 
       <section className="nx-game-notes">
@@ -104,7 +105,7 @@ export function GamePage({ slug }: GamePageProps) {
           </dl>
           <h2>Scoring</h2>
           <p className="nx-game-side-note">
-            One point per wall bounce. <Tag>{manifest.scoreUnit}</Tag>
+            {manifest.scoringNote} <Tag>{manifest.scoreLabel}</Tag>
           </p>
           <ul className="nx-game-tags">
             {manifest.tags.map((tag) => (

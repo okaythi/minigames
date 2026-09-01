@@ -1,8 +1,15 @@
 import cover from './cover.jpg'
 import banner from './banner.jpg'
-import type { GameManifest } from '../types'
+import { ARENA, MOVERS } from './engine/config'
+import type { GameManifest, GameLegendItem } from '../types'
 
 export const AVOID_SLUG = 'avoid-the-spikes' as const
+
+const LEGEND: readonly GameLegendItem[] = [
+  { swatch: 'graphite', text: 'ceiling and floor are always teeth' },
+  { swatch: 'orange', text: 'wall spikes, re-rolled on every bounce' },
+  { swatch: 'red', text: `floating spikes, from ${MOVERS.unlockScore} bounces` },
+]
 
 export const avoidTheSpikesManifest: GameManifest = {
   slug: AVOID_SLUG,
@@ -56,7 +63,21 @@ export const avoidTheSpikesManifest: GameManifest = {
       body: 'Gems and candy appear in the middle band. Every piece you grab is banked to localStorage and stays banked between runs.',
     },
   ],
-  scores: true,
-  scoreUnit: 'bounces',
   year: 2026,
+
+  // --- copy for the shared chrome -------------------------------------------
+  //
+  // The page, the HUD and the overlay cards are the same components for every
+  // game, so the only thing this folder gets to say about them is here.
+  aspect: ARENA.width / ARENA.height,
+  scoreLabel: 'Bounces',
+  bonusLabel: 'Candy',
+  primaryLabel: 'Flap',
+  scoringNote: 'One point per wall bounce - a graze of a spike tip is a save, not a score.',
+  startLine: 'Click, tap or hit Space to flap.',
+  intro:
+    'You fall constantly. A flap throws you up and forward; the walls bounce you back and score a point - but each touch grows a new row of spikes on the wall you are flying to.',
+  pauseNote: 'Bounce off a wall for +1. Landing on a tooth, the ceiling or the floor ends the run.',
+  tip: 'Every bounce arms the wall you are heading to next. Watch the orange teeth, not the ones behind you.',
+  legend: LEGEND,
 }

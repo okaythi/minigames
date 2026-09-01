@@ -1,38 +1,22 @@
 import { createRandom, entropySeed } from '../../lib/random'
-import { createStore, type Store } from '../../lib/observable-store'
+import { createStore } from '../../lib/observable-store'
 import { AudioEngine } from './engine/audio/audio-engine'
 import { AvoidSession } from './engine/session'
 import { attachAvoidGame } from './create-avoid-game'
-import { createSnapshot, type AvoidSnapshot } from './state'
-import { AVOID_SLUG } from './manifest'
-import type { GameViewFactory } from '../runtime/types'
+import { createSnapshot } from './state'
+import { describe } from './view-model'
+import type { GameSnapshot } from '../template/snapshot'
+import type { GameRuntime, GameRuntimeDeps } from '../template/types'
 
 /**
- * One object that owns everything the game needs outside React: the seeded
- * random source, the audio engine, the session and the HUD store.
+ * Everything the game needs outside React: the seeded random source, the audio
+ * engine, the session, and the store the shared chrome renders.
  *
  * Creation is side-effect free (the AudioContext only exists after a gesture),
  * which makes it safe under StrictMode's double render.
  */
-
-export interface AvoidRuntimeStats {
-  readonly personalBest: number | null
-  readonly candy: number
-  readonly beginRun: (slug: string) => void
-  readonly finishRun: (slug: string, score: number) => void
-  readonly bankCandy: (slug: string, amount: number) => void
-}
-
-export interface AvoidRuntime {
-  readonly store: Store<AvoidSnapshot>
-  readonly session: AvoidSession
-  readonly audio: AudioEngine
-  readonly attach: GameViewFactory
-  readonly dispose: () => void
-}
-
-export function createAvoidRuntime(stats: { current: AvoidRuntimeStats }): AvoidRuntime {
-  const store = createStore<AvoidSnapshot>(createSnapshot())
+export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }): GameRuntime {
+  const store = createStore<GameSnapshot>(describe(createSnapshot()))
   const audio = new AudioEngine({
     onMutedChange: () => {
       store.update((snapshot) => ({ ...snapshot, muted: audio.isMuted }))
@@ -43,28 +27,34 @@ export function createAvoidRuntime(stats: { current: AvoidRuntimeStats }): Avoid
   const session = new AvoidSession({
     audio,
     random,
-    best: stats.current.personalBest,
-    candyBank: stats.current.candy,
+    best: deps.current.best,
+    candyBank: deps.current.bonus,
     publish: (snapshot) => {
-      store.set(snapshot)
+      store.set(describe(snapshot))
     },
     onRunStarted: () => {
-      stats.current.beginRun(AVOID_SLUG)
+      deps.current.beginRun()
     },
     onRunFinished: (result) => {
-      stats.current.finishRun(AVOID_SLUG, result.score)
+      deps.current.finishRun(result.score)
     },
     onCandy: (delta) => {
-      stats.current.bankCandy(AVOID_SLUG, delta)
+      deps.current.bankBonus(delta)
     },
   })
 
-  store.set({ ...session.snapshotValue, muted: audio.isMuted })
+  store.set(describe(session.snapshotValue))
 
   return {
     store,
-    session,
-    audio,
+    actions: {
+      primary: () => session.primary(),
+      // The chrome only ever pauses; resuming is the player's decision.
+      pause: () => session.autoPause(),
+      resume: () => session.resume(),
+      restart: () => session.restart(),
+      toggleMute: () => session.toggleMute(),
+    },
     attach: (host) => attachAvoidGame(host, session),
     dispose: () => {
       audio.dispose()

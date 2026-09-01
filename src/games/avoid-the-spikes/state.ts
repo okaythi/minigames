@@ -29,13 +29,6 @@ export interface AvoidRunResult {
   readonly beatBestBy: number | null
 }
 
-export const DEATH_COPY: Readonly<Record<DeathCause, string>> = {
-  wall: 'You landed on a spike. Aim for the gap.',
-  ceiling: 'The ceiling is teeth. Cap your climb.',
-  floor: 'Gravity wins by default. Flap earlier.',
-  mover: 'A floating spike crossed your line.',
-}
-
 export const createSnapshot = (overrides: Partial<AvoidSnapshot> = {}): AvoidSnapshot => ({
   status: 'ready',
   score: 0,

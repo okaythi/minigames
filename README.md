@@ -61,14 +61,17 @@ src/
     game-card.tsx       image, title, description, times played, highscore
     game-grid.tsx       three columns
     runtime/            canvas host: DPR backing store, resize, rAF, visibility
+    template/           THE game page: snapshot contract, HUD, overlay, readout, CSS
     avoid-the-spikes/
-      manifest.ts       what the site shows
-      state.ts          the snapshot the HUD may read
+      index.ts          exports { manifest, createRuntime } - all the site sees
+      manifest.ts       every word the chrome shows, plus card and page copy
+      state.ts          the engine's own snapshot
+      view-model.ts     engine snapshot -> GameSnapshot (tiles, badges, run summary)
+      runtime.ts        builds the engine, owns audio/random, exposes the five actions
       engine/           config, player, speed-curve, spike-factory, wall-spike-field,
                         movers, pickups, particles, screen-shake, collision (SAT),
                         geometry, session, audio/
       render/           layout + five draw layers + composer
-      hud/              DOM readout and overlay cards
       cover.jpg banner.jpg
 shared/
   stats-protocol.ts     wire format, shared by client and Pages Function

@@ -1,11 +1,12 @@
 import type { GameModule } from '../types'
 import { avoidTheSpikesManifest } from './manifest'
-import { AvoidTheSpikesView } from './avoid-the-spikes-view'
+import { createAvoidRuntime } from './runtime'
 
-/** What the registry sees: a manifest and a React view. Nothing else escapes. */
+/**
+ * What the registry sees: the words and pictures the site displays, plus the
+ * factory behind the shared chrome. Nothing else escapes the folder.
+ */
 export const avoidTheSpikes: GameModule = {
   manifest: avoidTheSpikesManifest,
-  View: AvoidTheSpikesView,
+  createRuntime: createAvoidRuntime,
 }
-
-export { AVOID_SLUG, avoidTheSpikesManifest } from './manifest'
