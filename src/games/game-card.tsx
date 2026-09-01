@@ -45,7 +45,7 @@ export function GameCard({ manifest }: { readonly manifest: GameManifest }) {
           <h3 className="nx-card-title">
             <Link to={ROUTES.game(manifest.slug)}>{manifest.title}</Link>
           </h3>
-          <Tag>{STATUS_LABEL[manifest.status]}</Tag>
+          {manifest.status !== 'playable' && <Tag>{STATUS_LABEL[manifest.status]}</Tag>}
         </div>
 
         <p className="nx-card-desc">{manifest.description}</p>

@@ -17,7 +17,7 @@ export const flTron3Manifest: GameManifest = {
   description:
     'A high-speed light cycle arena duel. Navigate a top-down 2D grid, lay down solid light walls, and force your opponent to crash across a 6-level campaign featuring scaling tactical AI.',
   status: 'playable',
-  accent: 'blue',
+  accent: 'orange',
   tags: ['arcade', 'retro', 'tron', 'cyberpunk', 'reflex', 'canvas'],
   cover,
   banner,
