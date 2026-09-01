@@ -60,6 +60,23 @@ export const registerScore = (slug: string, score: number): LocalCounters => {
 }
 
 export const bankCandy = (slug: string, amount: number): LocalCounters => {
+  if (amount < 0) {
+    let remaining = -amount
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith('nixlabs.stats.')) {
+        const gameSlug = key.slice('nixlabs.stats.'.length)
+        const current = readLocalCounters(gameSlug)
+        if (current.candy > 0) {
+          const deduct = Math.min(current.candy, remaining)
+          patchLocalCounters(gameSlug, { candy: current.candy - deduct })
+          remaining -= deduct
+        }
+        if (remaining <= 0) break
+      }
+    }
+    return readLocalCounters(slug)
+  }
   const current = readLocalCounters(slug)
   return patchLocalCounters(slug, { candy: Math.max(0, current.candy + amount) })
 }
@@ -87,4 +104,20 @@ export function subscribeLocalCounters(listener: Listener): () => void {
     listeners.delete(listener)
     offStorage()
   }
+}
+
+export function readGlobalCandy(): number {
+  let total = 0
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith('nixlabs.stats.')) {
+      try {
+        const stored = JSON.parse(localStorage.getItem(key) ?? '{}')
+        if (typeof stored.candy === 'number' && stored.candy > 0) {
+          total += Math.floor(stored.candy)
+        }
+      } catch {}
+    }
+  }
+  return total
 }

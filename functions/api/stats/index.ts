@@ -29,6 +29,9 @@ interface PagesContext {
 }
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
+  if (request.headers.get('x-nixlabs-client') !== '1') {
+    return badRequest('invalid client')
+  }
   const store = storeFor(env)
   const { playerId, cookie } = await identifyPlayer(request, store)
   const { games, uniquePlayers, player } = await store.snapshot(playerId)
@@ -48,6 +51,9 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
+  if (request.headers.get('x-nixlabs-client') !== '1') {
+    return badRequest('invalid client')
+  }
   if (!(request.headers.get('content-type') ?? '').includes('application/json')) {
     return badRequest('expected application/json')
   }

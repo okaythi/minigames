@@ -92,9 +92,9 @@ const perGameFor = (record: PlayerRecord, game: string): PlayerGameRecord =>
 
 /** A number off the wire, bounded: nobody banks a million candy in one frame. */
 const wholeCount = (value: number, max: number): number | null =>
-  Number.isFinite(value) && value >= 0 ? Math.min(max, Math.floor(value)) : null
+  Number.isFinite(value) && Math.abs(value) <= max ? Math.floor(value) : null
 
-const MAX_CANDY_GRAB = 100
+const MAX_CANDY_GRAB = 10000
 const MAX_SCORE = 1_000_000
 
 // --- parsing: the same shape, validated on the way in -------------------------

@@ -212,7 +212,10 @@ export function parseStatsEventBody(value: unknown): StatsEventRequestBody | nul
   if (type === 'score' || type === 'candy') {
     const key = type === 'score' ? 'score' : 'amount'
     const amount = readField(eventRaw, key)
-    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+      return null
+    }
+    if (type === 'score' && amount < 0) {
       return null
     }
     return type === 'score'
