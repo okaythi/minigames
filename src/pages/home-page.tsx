@@ -19,7 +19,7 @@ export function HomePage() {
     <div className="nx-home">
       <section className="nx-hero">
         <div className="nx-hero-copy">
-          <h1>Small games, shipped from the lab.</h1>
+          <h1>Small games, shipped from my lab.</h1>
           <p className="nx-lede">A collection of games previously made by me and new ones!</p>
         </div>
         <dl className="nx-hero-stats">
