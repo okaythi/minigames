@@ -1,24 +1,36 @@
 {
-  "name": "minigames",
+  "name": "nixlabs-games",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "description": "Nixlabs Games - a collection of hand-built HTML5 + TypeScript minigames, shipped as a Cloudflare Pages site.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "clean": "rm -rf dist .nixlabs node_modules/.tmp",
+    "deploy": "npm run build && npx --yes wrangler pages deploy dist --project-name nixlabs-games",
+    "preview:functions": "npm run build && npx --yes wrangler pages dev dist --d1 NIXLABS_DB=nix-minigames",
+    "db:init": "npx --yes wrangler d1 migrations apply nix-minigames --local",
+    "db:migrate": "npx --yes wrangler d1 migrations apply nix-minigames --remote",
+    "simulate": "esbuild scripts/simulate-avoid.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/simulate.mjs --log-level=warning && node node_modules/.tmp/simulate.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
     "@types/node": "^26.4.0",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
+    "esbuild": "^0.28.2",
     "typescript": "^5.8.3",
     "vite": "^7.1.5"
+  },
+  "engines": {
+    "node": ">=20.11"
   }
 }

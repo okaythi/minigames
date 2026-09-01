@@ -1,0 +1,22 @@
+.nx-surface {
+  position: relative;
+  width: 100%;
+  border-radius: var(--nx-radius-lg);
+  background: radial-gradient(120% 90% at 50% -10%, #fffdf9 0%, var(--nx-card) 45%, var(--nx-sand) 100%);
+  overflow: hidden;
+}
+
+.nx-surface-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: crosshair;
+}
+
+.nx-surface-canvas:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--nx-orange);
+}

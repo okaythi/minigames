@@ -1,0 +1,22 @@
+{
+  "name": "Nixlabs Games",
+  "short_name": "Nixlabs",
+  "description": "A collection of hand-built HTML5 + TypeScript minigames.",
+  "start_url": "/",
+  "display": "minimal-ui",
+  "background_color": "#faf7f2",
+  "theme_color": "#f6821f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

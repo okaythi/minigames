@@ -1,0 +1,69 @@
+/*
+ * Nixlabs Games - design tokens.
+ * Cloudflare's orange, an off-white paper instead of pure #fff, and thin grey
+ * hairlines as the only structural ornament on the page.
+ */
+
+:root {
+  /* Brand - exact Cloudflare hexes. */
+  --nx-orange: #f6821f;
+  --nx-orange-bright: #fbad41;
+  --nx-orange-deep: #d96c12;
+  --nx-orange-glow: #ffd9a0;
+  --nx-orange-tint: #fdeadd;
+
+  /* Accents, tuned to the same warm chroma. */
+  --nx-blue: #1f6fd1;
+  --nx-blue-deep: #155aa8;
+  --nx-blue-tint: #e4eefb;
+  --nx-green: #1f9d5b;
+  --nx-green-deep: #167544;
+  --nx-green-tint: #e3f4ea;
+  --nx-red: #d8433d;
+  --nx-red-deep: #ab2f2a;
+  --nx-red-tint: #fbe7e5;
+
+  /* Neutrals - never pure white. */
+  --nx-paper: #faf7f2;
+  --nx-card: #fffdf9;
+  --nx-sand: #f2ece2;
+  --nx-ink: #232324;
+  --nx-graphite: #404041;
+  --nx-slate: #6f6d6a;
+  --nx-line: #e6e0d6;
+  --nx-line-strong: #d5cec2;
+
+  /* Type */
+  --nx-font-sans: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --nx-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas,
+    monospace;
+  --nx-tracking-tight: -0.022em;
+  --nx-tracking-wide: 0.06em;
+
+  /* Structure */
+  --nx-header-height: 58px;
+  --nx-page-width: 1140px;
+  --nx-gutter: 22px;
+  --nx-radius-sm: 6px;
+  --nx-radius: 10px;
+  --nx-radius-lg: 14px;
+  --nx-hairline: 1px solid var(--nx-line);
+  --nx-hairline-strong: 1px solid var(--nx-line-strong);
+  --nx-shadow-sm: 0 1px 1px rgba(35, 35, 36, 0.04);
+  --nx-shadow: 0 12px 30px -18px rgba(35, 35, 36, 0.35), 0 1px 2px rgba(35, 35, 36, 0.05);
+  --nx-shadow-lift: 0 22px 44px -22px rgba(35, 35, 36, 0.4), 0 2px 4px rgba(35, 35, 36, 0.06);
+  --nx-focus-ring: 0 0 0 3px rgba(246, 130, 31, 0.28);
+
+  /* Motion */
+  --nx-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --nx-duration: 180ms;
+
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --nx-duration: 1ms;
+  }
+}

@@ -1,0 +1,28 @@
+// Cloudflare Pages configuration.
+// Docs: https://developers.cloudflare.com/pages/
+//
+// The D1 database backs the global counters and the unique-player count:
+// `game_stats` (one row per game) and `players` (one row per anonymous
+// visitor). This project's database is `nix-minigames`
+// (id 4ef40a8b-d7d7-46cb-a489-b5914774cb03); the schema comes from ./migrations.
+//
+// Without the binding the Pages Function still answers, from memory, and
+// reports `distributed: false` - so a preview deploy or a bare `pages dev`
+// never 500s and never shows a fake global number.
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "nixlabs-games",
+  "compatibility_date": "2026-08-01",
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "NIXLABS_DB",
+      "database_name": "nix-minigames",
+      "database_id": "4ef40a8b-d7d7-46cb-a489-b5914774cb03",
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

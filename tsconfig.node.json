@@ -1,10 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    // The Vite config is bundled by Vite itself, so "Bundler" resolution is
+    // the honest setting here (extension-less relative imports are fine).
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "vite"]
 }
