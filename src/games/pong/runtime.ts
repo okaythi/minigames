@@ -3,7 +3,7 @@ import type { GameSnapshot } from '../template/snapshot'
 import type { GameRuntime, GameRuntimeDeps } from '../template/types'
 import { emptyGameSnapshot } from '../template/snapshot'
 import { PongEngine } from './engine/engine'
-import { attachPongRender } from './render/render'
+import { attachPongGame } from './create-pong-game'
 import { AudioEngine } from './engine/audio/audio-engine'
 
 export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): GameRuntime {
@@ -26,11 +26,10 @@ export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): 
       restart: () => engine.restart(),
       toggleMute: () => engine.toggleMute(),
     },
-    attach: (host) => attachPongRender(engine, host),
+    attach: (host) => attachPongGame(host, engine),
     dispose: () => {
       engine.dispose()
       audio.dispose()
     },
   }
 }
-

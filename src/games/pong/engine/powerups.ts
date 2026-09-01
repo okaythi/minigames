@@ -1,4 +1,4 @@
-import type { PongState } from './engine'
+import type { PongState, ActivePowerup } from './types'
 import { POWERUP_DURATIONS } from './config'
 
 export function activatePowerupState(state: PongState, slotIndex: number, isPlayer: boolean): boolean {
@@ -33,4 +33,27 @@ export function activatePowerupState(state: PongState, slotIndex: number, isPlay
     state.ball.speed *= 1.5
   }
   return true
+}
+
+export function updatePowerups(state: PongState, dt: number): void {
+  const tick = (pList: ActivePowerup[]) => {
+    for (let i = pList.length - 1; i >= 0; i--) {
+      const p = pList[i]
+      if (p) {
+        p.timeRemaining -= dt
+        if (p.timeRemaining <= 0) pList.splice(i, 1)
+      }
+    }
+  }
+  tick(state.player.activePowerups)
+  tick(state.ai.activePowerups)
+
+  if (state.playerGlassWallActive) {
+    state.playerGlassWallTimeRemaining -= dt
+    if (state.playerGlassWallTimeRemaining <= 0) {
+      state.playerGlassWallTimeRemaining = 0
+      state.playerGlassWallActive = false
+      state.notifications.push({ text: 'GLASS WALL GONE', time: 1.5, y: state.player.y - 30 })
+    }
+  }
 }
