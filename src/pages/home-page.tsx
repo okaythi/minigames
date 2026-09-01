@@ -16,13 +16,8 @@ export function HomePage() {
     <div className="nx-home">
       <section className="nx-hero">
         <div className="nx-hero-copy">
-          <p className="nx-eyebrow">Nixlabs · HTML5 + TypeScript</p>
           <h1>Small games, shipped from the lab.</h1>
-          <p className="nx-lede">
-            Each game is one folder: its own physics, its own renderer, its own
-            localStorage. The site is only a menu, a search box and a counter of how
-            many times the world has played them.
-          </p>
+          <p className="nx-lede">A collection of games previously made by me and new ones!</p>
         </div>
         <dl className="nx-hero-stats">
           <div>
@@ -32,10 +27,6 @@ export function HomePage() {
           <div>
             <dt>Per page</dt>
             <dd>9</dd>
-          </div>
-          <div>
-            <dt>Loads more</dt>
-            <dd>+{LOAD_MORE}</dd>
           </div>
         </dl>
       </section>

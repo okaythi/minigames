@@ -46,9 +46,6 @@ export function GamePage({ slug }: GamePageProps) {
           All games
         </Link>
         <div className="nx-game-title">
-          <p className="nx-eyebrow">
-            {manifest.slug} · {manifest.year}
-          </p>
           <h1>{manifest.title}</h1>
           <p className="nx-lede">{manifest.tagline}</p>
         </div>
