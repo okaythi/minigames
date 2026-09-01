@@ -1,4 +1,4 @@
-import { ARENA, HAZARDS, MOVERS, PLAYER, PHYSICS, SCORE } from './config'
+import { ARENA, HAZARDS, PLAYER, PHYSICS, SCORE } from './config'
 import { clamp } from '../../../lib/math'
 import { createPlayer, advance, advanceTrail, attachToWall, bounce, contactWith, flap } from './player'
 import { BoundarySpikeField, WallSpikeField } from './wall-spike-field'
@@ -6,7 +6,8 @@ import { createBoundarySpikes } from './spike-factory'
 import { MoverField } from './movers'
 import { PickupField } from './pickups'
 import { Feedback } from './feedback'
-import { crossingSeconds, difficultyTier, speedFactor } from './speed-curve'
+import { crossingSeconds } from './speed-curve'
+import { snapshotFor } from './snapshot'
 import { spikeNormal, playerRect } from './geometry'
 import type { AudioEngine } from './audio/audio-engine'
 import type { Random } from '../../../lib/random'
@@ -297,20 +298,7 @@ export class AvoidSession {
   }
 
   private publish(): void {
-    this.snapshot = createSnapshot({
-      status: this.status,
-      score: this.score,
-      best: this.best,
-      candyRun: this.candyRun,
-      candyBank: this.candyBank,
-      difficulty: difficultyTier(this.score),
-      speedFactor: speedFactor(this.score),
-      moversLive: this.movers.list().length,
-      hazardsArmed: this.walls.spikes(this.nextWall).length,
-      unlockedMovers: this.score >= MOVERS.unlockScore,
-      muted: this.muted,
-      lastRun: this.lastRun,
-    })
+    this.snapshot = snapshotFor(this)
     this.deps.publish(this.snapshot)
   }
 
