@@ -1,10 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
+import type { RefObject } from 'react'
 import { claimSyncCode } from '../services/stats/stats-api'
+import { useStatsController } from '../services/stats/stats-provider'
 import { Button } from '../components/ui/button'
 import './sync-modal.css'
 import { parseSyncCode } from '../../shared/player-cookie'
 
-export function SyncModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+interface SyncModalProps {
+  readonly open: boolean
+  readonly onClose: () => void
+  readonly triggerRef?: RefObject<HTMLElement | null>
+}
+
+export function SyncModal({ open, onClose, triggerRef }: SyncModalProps) {
+  const { refresh } = useStatsController()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -17,12 +26,13 @@ export function SyncModal({ open, onClose }: { open: boolean; onClose: () => voi
       if (e.key === 'Escape') onClose()
     }
     const handleClickOutside = (e: MouseEvent) => {
-      // Allow clicking on the sync button itself
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        const target = e.target as HTMLElement
-        if (!target.closest('#nx-sync-container')) {
-          onClose()
-        }
+      const target = e.target as Node
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        (!triggerRef?.current || !triggerRef.current.contains(target))
+      ) {
+        onClose()
       }
     }
 
@@ -32,7 +42,7 @@ export function SyncModal({ open, onClose }: { open: boolean; onClose: () => voi
       document.removeEventListener('keydown', handleEscape)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [open, onClose])
+  }, [open, onClose, triggerRef])
 
   if (!open) return null
 
@@ -48,7 +58,9 @@ export function SyncModal({ open, onClose }: { open: boolean; onClose: () => voi
         placeholder="XXXX-XXXX"
       />
       <div className="nx-sync-actions">
-        <Button onClick={onClose} variant="ghost" size="small">Cancel</Button>
+        <Button onClick={onClose} variant="ghost" size="small">
+          Cancel
+        </Button>
         <Button
           onClick={async () => {
             setError(null)
@@ -64,7 +76,8 @@ export function SyncModal({ open, onClose }: { open: boolean; onClose: () => voi
               setError('Invalid code or network error')
               return
             }
-            window.location.reload()
+            await refresh()
+            onClose()
           }}
           variant="primary"
           size="small"

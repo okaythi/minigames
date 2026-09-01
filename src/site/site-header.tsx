@@ -1,5 +1,5 @@
 import { Link } from '../app/link'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
 import type { GameManifest } from '../games/types'
@@ -16,6 +16,7 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
   const { route } = useRouter()
   const isAbout = route.name === 'about'
   const [syncOpen, setSyncOpen] = useState(false)
+  const syncBtnRef = useRef<HTMLButtonElement>(null)
 
   return (
     <header className="nx-header">
@@ -35,11 +36,11 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
           <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
             About
           </Link>
-          <div style={{ position: 'relative', marginLeft: 8, display: 'flex' }} id="nx-sync-container">
-            <button className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
+          <div className="nx-sync-container">
+            <button ref={syncBtnRef} className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
               Sync
             </button>
-            <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
+            <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} triggerRef={syncBtnRef} />
           </div>
         </nav>
       </div>

@@ -5,7 +5,7 @@ import { useStatsController } from '../services/stats/stats-provider'
 import { compactCount } from '../lib/format'
 import { MANIFESTS, gameCount } from '../games/registry'
 import { LOAD_MORE, pageLimit } from './pagination'
-import './pages.css'
+import './home-page.css'
 
 /** 9 cards, then +6 per press, exactly as specified. */
 export function HomePage() {

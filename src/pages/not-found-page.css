@@ -1,0 +1,38 @@
+.nx-404-list {
+  display: grid;
+  gap: 8px;
+}
+
+.nx-404-list a {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius);
+  background: var(--nx-card);
+}
+
+.nx-404-list a:hover {
+  border-color: var(--nx-orange);
+}
+
+.nx-404-list img {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline);
+}
+
+.nx-404-list span {
+  display: grid;
+  gap: 2px;
+}
+
+.nx-404-list em {
+  font-style: normal;
+  font-size: 12.5px;
+  color: var(--nx-slate);
+}

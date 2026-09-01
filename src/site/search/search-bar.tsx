@@ -3,7 +3,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useRouter } from '../../app/router'
 import { ROUTES } from '../../app/parse-route'
 import type { GameManifest } from '../../games/types'
-import { Highlighted } from './highlight'
+import { SearchResults } from './search-results'
 import { useGameSearch } from './use-game-search'
 import './search-bar.css'
 
@@ -60,8 +60,7 @@ export function SearchBar({ manifests }: SearchBarProps) {
       }
       const target = event.target as HTMLElement | null
       const editing =
-        target !== null &&
-        (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))
+        target !== null && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))
       if (editing) {
         return
       }
@@ -165,57 +164,16 @@ export function SearchBar({ manifests }: SearchBarProps) {
         )}
       </div>
 
-      <div className="nx-search-panel" id={listId} role="listbox" aria-label="Game matches" data-empty={showPanel && results.length === 0 ? 'true' : undefined}>
-        {showPanel &&
-          (results.length === 0 ? (
-            <p className="nx-search-none">
-              Nothing in the lab matches <strong>“{trimmed}”</strong>. Try “avoid”, “spikes” or
-              “arcade”.
-            </p>
-          ) : (
-            <ul className="nx-search-list">
-              {results.map((result, index) => (
-                <li key={result.manifest.slug}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    className="nx-search-item"
-                    data-active={index === activeIndex ? 'true' : undefined}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => go(result.manifest.slug)}
-                  >
-                    <img className="nx-search-thumb" src={result.manifest.cover} alt="" />
-                    <span className="nx-search-copy">
-                      <span className="nx-search-title">
-                        <Highlighted text={result.manifest.title} match={result.titleMatch} />
-                      </span>
-                      <span className="nx-search-tagline">{result.manifest.tagline}</span>
-                    </span>
-                    <span className="nx-search-meta">
-                      {result.matchedTags.slice(0, 1).map((tag) => (
-                        <em key={tag}>{tag}</em>
-                      ))}
-                      <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path
-                          d="M5.5 3.2 10.6 8l-5.1 4.8"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ))}
-        <p className="sr-only" aria-live="polite">
-          {status}
-        </p>
-      </div>
+      <SearchResults
+        listId={listId}
+        showPanel={showPanel}
+        results={results}
+        trimmed={trimmed}
+        activeIndex={activeIndex}
+        status={status}
+        onSelectIndex={setActiveIndex}
+        onSelectGame={go}
+      />
     </div>
   )
 }

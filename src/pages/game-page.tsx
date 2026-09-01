@@ -7,7 +7,7 @@ import { findGame } from '../games/registry'
 import { useGameStats } from '../services/stats/stats-provider'
 import { NotFoundPage } from './not-found-page'
 import { emptyGameStats } from './game-stats'
-import './pages.css'
+import './game-page.css'
 
 interface GamePageProps {
   readonly slug: string

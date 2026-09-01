@@ -56,6 +56,7 @@ export interface StatsController {
   readonly beginRun: (slug: string) => void
   readonly finishRun: (slug: string, score: number, details?: GameFinishDetails) => void
   readonly bankCandy: (slug: string, amount: number) => void
+  readonly refresh: () => Promise<void>
 }
 
 const StatsContext = createContext<StatsController | null>(null)
@@ -153,6 +154,17 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
     setRevision((value) => value + 1)
   }, [])
 
+  const refresh = useCallback(async (): Promise<void> => {
+    const payload = await fetchAllStats()
+    if (payload !== null) {
+      setEdge(payload.games)
+      setPlayerRecord(payload.player)
+      setUniquePlayers(payload.uniquePlayers)
+      setSynced(true)
+    }
+    setRevision((value) => value + 1)
+  }, [])
+
   const value = useMemo<StatsController>(() => {
     const view = (slug: string): GameStatsView => {
       const local = readLocalCounters(slug)
@@ -170,9 +182,9 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
         synced,
       }
     }
-    return { view, beginRun, finishRun, bankCandy, uniquePlayers }
+    return { view, beginRun, finishRun, bankCandy, refresh, uniquePlayers }
     // `revision` intentionally busts the memo when localStorage moves.
-  }, [edge, playerRecord, synced, revision, beginRun, finishRun, bankCandy, uniquePlayers])
+  }, [edge, playerRecord, synced, revision, beginRun, finishRun, bankCandy, refresh, uniquePlayers])
 
   return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
 }

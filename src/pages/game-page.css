@@ -1,0 +1,198 @@
+.nx-game {
+  padding: 30px 0 8px;
+}
+
+.nx-game-head {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: var(--nx-hairline);
+}
+
+.nx-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--nx-slate);
+  justify-self: start;
+}
+
+.nx-back svg {
+  width: 14px;
+  height: 14px;
+}
+
+.nx-back:hover {
+  color: var(--nx-orange-deep);
+}
+
+.nx-game-title {
+  display: grid;
+  gap: 8px;
+  max-width: 70ch;
+}
+
+.nx-game-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--nx-line);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius);
+  overflow: hidden;
+}
+
+.nx-game-stats > div {
+  background: var(--nx-card);
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.nx-game-stats dt {
+  font-family: var(--nx-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--nx-slate);
+}
+
+.nx-game-stats dd {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  min-height: 1.15em;
+}
+
+.nx-game-banner {
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  object-position: 22% 50%;
+  border: var(--nx-hairline);
+  border-top: 0;
+  border-radius: 0 0 var(--nx-radius-lg) var(--nx-radius-lg);
+  display: block;
+}
+
+.nx-game-play {
+  margin-top: 22px;
+}
+
+.nx-game-notes {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+  gap: 28px;
+  margin-top: 40px;
+  padding-top: 26px;
+  border-top: var(--nx-hairline);
+}
+
+.nx-game-about {
+  display: grid;
+  gap: 14px;
+}
+
+.nx-game-about > p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--nx-graphite);
+  max-width: 68ch;
+}
+
+.nx-mechanics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--nx-line);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  overflow: hidden;
+}
+
+.nx-mechanics li {
+  background: var(--nx-card);
+  padding: 14px 15px;
+  display: grid;
+  gap: 5px;
+}
+
+.nx-mechanics h3 {
+  font-size: 13.5px;
+}
+
+.nx-mechanics p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--nx-slate);
+}
+
+.nx-game-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.nx-game-side h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nx-slate);
+  font-weight: 600;
+}
+
+.nx-control-list {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 14px;
+  border-bottom: var(--nx-hairline);
+  font-size: 13px;
+}
+
+.nx-control-list div {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--nx-slate);
+}
+
+.nx-control-list kbd {
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: var(--nx-hairline);
+  background: var(--nx-sand);
+  color: var(--nx-graphite);
+  white-space: nowrap;
+}
+
+.nx-game-side-note {
+  font-size: 13px;
+  color: var(--nx-slate);
+  display: block;
+}
+
+.nx-game-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .nx-game-notes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-mechanics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-game-banner {
+    height: 128px;
+  }
+}

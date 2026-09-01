@@ -4,7 +4,7 @@ import { ROUTES } from '../app/parse-route'
 import { Tag } from '../components/ui/tag'
 import { GameGrid } from '../games/game-grid'
 import { MANIFESTS } from '../games/registry'
-import './pages.css'
+import './about-page.css'
 
 export function AboutPage() {
   return (
