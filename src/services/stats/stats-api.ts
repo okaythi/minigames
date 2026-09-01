@@ -100,3 +100,24 @@ export async function announceVisit(): Promise<number | null> {
   const result = await post('', { type: 'visit' })
   return result?.uniquePlayers ?? null
 }
+
+/**
+ * Claim a sync code issued on another device. The server replies with the
+ * merged `player` row and sets a cookie on success. On success the caller
+ * should refresh remote state so the UI reflects the new player row.
+ */
+export async function claimSyncCode(code: string): Promise<unknown | null> {
+  return withTimeout(async (signal) => {
+    const response = await fetch(`${STATS_ENDPOINT}/sync`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ syncCode: code }),
+      signal,
+    })
+    if (!response.ok) {
+      return null
+    }
+    const payload: unknown = await response.json()
+    return readField(payload, 'player') ?? null
+  })
+}
