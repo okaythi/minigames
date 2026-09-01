@@ -36,7 +36,12 @@ export function createCycle(id: CycleId, col: number, row: number, dir: Directio
     turboTimer: 0,
     turboCooldown: 0,
     turboFlickerTimer: 0,
-    trail: [worldPos, { ...worldPos }],
+    trail: [
+      {
+        isTurbo: false,
+        points: [worldPos, { ...worldPos }],
+      },
+    ],
   }
 }
 
@@ -68,6 +73,17 @@ export function triggerCycleTurbo(cycle: CycleState, isInfinite = false): boolea
     cycle.turbosLeft = Math.max(0, cycle.turbosLeft - 1)
   }
 
+  // Finalize previous segment tip and start a new turbo segment at current position
+  const currentPos: Point = { x: cycle.x, y: cycle.y }
+  const currentSeg = cycle.trail[cycle.trail.length - 1]
+  if (currentSeg && currentSeg.points.length > 0) {
+    currentSeg.points[currentSeg.points.length - 1] = { ...currentPos }
+  }
+  cycle.trail.push({
+    isTurbo: true,
+    points: [{ ...currentPos }, { ...currentPos }],
+  })
+
   return true
 }
 
@@ -77,6 +93,17 @@ export function updateCycleTimers(cycle: CycleState, dt: number): void {
     if (cycle.turboTimer <= 0) {
       cycle.isTurbo = false
       cycle.turboTimer = 0
+
+      // Finalize turbo segment tip and start a new normal segment at current position
+      const currentPos: Point = { x: cycle.x, y: cycle.y }
+      const currentSeg = cycle.trail[cycle.trail.length - 1]
+      if (currentSeg && currentSeg.points.length > 0) {
+        currentSeg.points[currentSeg.points.length - 1] = { ...currentPos }
+      }
+      cycle.trail.push({
+        isTurbo: false,
+        points: [{ ...currentPos }, { ...currentPos }],
+      })
     }
   }
 
@@ -127,6 +154,11 @@ export function triggerCycleCrash(cycle: CycleState, grid: OccupancyGrid): Parti
   cycle.crashedAt = crashPos
   cycle.crashTime = performance.now()
   cycle.isTurbo = false
+
+  const currentSeg = cycle.trail[cycle.trail.length - 1]
+  if (currentSeg && currentSeg.points.length > 0) {
+    currentSeg.points[currentSeg.points.length - 1] = { ...crashPos }
+  }
 
   // Produce mirror shards and subtle spark explosion
   const shards: Particle[] = []

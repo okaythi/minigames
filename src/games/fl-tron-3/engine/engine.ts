@@ -276,13 +276,17 @@ export class TronEngine {
   private advanceCycle(cycle: CycleState, dist: number, occupancyType: OccupancyType): boolean {
     if (!cycle.alive) return false
 
+    const currentSeg = cycle.trail[cycle.trail.length - 1]
+
     // Consume input buffer on turn alignment
     if (cycle.inputBuffer.length > 0) {
       const nextDir = cycle.inputBuffer[0]
       if (nextDir) {
         cycle.dir = nextDir
         cycle.inputBuffer = cycle.inputBuffer.slice(1)
-        cycle.trail.push({ x: cycle.x, y: cycle.y })
+        if (currentSeg) {
+          currentSeg.points.push({ x: cycle.x, y: cycle.y })
+        }
       }
     }
 
@@ -291,8 +295,8 @@ export class TronEngine {
     cycle.y += vec.y * dist
 
     // Keep tip of trail synchronized
-    if (cycle.trail.length > 0) {
-      cycle.trail[cycle.trail.length - 1] = { x: cycle.x, y: cycle.y }
+    if (currentSeg && currentSeg.points.length > 0) {
+      currentSeg.points[currentSeg.points.length - 1] = { x: cycle.x, y: cycle.y }
     }
 
     const gridCoord = OccupancyGrid.worldToGridUnclamped(cycle.x, cycle.y)

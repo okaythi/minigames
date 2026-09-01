@@ -11,6 +11,11 @@ export interface Point {
   readonly y: number
 }
 
+export interface TrailSegment {
+  readonly isTurbo: boolean
+  readonly points: Point[]
+}
+
 export interface GridCoord {
   readonly col: number
   readonly row: number
@@ -77,7 +82,7 @@ export interface CycleState {
   turboTimer: number
   turboCooldown: number
   turboFlickerTimer: number
-  trail: Point[]
+  trail: TrailSegment[]
 }
 
 export type MatchPhase =

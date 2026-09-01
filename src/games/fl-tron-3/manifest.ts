@@ -22,6 +22,7 @@ export const flTron3Manifest: GameManifest = {
   tags: ['arcade', 'retro', 'tron', 'cyberpunk', 'reflex', 'canvas'],
   cover,
   banner,
+  bannerAspectRatio: '21 / 8',
   controls: [
     { input: 'Arrow Keys', action: 'Turn light cycle 90°' },
     { input: 'Spacebar', action: 'Activate Turbo boost (3 per round)' },

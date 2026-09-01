@@ -31,7 +31,7 @@ export function GamePage({ slug }: GamePageProps) {
   const highscore = stats.personalBest ?? stats.globalRecord
 
   return (
-    <article className="nx-game">
+    <article className="nx-game" data-slug={slug}>
       <header className="nx-game-head">
         <Link to={ROUTES.home} className="nx-back">
           <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -83,7 +83,13 @@ export function GamePage({ slug }: GamePageProps) {
       </header>
 
       {manifest.banner !== undefined && (
-        <img className="nx-game-banner" src={manifest.banner} alt="" aria-hidden="true" />
+        <img
+          className="nx-game-banner"
+          src={manifest.banner}
+          alt=""
+          aria-hidden="true"
+          style={manifest.bannerAspectRatio ? { aspectRatio: manifest.bannerAspectRatio } : undefined}
+        />
       )}
 
       <div className="nx-game-play">

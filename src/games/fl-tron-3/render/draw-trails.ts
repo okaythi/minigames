@@ -1,5 +1,5 @@
 import { PALETTE } from '../../../theme/palette'
-import type { CycleState, Point } from '../engine/types'
+import type { CycleState, Point, TrailSegment } from '../engine/types'
 
 export function drawCycleTrails(
   ctx: CanvasRenderingContext2D,
@@ -7,18 +7,17 @@ export function drawCycleTrails(
   ai: CycleState,
   _time: number,
 ): void {
-  drawSingleTrail(ctx, p1.trail, PALETTE.blue, '#94c2ff', p1.isTurbo)
-  drawSingleTrail(ctx, ai.trail, PALETTE.orange, '#ffd79c', ai.isTurbo)
+  drawSingleTrail(ctx, p1.trail, PALETTE.blue, '#94c2ff')
+  drawSingleTrail(ctx, ai.trail, PALETTE.orange, '#ffd79c')
 }
 
 function drawSingleTrail(
   ctx: CanvasRenderingContext2D,
-  trail: readonly Point[],
+  trail: readonly TrailSegment[],
   baseColor: string,
   turboColor: string,
-  isTurbo: boolean,
 ): void {
-  if (trail.length < 2) return
+  if (trail.length === 0) return
 
   ctx.save()
   ctx.lineCap = 'round'
@@ -26,9 +25,13 @@ function drawSingleTrail(
 
   // Primary Solid Light Wall
   ctx.lineWidth = 7 // Matches RULES.trailWidth
-  ctx.strokeStyle = isTurbo ? turboColor : baseColor
-  renderPolyline(ctx, trail)
-  ctx.stroke()
+
+  for (const seg of trail) {
+    if (seg.points.length < 2) continue
+    ctx.strokeStyle = seg.isTurbo ? turboColor : baseColor
+    renderPolyline(ctx, seg.points)
+    ctx.stroke()
+  }
 
   ctx.restore()
 }

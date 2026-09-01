@@ -69,13 +69,17 @@
 
 .nx-game-banner {
   width: 100%;
-  aspect-ratio: 21 / 8;
+  aspect-ratio: 21 / 3.5;
   object-fit: cover;
   object-position: center;
   border: var(--nx-hairline);
   border-top: 0;
   border-radius: 0 0 var(--nx-radius-lg) var(--nx-radius-lg);
   display: block;
+}
+
+.nx-game[data-slug="fl-tron-3"] .nx-game-banner {
+  aspect-ratio: 21 / 8;
 }
 
 .nx-game-play {

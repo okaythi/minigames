@@ -46,6 +46,8 @@ function gridInvariantProbe(): void {
 function cycleMechanicsProbe(): void {
   const p1 = createCycle('p1', 20, 75, 'up', RULES.playerTurbosPerRound)
 
+  const initialTrailSegmentCount = p1.trail.length === 1 && !p1.trail[0]?.isTurbo
+
   // 180° reverse turn prevention
   queueDirection(p1, OPPOSITE_DIRECTIONS[p1.dir])
   const preventedReverse = p1.inputBuffer.length === 0
@@ -59,6 +61,7 @@ function cycleMechanicsProbe(): void {
   const initialTurbos = p1.turbosLeft
   const turboTriggered = triggerCycleTurbo(p1, false)
   const isBoosting = p1.isTurbo && p1.turbosLeft === initialTurbos - 1
+  const turboSegmentCreated = p1.trail.length === 2 && !p1.trail[0]?.isTurbo && p1.trail[1]?.isTurbo === true
 
   // Second immediate turbo blocked by cooldown
   const secondTurboBlocked = !triggerCycleTurbo(p1, false)
@@ -66,14 +69,19 @@ function cycleMechanicsProbe(): void {
   // Turbo expiration
   updateCycleTimers(p1, RULES.turboDurationSeconds + 0.1)
   const turboExpired = !p1.isTurbo
+  const normalSegmentResumed = p1.trail.length === 3 && !p1.trail[0]?.isTurbo && p1.trail[1]?.isTurbo === true && !p1.trail[2]?.isTurbo
 
   line('reverse 180° turn prevention', preventedReverse ? 'BLOCKED' : 'ALLOWED')
   line('turbos remaining after boost', `${p1.turbosLeft} / ${initialTurbos}`)
+  line('segmented turbo trail persistence', normalSegmentResumed ? 'PERMANENT' : 'INVALID')
+  check('trail begins with 1 normal non-turbo segment', initialTrailSegmentCount)
   check('prevent 180° instant reverse turns', preventedReverse)
   check('valid 90° turn buffering up to 2 steps', queuedTurns)
   check('turbo boost activation & meter decrement', turboTriggered && isBoosting)
+  check('turbo creates distinct active turbo segment', turboSegmentCreated)
   check('turbo cooldown locks re-triggering', secondTurboBlocked)
   check('turbo timers expire cleanly', turboExpired)
+  check('turbo stretch remains pastel while new stretch returns to normal', normalSegmentResumed)
 }
 
 function vetoArchitectureProbe(): void {
