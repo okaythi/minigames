@@ -1,4 +1,5 @@
-import type { GameRuntimeFactory } from './template/types'
+import type React from 'react'
+
 
 /** Colour keys map onto `accentOf()` in src/theme/palette.ts. */
 export type GameAccentName = 'orange' | 'amber' | 'blue' | 'green' | 'red'
@@ -73,15 +74,9 @@ export interface GameManifest {
   readonly legend: readonly GameLegendItem[]
 }
 
-/**
- * A game contributes exactly one module that exports this shape: the words and
- * pictures the site displays, plus the runtime the shared chrome drives. No
- * component, no stylesheet - the page is the same for every game by
- * construction, not by convention.
- */
 export interface GameModule {
   readonly manifest: GameManifest
-  readonly createRuntime: GameRuntimeFactory
+  readonly Component: React.LazyExoticComponent<React.ComponentType<any>>
 }
 
 export const isPlayable = (manifest: GameManifest): boolean => manifest.status !== 'coming-soon'

@@ -57,6 +57,7 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
   // Latest factory without re-running the mount effect.
   const attachRef = useRef<GameViewFactory>(attach)
   attachRef.current = attach
+  const frameId = useRef<number>(0)
 
   useEffect(() => {
     const box = boxRef.current
@@ -73,7 +74,6 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
     const resizeListeners = createListenerSet<ResizeListener>()
     const visibilityListeners = createListenerSet<VisibilityListener>()
 
-    // Start invalid so the first measurement always initializes the backing
     // store. The canvas defaults to 300×150 until width/height are assigned;
     // treating its initial CSS size as an already-applied viewport leaves the
     // drawing buffer at that default size and makes visuals and pointer
@@ -84,7 +84,6 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
       dpr: 0,
     }
     let running = true
-    let frameHandle = 0
     let previous = performance.now()
     let elapsed = 0
 
@@ -124,7 +123,7 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
     observer.observe(canvas)
 
     const tick = (now: number): void => {
-      frameHandle = requestAnimationFrame(tick)
+      frameId.current = requestAnimationFrame(tick)
       const raw = (now - previous) / 1000
       previous = now
       if (document.hidden || !running) {
@@ -136,7 +135,7 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
         listener(delta, elapsed)
       })
     }
-    frameHandle = requestAnimationFrame(tick)
+    frameId.current = requestAnimationFrame(tick)
 
     const handleVisibility = (): void => {
       visibilityListeners.emit((listener) => {
@@ -147,7 +146,7 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      cancelAnimationFrame(frameHandle)
+      cancelAnimationFrame(frameId.current)
       document.removeEventListener('visibilitychange', handleVisibility)
       observer.disconnect()
       view.dispose()

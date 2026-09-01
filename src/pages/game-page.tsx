@@ -1,7 +1,7 @@
+import { Suspense } from 'react'
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { Tag } from '../components/ui/tag'
-import { GameTemplate } from '../games/template/game-template'
 import { compactCount } from '../lib/format'
 import { findGame } from '../games/registry'
 import { useGameStats } from '../services/stats/stats-provider'
@@ -75,7 +75,9 @@ export function GamePage({ slug }: GamePageProps) {
       )}
 
       <div className="nx-game-play">
-        <GameTemplate game={game} />
+        <Suspense fallback={<div className="nx-loading" />}>
+          <game.Component />
+        </Suspense>
       </div>
 
       <section className="nx-game-notes">

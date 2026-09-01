@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { accentOf } from '../../theme/palette'
-import type { GameModule } from '../types'
+import type { GameManifest } from '../types'
+import type { GameRuntimeFactory } from './types'
 import { GameStage } from './game-stage'
 import { GameHud } from './game-hud'
 import { GameOverlay } from './game-overlay'
@@ -8,7 +9,10 @@ import { useGameRuntime, useGameSnapshot } from './use-game-runtime'
 import './game-template.css'
 
 interface GameTemplateProps {
-  readonly game: GameModule
+  readonly game: {
+    readonly manifest: GameManifest
+    readonly createRuntime: GameRuntimeFactory
+  }
 }
 
 /**
