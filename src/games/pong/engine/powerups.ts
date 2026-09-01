@@ -17,9 +17,11 @@ export function activatePowerupState(state: PongState, slotIndex: number, isPlay
   })
 
   if (type === 'speed') {
-    target.activePowerups.push({ type: 'speed', timeRemaining: POWERUP_DURATIONS.speed[state.difficulty] })
+    const duration = POWERUP_DURATIONS.speed[state.difficulty]
+    target.activePowerups.push({ type: 'speed', timeRemaining: duration, duration })
   } else if (type === 'extension') {
-    target.activePowerups.push({ type: 'extension', timeRemaining: POWERUP_DURATIONS.extension[state.difficulty] })
+    const duration = POWERUP_DURATIONS.extension[state.difficulty]
+    target.activePowerups.push({ type: 'extension', timeRemaining: duration, duration })
   } else if (type === 'magnet') {
     if (isPlayer) state.playerMagnetActive = true
   } else if (type === 'glass-wall') {

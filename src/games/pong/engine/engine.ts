@@ -1,7 +1,7 @@
 import type { GameRuntimeDeps } from '../../template/types'
 import type { Store } from '../../../lib/observable-store'
 import type { GameSnapshot, GameRunStatus, GameStatTile } from '../../template/snapshot'
-import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE, extensionScale } from './config'
+import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE, AI_SPEED_FACTORS, extensionScale } from './config'
 import { activatePowerupState } from './powerups'
 import { updateAI } from './ai'
 
@@ -17,7 +17,7 @@ export interface PaddleState {
   h: number
   vx: number
   maxV: number
-  activePowerups: { type: string, timeRemaining: number }[]
+  activePowerups: { type: string; timeRemaining: number; duration: number }[]
   targetX?: number
 }
 
@@ -174,7 +174,7 @@ export class PongEngine {
     s.player.x = Math.max(currentW/2, Math.min(ARENA.width - currentW/2, s.player.x))
 
     const aiW = s.ai.w * extensionScale(s.ai.activePowerups)
-    const aiBaseMaxV = s.player.maxV * (s.difficulty === 'easy' ? 0.9 : 1)
+    const aiBaseMaxV = s.player.maxV * AI_SPEED_FACTORS[s.difficulty]
     s.ai.maxV = aiBaseMaxV
     const aiMaxV = aiBaseMaxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
     if (s.ai.targetX !== undefined) {
@@ -348,6 +348,10 @@ export class PongEngine {
 
   handleInput(key: string, isDown: boolean) {
     if (isDown) {
+      if (key === 'Enter' && this.state.phase === 'over') {
+        this.restart()
+        return
+      }
       if (this.state.ball.stuckToPlayer && (key === ' ' || key === 'Space' || key === 'Spacebar')) {
         this.releaseMagnetBall()
         return
