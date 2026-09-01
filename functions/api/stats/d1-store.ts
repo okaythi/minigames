@@ -2,13 +2,14 @@
 
 import {
   EMPTY_STATS_RECORD,
+  isUnlockablePongDifficulty,
   type GameStatsRecord,
   type PlayerGameRecord,
   type PlayerRecord,
   type StatsEvent,
   type StatsMap,
 } from '../../../shared/stats-protocol'
-import { mergePlayerRecords } from '../../../shared/player-record'
+import { mergePlayerRecords, readCompletedDifficulties } from '../../../shared/player-record'
 import { mintSyncCode } from '../../../shared/player-cookie'
 import type { StatsApplyResult, StatsRequest, StatsSnapshot, StatsStore } from '../../../shared/stats-store'
 
@@ -37,6 +38,10 @@ interface PlayerGameRow {
   readonly slug: string
   readonly highscore: number | null
   readonly candy: number
+}
+
+interface PongDifficultyRow {
+  readonly difficulty: string
 }
 
 interface CountRow {
@@ -91,13 +96,24 @@ export function d1Store(db: D1Database): StatsStore {
       return null
     }
     const syncCode = row.sync_code ?? (await mintCode(playerId))
-    const games = await db
-      .prepare('SELECT slug, highscore, candy FROM player_games WHERE player_id = ?1')
-      .bind(playerId)
-      .all<PlayerGameRow>()
+    const [games, difficultyRows] = await Promise.all([
+      db
+        .prepare('SELECT slug, highscore, candy FROM player_games WHERE player_id = ?1')
+        .bind(playerId)
+        .all<PlayerGameRow>(),
+      db
+        .prepare('SELECT difficulty FROM player_pong_difficulties WHERE player_id = ?1')
+        .bind(playerId)
+        .all<PongDifficultyRow>(),
+    ])
     const perGame: Record<string, PlayerGameRecord> = {}
     for (const entry of games.results) {
-      perGame[entry.slug] = { highscore: entry.highscore, candy: entry.candy }
+      perGame[entry.slug] = { highscore: entry.highscore, candy: entry.candy, completedDifficulties: [] }
+    }
+    const completedDifficulties = readCompletedDifficulties(difficultyRows.results.map((entry) => entry.difficulty))
+    if (completedDifficulties.length > 0) {
+      const pong = perGame['pong'] ?? { highscore: null, candy: 0, completedDifficulties: [] }
+      perGame['pong'] = { ...pong, completedDifficulties }
     }
     return {
       id: row.id,
@@ -181,6 +197,15 @@ export function d1Store(db: D1Database): StatsStore {
         )
         .bind(playerId, event.score, now)
         .run()
+      if (game === 'pong' && event.won === true && isUnlockablePongDifficulty(event.difficulty)) {
+        await db
+          .prepare(
+            `INSERT OR IGNORE INTO player_pong_difficulties (player_id, difficulty, completed_at)
+             VALUES (?1, ?2, ?3)`,
+          )
+          .bind(playerId, event.difficulty, now)
+          .run()
+      }
       return
     }
     if (event.type === 'candy' && game.length > 0) {
@@ -222,6 +247,7 @@ export function d1Store(db: D1Database): StatsStore {
       .bind(target.id, target.highscore, target.candy)
       .run()
     await db.prepare('DELETE FROM player_games WHERE player_id = ?1').bind(target.id).run()
+    await db.prepare('DELETE FROM player_pong_difficulties WHERE player_id = ?1').bind(target.id).run()
     for (const [slug, record] of Object.entries(target.games)) {
       await db
         .prepare(
@@ -229,6 +255,15 @@ export function d1Store(db: D1Database): StatsStore {
            VALUES (?1, ?2, ?3, ?4, ?5)`,
         )
         .bind(target.id, slug, record.highscore, record.candy, Date.now())
+        .run()
+    }
+    for (const difficulty of target.games['pong']?.completedDifficulties ?? []) {
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO player_pong_difficulties (player_id, difficulty, completed_at)
+           VALUES (?1, ?2, ?3)`,
+        )
+        .bind(target.id, difficulty, Date.now())
         .run()
     }
   }
@@ -272,6 +307,7 @@ export function d1Store(db: D1Database): StatsStore {
       const merged = source === null ? target : mergePlayerRecords(target, source)
       await writeMergedPlayer(merged)
       await db.prepare('DELETE FROM player_games WHERE player_id = ?1').bind(sourcePlayerId).run()
+      await db.prepare('DELETE FROM player_pong_difficulties WHERE player_id = ?1').bind(sourcePlayerId).run()
       await db.prepare('DELETE FROM players WHERE id = ?1').bind(sourcePlayerId).run()
       return readPlayer(owner.id)
     },

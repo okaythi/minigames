@@ -9,6 +9,7 @@ import type { GameManifest } from '../types'
 const IDLE_DEPS: GameRuntimeDeps = {
   best: null,
   bonus: 0,
+  completedDifficulties: [],
   beginRun: () => undefined,
   finishRun: () => undefined,
   bankBonus: () => undefined,
@@ -30,8 +31,9 @@ export function useGameRuntime(manifest: GameManifest, create: GameRuntimeFactor
   deps.current = {
     best: stats.personalBest,
     bonus: stats.candy,
+    completedDifficulties: stats.completedDifficulties,
     beginRun: () => stats.beginRun(manifest.slug),
-    finishRun: (score) => stats.finishRun(manifest.slug, score),
+    finishRun: (score, details) => stats.finishRun(manifest.slug, score, details),
     bankBonus: (amount) => stats.bankCandy(manifest.slug, amount),
   }
 

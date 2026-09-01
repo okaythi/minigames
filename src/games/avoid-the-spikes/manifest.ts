@@ -72,6 +72,7 @@ export const avoidTheSpikesManifest: GameManifest = {
   aspect: ARENA.width / ARENA.height,
   scoreLabel: 'Bounces',
   bonusLabel: 'Candy',
+  runDurationLabel: 'Alive for',
   primaryLabel: 'Flap',
   scoringNote: 'One point per wall bounce - a graze of a spike tip is a save, not a score.',
   startLine: 'Click, tap or hit Space to flap.',

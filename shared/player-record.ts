@@ -1,9 +1,11 @@
 import {
   isRecordOfStats,
+  isUnlockablePongDifficulty,
   readField,
   type PlayerGameRecord,
   type PlayerRecord,
   type StatsEvent,
+  type UnlockablePongDifficulty,
 } from './stats-protocol'
 import { isPlayerId, parseSyncCode } from './player-cookie'
 
@@ -48,14 +50,35 @@ export function applyPlayerEvent(
     return null
   }
   const perGame = perGameFor(record, game)
+  const completedDifficulties = completedDifficultiesFor(game, perGame, event)
   return {
     ...record,
     highscore: maxScore(record.highscore, score),
     games:
       game.length === 0
         ? record.games
-        : { ...record.games, [game]: { ...perGame, highscore: maxScore(perGame.highscore, score) } },
+        : {
+            ...record.games,
+            [game]: {
+              ...perGame,
+              highscore: maxScore(perGame.highscore, score),
+              completedDifficulties,
+            },
+          },
   }
+}
+
+const completedDifficultiesFor = (
+  game: string,
+  record: PlayerGameRecord,
+  event: StatsEvent,
+): readonly UnlockablePongDifficulty[] => {
+  if (game !== 'pong' || event.type !== 'score' || event.won !== true || !isUnlockablePongDifficulty(event.difficulty)) {
+    return record.completedDifficulties
+  }
+  return record.completedDifficulties.includes(event.difficulty)
+    ? record.completedDifficulties
+    : [...record.completedDifficulties, event.difficulty]
 }
 
 /**
@@ -76,6 +99,7 @@ export function mergePlayerRecords(target: PlayerRecord, incoming: PlayerRecord)
                 ? record.highscore
                 : maxScore(existing.highscore, record.highscore ?? 0),
             candy: existing.candy + record.candy,
+            completedDifficulties: mergeDifficulties(existing.completedDifficulties, record.completedDifficulties),
           }
   }
   return {
@@ -87,8 +111,13 @@ export function mergePlayerRecords(target: PlayerRecord, incoming: PlayerRecord)
   }
 }
 
+const mergeDifficulties = (
+  left: readonly UnlockablePongDifficulty[],
+  right: readonly UnlockablePongDifficulty[],
+): readonly UnlockablePongDifficulty[] => [...new Set([...left, ...right])]
+
 const perGameFor = (record: PlayerRecord, game: string): PlayerGameRecord =>
-  record.games[game] ?? { highscore: null, candy: 0 }
+  record.games[game] ?? { highscore: null, candy: 0, completedDifficulties: [] }
 
 /** A number off the wire, bounded: nobody banks a million candy in one frame. */
 const wholeCount = (value: number, max: number): number | null =>
@@ -98,6 +127,19 @@ const MAX_CANDY_GRAB = 10000
 const MAX_SCORE = 1_000_000
 
 // --- parsing: the same shape, validated on the way in -------------------------
+
+export function readCompletedDifficulties(value: unknown): readonly UnlockablePongDifficulty[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const result: UnlockablePongDifficulty[] = []
+  for (const entry of value) {
+    if (isUnlockablePongDifficulty(entry) && !result.includes(entry)) {
+      result.push(entry)
+    }
+  }
+  return result
+}
 
 export function parsePlayerGameRecord(value: unknown): PlayerGameRecord | null {
   if (!isRecordOfStats(value)) {
@@ -114,6 +156,7 @@ export function parsePlayerGameRecord(value: unknown): PlayerGameRecord | null {
   return {
     highscore: highscore === null ? null : Math.floor(highscore),
     candy: Math.max(0, Math.floor(candy)),
+    completedDifficulties: readCompletedDifficulties(readField(value, 'completedDifficulties')),
   }
 }
 

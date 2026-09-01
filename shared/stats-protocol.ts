@@ -21,9 +21,20 @@ export interface GameStatsRecord {
 export type StatsMap = Readonly<Record<string, GameStatsRecord>>
 
 /** One game, as this player left it. */
+export type PongDifficulty = 'easy' | 'normal' | 'hard' | 'very-hard'
+export type UnlockablePongDifficulty = Exclude<PongDifficulty, 'very-hard'>
+
+export const isPongDifficulty = (value: unknown): value is PongDifficulty =>
+  value === 'easy' || value === 'normal' || value === 'hard' || value === 'very-hard'
+
+export const isUnlockablePongDifficulty = (value: unknown): value is UnlockablePongDifficulty =>
+  value === 'easy' || value === 'normal' || value === 'hard'
+
 export interface PlayerGameRecord {
   readonly highscore: number | null
   readonly candy: number
+  /** Pong difficulties this player has won at least once. */
+  readonly completedDifficulties: readonly UnlockablePongDifficulty[]
 }
 
 /**
@@ -60,6 +71,9 @@ export interface PlayEvent {
 export interface ScoreEvent {
   readonly type: 'score'
   readonly score: number
+  /** Optional game progression metadata, currently used by Pong. */
+  readonly difficulty?: PongDifficulty
+  readonly won?: boolean
 }
 
 /** Sent once per page session: counts a visitor without counting a run. */
@@ -218,9 +232,25 @@ export function parseStatsEventBody(value: unknown): StatsEventRequestBody | nul
     if (type === 'score' && amount < 0) {
       return null
     }
-    return type === 'score'
-      ? { game, event: { type: 'score', score: Math.floor(amount) }, nonce: cleanNonce }
-      : { game, event: { type: 'candy', amount: Math.floor(amount) }, nonce: cleanNonce }
+    if (type === 'candy') {
+      return { game, event: { type: 'candy', amount: Math.floor(amount) }, nonce: cleanNonce }
+    }
+
+    const difficulty = readField(eventRaw, 'difficulty')
+    const won = readField(eventRaw, 'won')
+    if (difficulty !== undefined && !isPongDifficulty(difficulty)) {
+      return null
+    }
+    if (won !== undefined && typeof won !== 'boolean') {
+      return null
+    }
+    const event: ScoreEvent = {
+      type: 'score',
+      score: Math.floor(amount),
+      ...(difficulty === undefined ? {} : { difficulty }),
+      ...(won === undefined ? {} : { won }),
+    }
+    return { game, event, nonce: cleanNonce }
   }
   return null
 }
