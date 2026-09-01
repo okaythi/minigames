@@ -19,7 +19,7 @@ export const avoidTheSpikesManifest: GameManifest = {
     'A one-button reflex game inside a vertical box. Gravity always pulls you down, a click throws you up and forward, and each wall bounce scores a point - but every contact sprouts a fresh row of teeth on the far wall, so you have to re-aim your height mid-flight. Past ten points, floating spikes join in, and the ceiling and floor have never once been safe.',
   status: 'playable',
   accent: 'orange',
-  tags: ['arcade', 'reflex', 'one-button', 'highscore', 'canvas'],
+  tags: ['arcade', 'reflex', 'one-button', 'canvas'],
   cover,
   banner,
   controls: [
