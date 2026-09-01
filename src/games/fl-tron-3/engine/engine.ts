@@ -33,12 +33,13 @@ export class TronEngine {
   }
 
   public start(): void {
-    if (this.state.phase === 'intermission') {
+    if (this.state.phase === 'menu') {
+      this.startCampaign()
+    } else if (this.state.phase === 'intermission') {
       this.advanceFromIntermission()
     } else if (this.state.phase === 'game_over' || this.state.phase === 'victory') {
       this.restart()
     }
-    // Note: If phase is 'menu', we do nothing so the user can interact with drawMainMenu
   }
 
   public startCampaign(): void {
