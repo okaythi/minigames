@@ -16,7 +16,7 @@ export const pongManifest: GameManifest = {
   tagline: 'Beat the AI using trajectory prediction and loadouts.',
   description: 'A classic game of Pong where the AI predicts the ball trajectory. Choose your difficulty, equip power-ups with your candy, and outsmart the AI.',
   status: 'playable',
-  accent: 'blue',
+  accent: 'orange',
   tags: ['arcade', 'reflex', 'pong', 'canvas'],
   cover,
   banner,
