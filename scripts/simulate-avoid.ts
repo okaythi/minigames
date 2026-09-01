@@ -20,7 +20,8 @@ import { wallGrid } from '../src/games/avoid-the-spikes/engine/geometry'
 import { bounceSpeed, speedFactor } from '../src/games/avoid-the-spikes/engine/speed-curve'
 import { desiredMoverCount } from '../src/games/avoid-the-spikes/engine/movers'
 import { PickupField } from '../src/games/avoid-the-spikes/engine/pickups'
-import type { AudioEngine } from '../src/games/avoid-the-spikes/engine/audio/audio-engine'
+import type { IAudioEngine } from '../src/lib/audio-engine'
+import type { SfxName } from '../src/games/avoid-the-spikes/engine/audio/sfx'
 import type { DeathCause, Spike } from '../src/games/avoid-the-spikes/engine/types'
 
 const STEP = 1 / 60
@@ -33,13 +34,15 @@ const line = (label: string, value: string): void => {
 }
 
 /** Silences the audio engine without importing the DOM. */
-const silentAudio = {
+const silentAudio: IAudioEngine<SfxName> = {
   unlock: () => undefined,
   isMuted: true,
+  running: false,
   play: () => undefined,
   setMuted: () => undefined,
   toggleMuted: () => true,
-} as unknown as AudioEngine
+  dispose: () => undefined,
+}
 
 function bootSession(seed: number): AvoidSession {
   return new AvoidSession({

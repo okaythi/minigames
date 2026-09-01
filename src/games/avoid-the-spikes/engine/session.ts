@@ -9,7 +9,8 @@ import { Feedback } from './feedback'
 import { crossingSeconds } from './speed-curve'
 import { snapshotFor } from './snapshot'
 import { spikeNormal, playerRect } from './geometry'
-import type { AudioEngine } from './audio/audio-engine'
+import type { IAudioEngine } from '../../../../lib/audio-engine'
+import type { SfxName } from './audio/sfx'
 import type { Random } from '../../../lib/random'
 import type { DeathCause, PlayerState, RunStatus, Spike, Vec2, WallSide } from './types'
 import type { AvoidRunResult, AvoidSnapshot } from '../state'
@@ -29,7 +30,7 @@ import { createSnapshot } from '../state'
  */
 
 export interface AvoidSessionDeps {
-  readonly audio: AudioEngine
+  readonly audio: IAudioEngine<SfxName>
   readonly random: Random
   readonly best: number | null
   readonly candyBank: number
