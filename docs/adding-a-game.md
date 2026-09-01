@@ -113,9 +113,9 @@ import { myGame } from './my-game'
 export const GAMES: readonly GameModule[] = [avoidTheSpikes, myGame]
 ```
 
-Then add the slug to `ALLOWED_SLUGS` in `functions/api/stats/index.ts` so the edge is willing to
-store counters for it (the function refuses unknown slugs on purpose - otherwise anyone could
-mint D1 rows).
+Then add the slug to `ALLOWED_SLUGS` in `shared/game-slugs.ts` so the edge is willing to
+store counters for it (both the Pages Function and the dev middleware read that one list, and
+refuse unknown slugs on purpose - otherwise anyone could mint D1 rows).
 
 ## 5. The engine contract
 
@@ -150,11 +150,3 @@ Rules that keep a game out of trouble:
   `window.localStorage` directly, and they never fetch.
 - **Draw layers, not a Draw Everything file.** One module per visual system: arena, spikes,
   player, fx, and a composer that applies the world transform (and the shake offset) once.
-
-## 6. Check it headlessly
-
-Copy the shape of `scripts/simulate-avoid.ts`: boot the session with a silent audio stub, drive it
-with a scripted input, and assert the promises your design makes - scoring is exact, hazards are
-lethal, generated levels are solvable, nothing goes `NaN`, the difficulty curve is monotonic. No
-browser, no canvas, no DOM. It runs in about half a second and catches the class of bug that is
-invisible in a screenshot.

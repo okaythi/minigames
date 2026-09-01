@@ -134,13 +134,17 @@ event, which is what the hero's "Unique players" counts. A visit is announced on
 load, so a player is counted even if they never press play. Every event carries a nonce, so a
 retry cannot double-count.
 
-| Data                  | Source                                          |
-| --------------------- | ----------------------------------------------- |
-| times played          | D1 when bound, otherwise this browser           |
-| unique players        | D1 only                                         |
-| highscore (yours)     | `localStorage`                                  |
-| global record         | D1                                              |
-| banked candy, mute    | `localStorage`                                  |
+| Data                         | Source                                              |
+| ---------------------------- | --------------------------------------------------- |
+| times played                 | D1 when bound, otherwise this browser               |
+| unique players               | `COUNT(players)` in D1                              |
+| highscore (yours, per game)  | `player_games`, mirrored in `localStorage`          |
+| highscore (yours, overall)   | `players.highscore`                                 |
+| candy bank (per game / all)  | `player_games.candy` / `players.candy`              |
+| global record                | `game_stats.highscore`                              |
+| mute                         | `localStorage`                                      |
+
+A player is the uuid in an httpOnly cookie, with two fallbacks (the same uuid in `localStorage`, then a device hash) so clearing one of the three still finds the row. The response carries a `XXXX-XXXX` sync code: typing it on another device folds that device's numbers into the account and moves the cookie. Rules live in `shared/player-record.ts`, the waterfall in `shared/resolve-player.ts`, so D1, the fallback store and `vite dev` cannot disagree about what an event does.
 
 No binding, no network, private mode, offline build: the same UI renders, labels the number
 "this device", and nothing breaks — `store.ts` swaps `d1Store` for `memoryStore` and reports
