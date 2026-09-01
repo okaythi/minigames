@@ -27,7 +27,7 @@ export function GameTemplate({ game }: GameTemplateProps) {
       <GameStage runtime={runtime} manifest={game.manifest}>
         <GameOverlay runtime={runtime} manifest={game.manifest} snapshot={snapshot} />
       </GameStage>
-      <GameHud runtime={runtime} manifest={game.manifest} snapshot={snapshot} />
+      <GameHud manifest={game.manifest} snapshot={snapshot} />
     </div>
   )
 }
