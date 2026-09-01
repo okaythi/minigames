@@ -73,7 +73,7 @@ export class PongEngine {
       slots: [],
       aiSlots: [],
       candy: [],
-      candySpawnTimer: 5,
+      candySpawnTimer: 8,
       playerMagnetActive: false,
       playerGlassWallActive: false,
       lastHitBy: null,
@@ -117,6 +117,7 @@ export class PongEngine {
     this.state.ball.vy = this.state.ball.speed * Math.cos(angle) * dir
     this.state.lastHitBy = null
     this.state.candy = []
+    this.state.candySpawnTimer = 8 + Math.random() * 6
   }
 
   pause() { this.publish('paused') }
@@ -154,7 +155,9 @@ export class PongEngine {
     s.player.x = Math.max(currentW/2, Math.min(ARENA.width - currentW/2, s.player.x))
 
     const aiW = s.ai.w * (s.ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
-    const aiMaxV = s.ai.maxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
+    const aiBaseMaxV = s.player.maxV * (s.difficulty === 'easy' ? 0.9 : 1)
+    s.ai.maxV = aiBaseMaxV
+    const aiMaxV = aiBaseMaxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
     if (s.ai.targetX !== undefined) {
        const adx = s.ai.targetX - s.ai.x
        const adist = Math.abs(adx)
@@ -261,14 +264,20 @@ export class PongEngine {
     const s = this.state
     s.candySpawnTimer -= dt
     if (s.candySpawnTimer <= 0) {
-       s.candySpawnTimer = 5 + Math.random() * 5
-       s.candy.push({
-          x: 40 + Math.random() * (ARENA.width - 80),
-          y: ARENA.height/2 - 50 + Math.random() * 100,
-          radius: 6,
-          active: true,
-          claimedBy: null
-       })
+       if (!s.candy.some(candy => candy.active)) {
+          s.candySpawnTimer = 8 + Math.random() * 6
+          s.candy.push({
+             x: 40 + Math.random() * (ARENA.width - 80),
+             y: ARENA.height/2 - 50 + Math.random() * 100,
+             radius: 6,
+             active: true,
+             claimedBy: null
+          })
+       } else {
+          // Keep checking, but give the player a short respawn grace period
+          // after the current piece is finally collected.
+          s.candySpawnTimer = 3
+       }
     }
 
     for (let i = s.candy.length - 1; i >= 0; i--) {
@@ -331,7 +340,7 @@ export class PongEngine {
       status = 'over'
     }
     const tiles: GameStatTile[] = [
-      { label: 'Player hits', value: this.state.playerHits.toString(), note: '' },
+      { label: 'Player', value: this.state.playerScore.toString(), note: '' },
       { label: 'AI', value: this.state.aiScore.toString(), note: '' },
     ]
     this.store.update((s) => ({
