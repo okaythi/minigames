@@ -1,0 +1,39 @@
+.nx-footer {
+  margin-top: 64px;
+  border-top: var(--nx-hairline);
+  background: linear-gradient(180deg, transparent, var(--nx-sand));
+}
+
+.nx-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0 26px;
+  flex-wrap: wrap;
+}
+
+.nx-footer-note {
+  font-size: 12.5px;
+  color: var(--nx-slate);
+  max-width: 62ch;
+}
+
+.nx-footer-note strong {
+  color: var(--nx-ink);
+  font-weight: 600;
+}
+
+.nx-footer-nav {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+}
+
+.nx-footer-nav a {
+  color: var(--nx-slate);
+}
+
+.nx-footer-nav a:hover {
+  color: var(--nx-orange-deep);
+}

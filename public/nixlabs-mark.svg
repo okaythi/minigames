@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" fill="none" role="img" aria-labelledby="nixlabsMarkTitle">
+  <title id="nixlabsMarkTitle">Nixlabs - a lab flask wired to a game controller</title>
+  <defs>
+    <clipPath id="nxl-flask">
+      <path d="M18.5 7 18.5 17.5 9 35.5Q7.2 39 10.8 41.5 12.4 42.6 14.5 42.6H31.5Q33.6 42.6 35.2 41.5 38.8 39 37 35.5L27.5 17.5 27.5 7Z" />
+    </clipPath>
+    <linearGradient id="nxl-liquid" x1="14" y1="29" x2="34" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBAD41" />
+      <stop offset="1" stop-color="#F6821F" />
+    </linearGradient>
+  </defs>
+
+  <path d="M29.5 6.5C37 1.5 45 5 50.5 21" stroke="#404041" stroke-width="2.4" stroke-linecap="round" />
+
+  <g clip-path="url(#nxl-flask)">
+    <rect x="6" y="29.5" width="34" height="18" fill="url(#nxl-liquid)" />
+    <circle cx="18" cy="37" r="2.1" fill="#FFD9A0" />
+    <circle cx="26" cy="34" r="1.5" fill="#FFD9A0" />
+    <circle cx="23.4" cy="24.5" r="1.7" fill="#F6821F" />
+    <circle cx="21.4" cy="17.5" r="1.1" fill="#FBAD41" />
+  </g>
+
+  <path d="M18.5 7 18.5 17.5 9 35.5Q7.2 39 10.8 41.5 12.4 42.6 14.5 42.6H31.5Q33.6 42.6 35.2 41.5 38.8 39 37 35.5L27.5 17.5 27.5 7" stroke="#404041" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M15.8 7H30.2" stroke="#404041" stroke-width="2.6" stroke-linecap="round" />
+
+  <path d="M44.5 23H66.5Q69.5 23 69.5 26.5V36Q69.5 40 65.5 40H45.5Q41.5 40 41.5 36V26.5Q41.5 23 44.5 23Z" fill="#404041" />
+  <path d="M48.4 30.6H53.6M51 28V33.2" stroke="#FAF7F2" stroke-width="2.1" stroke-linecap="round" />
+  <circle cx="60.5" cy="28.6" r="2.2" fill="#F6821F" />
+  <circle cx="64.2" cy="33.4" r="2.2" fill="#FBAD41" />
+</svg>

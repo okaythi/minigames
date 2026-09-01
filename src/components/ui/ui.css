@@ -1,0 +1,112 @@
+/** Shared CSS for the two "chrome" bars and generic UI atoms. */
+
+.nx-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--nx-radius);
+  border: var(--nx-hairline-strong);
+  background: var(--nx-card);
+  color: var(--nx-ink);
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  transition:
+    background-color var(--nx-duration) var(--nx-ease),
+    border-color var(--nx-duration) var(--nx-ease),
+    transform var(--nx-duration) var(--nx-ease),
+    box-shadow var(--nx-duration) var(--nx-ease);
+}
+
+.nx-button:hover {
+  border-color: var(--nx-slate);
+  background: #fffaf3;
+}
+
+.nx-button:active {
+  transform: translateY(1px);
+}
+
+.nx-button[data-variant='primary'] {
+  background: var(--nx-orange);
+  border-color: var(--nx-orange-deep);
+  color: #fffaf3;
+  box-shadow: var(--nx-shadow-sm);
+}
+
+.nx-button[data-variant='primary']:hover {
+  background: var(--nx-orange-deep);
+  border-color: var(--nx-orange-deep);
+}
+
+.nx-button[data-variant='ghost'] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--nx-slate);
+}
+
+.nx-button[data-variant='ghost']:hover {
+  color: var(--nx-ink);
+  background: var(--nx-sand);
+  border-color: var(--nx-line);
+}
+
+.nx-button[data-size='small'] {
+  height: 30px;
+  padding: 0 11px;
+  font-size: 12.5px;
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-button[data-size='large'] {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+.nx-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nx-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: var(--nx-hairline);
+  background: var(--nx-sand);
+  color: var(--nx-slate);
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.nx-eyebrow {
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  letter-spacing: var(--nx-tracking-wide);
+  text-transform: uppercase;
+  color: var(--nx-slate);
+}
+
+.nx-empty {
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  background: var(--nx-card);
+  padding: 34px 28px;
+  text-align: center;
+  color: var(--nx-slate);
+}
+
+.nx-empty strong {
+  display: block;
+  color: var(--nx-ink);
+  font-size: 16px;
+  margin-bottom: 6px;
+}

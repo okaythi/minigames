@@ -1,0 +1,39 @@
+.nx-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.nx-brand-mark {
+  height: 26px;
+  width: auto;
+  flex: none;
+  transition: transform 320ms var(--nx-ease);
+}
+
+.nx-brand:hover .nx-brand-mark {
+  transform: translateY(-1px) rotate(-2deg);
+}
+
+.nx-brand-word {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 15.5px;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.nx-brand-word strong {
+  font-weight: 660;
+}
+
+.nx-brand-suffix {
+  color: var(--nx-slate);
+  font-weight: 450;
+}
+
+.nx-brand[data-compact='true'] .nx-brand-mark {
+  height: 22px;
+}

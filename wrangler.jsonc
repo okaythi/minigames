@@ -1,0 +1,21 @@
+// Cloudflare Pages configuration.
+// Docs: https://developers.cloudflare.com/pages/
+// `kv_namespaces` is what backs the global "times played" counter; create the
+// namespace with `npx wrangler kv namespace create GAMES_STATS` and paste the
+// resulting id below. Everything degrades to localStorage when the binding is
+// absent, so the site still ships without it.
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "nixlabs-games",
+  "compatibility_date": "2026-08-01",
+  "pages_build_output_dir": "./dist",
+  "kv_namespaces": [
+    {
+      "binding": "GAMES_STATS",
+      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

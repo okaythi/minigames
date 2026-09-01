@@ -1,0 +1,10 @@
+.nx-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.nx-main {
+  padding-top: 6px;
+  padding-bottom: 48px;
+}

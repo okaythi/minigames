@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" role="img" aria-label="Nixlabs">
+  <defs>
+    <clipPath id="nxl-fav-flask">
+      <path d="M23 17 23 30 12 52.5Q9.7 56.9 14.2 60 16.2 61.4 18.8 61.4H39.2Q41.8 61.4 43.8 60 48.3 56.9 46 52.5L35 30 35 17Z" />
+    </clipPath>
+    <linearGradient id="nxl-fav-liquid" x1="17" y1="45" x2="42" y2="63" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBAD41" />
+      <stop offset="1" stop-color="#F6821F" />
+    </linearGradient>
+  </defs>
+
+  <rect width="80" height="80" rx="18" fill="#FAF7F2" />
+
+  <g transform="translate(4 6) scale(0.9)">
+    <path d="M37.5 16.5C46.5 10.5 56 15 62.5 34" stroke="#404041" stroke-width="3" stroke-linecap="round" />
+    <g clip-path="url(#nxl-fav-flask)">
+      <rect x="8" y="45" width="44" height="24" fill="url(#nxl-fav-liquid)" />
+      <circle cx="22.5" cy="54" r="2.6" fill="#FFD9A0" />
+      <circle cx="33" cy="50.5" r="1.9" fill="#FFD9A0" />
+    </g>
+    <path d="M23 17 23 30 12 52.5Q9.7 56.9 14.2 60 16.2 61.4 18.8 61.4H39.2Q41.8 61.4 43.8 60 48.3 56.9 46 52.5L35 30 35 17" stroke="#404041" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M19.5 17H38.5" stroke="#404041" stroke-width="3.2" stroke-linecap="round" />
+    <path d="M55.5 36H71Q75 36 75 40.5V54Q75 59 70 59H57.5Q52.5 59 52.5 54V40.5Q52.5 36 55.5 36Z" fill="#404041" />
+    <path d="M58 46.5H64M61 43.5V49.5" stroke="#FAF7F2" stroke-width="2.6" stroke-linecap="round" />
+    <circle cx="68.5" cy="44.5" r="2.7" fill="#F6821F" />
+    <circle cx="72" cy="51" r="2.7" fill="#FBAD41" />
+  </g>
+</svg>
