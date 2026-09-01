@@ -6,7 +6,6 @@ import type { GameManifest } from '../games/types'
 import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
 import { SyncModal } from './sync-modal'
-import { Button } from '../components/ui/button'
 import './site-header.css'
 
 interface SiteHeaderProps {
@@ -36,9 +35,9 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
           <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
             About
           </Link>
-          <Button onClick={() => setSyncOpen(true)} variant="ghost" style={{ marginLeft: 8 }}>
+          <button className="nx-nav-link" onClick={() => setSyncOpen(true)} style={{ marginLeft: 8 }}>
             Sync
-          </Button>
+          </button>
         </nav>
         <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
       </div>
