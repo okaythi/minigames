@@ -2,10 +2,12 @@ import {
   parseGameStatsRecord,
   parseStatsResponse,
   readField,
+  type PlayerRecord,
   STATS_ENDPOINT,
   type GameStatsRecord,
   type StatsEvent,
 } from '../../../shared/stats-protocol'
+import { parsePlayerRecord } from '../../../shared/player-record'
 import { playerId } from './player-identity'
 
 /**
@@ -17,7 +19,8 @@ import { playerId } from './player-identity'
 const REQUEST_TIMEOUT_MS = 2500
 
 /** Derived from the parser so the two can never drift apart. */
-export type StatsPayload = NonNullable<ReturnType<typeof parseStatsResponse>>
+type ParsedStatsPayload = NonNullable<ReturnType<typeof parseStatsResponse>>
+export type StatsPayload = ParsedStatsPayload & { readonly player: PlayerRecord | null }
 
 const makeNonce = (): string => {
   const uuid = globalThis.crypto?.randomUUID?.()
@@ -52,16 +55,25 @@ export async function fetchAllStats(): Promise<StatsPayload | null> {
     if (!response.ok) {
       return null
     }
-    return parseStatsResponse(await response.json())
+    const raw: unknown = await response.json()
+    const payload = parseStatsResponse(raw)
+    if (payload === null) {
+      return null
+    }
+    return {
+      ...payload,
+      player: parsePlayerRecord(readField(raw, 'player')),
+    }
   })
 }
 
-interface PushPayload {
+export interface StatsPushResult {
   readonly stats: GameStatsRecord | null
   readonly uniquePlayers: number | null
+  readonly player: PlayerRecord | null
 }
 
-const post = async (game: string, event: StatsEvent): Promise<PushPayload | null> => {
+const post = async (game: string, event: StatsEvent): Promise<StatsPushResult | null> => {
   const body = JSON.stringify({ game, event, nonce: makeNonce(), playerId: playerId() })
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
@@ -81,14 +93,14 @@ const post = async (game: string, event: StatsEvent): Promise<PushPayload | null
     return {
       stats: parseGameStatsRecord(readField(payload, 'stats')),
       uniquePlayers: readNumber(payload, 'uniquePlayers'),
+      player: parsePlayerRecord(readField(payload, 'player')),
     }
   })
 }
 
 /** A run was started, or a score was submitted: both move the counters. */
-export async function pushStatsEvent(game: string, event: StatsEvent): Promise<GameStatsRecord | null> {
-  const result = await post(game, event)
-  return result?.stats ?? null
+export async function pushStatsEvent(game: string, event: StatsEvent): Promise<StatsPushResult | null> {
+  return post(game, event)
 }
 
 /**

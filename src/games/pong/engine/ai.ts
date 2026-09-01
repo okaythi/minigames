@@ -1,4 +1,4 @@
-import { ARENA, MAX_BOUNCE_ANGLE } from './config'
+import { ARENA, MAX_BOUNCE_ANGLE, extensionScale } from './config'
 import type { PongState } from './engine'
 
 export function updateAI(state: PongState, _dt: number, activatePowerupCb: (idx: number) => void) {
@@ -8,7 +8,7 @@ export function updateAI(state: PongState, _dt: number, activatePowerupCb: (idx:
     return
   }
 
-  const aiW = s.ai.w * (s.ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+  const aiW = s.ai.w * extensionScale(s.ai.activePowerups)
   const R = aiW / 2
   let epsilon = 0
 

@@ -1,7 +1,7 @@
 import type { GameRuntimeDeps } from '../../template/types'
 import type { Store } from '../../../lib/observable-store'
 import type { GameSnapshot, GameRunStatus, GameStatTile } from '../../template/snapshot'
-import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE } from './config'
+import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE, extensionScale } from './config'
 import { activatePowerupState } from './powerups'
 import { updateAI } from './ai'
 
@@ -40,6 +40,7 @@ export interface PongState {
 
   playerMagnetActive: boolean
   playerGlassWallActive: boolean
+  playerGlassWallTimeRemaining: number
 
   lastHitBy: 'player' | 'ai' | null
   notifications: { text: string; time: number; y: number }[]
@@ -76,6 +77,7 @@ export class PongEngine {
       candySpawnTimer: 8,
       playerMagnetActive: false,
       playerGlassWallActive: false,
+      playerGlassWallTimeRemaining: 0,
       lastHitBy: null,
       notifications: []
     }
@@ -88,7 +90,16 @@ export class PongEngine {
     }
   }
 
+  isVeryHardUnlocked(): boolean {
+    return (['easy', 'normal', 'hard'] as const).every((difficulty) =>
+      this.deps.current.completedDifficulties.includes(difficulty),
+    )
+  }
+
   confirmConfig() {
+    if (this.state.difficulty === 'very-hard' && !this.isVeryHardUnlocked()) {
+      this.state.difficulty = 'normal'
+    }
     this.state.phase = 'loadout'
     const maxSlots = this.state.mode === 11 ? 5 : this.state.mode === 21 ? 6 : 7
     this.state.slots = Array(maxSlots).fill(null)
@@ -120,6 +131,14 @@ export class PongEngine {
     this.state.candySpawnTimer = 8 + Math.random() * 6
   }
 
+  releaseMagnetBall(): void {
+    if (!this.state.ball.stuckToPlayer) return
+    this.state.ball.stuckToPlayer = false
+    this.state.ball.stuckTime = 0
+    this.bounceBall(this.state.player, -1)
+    this.state.notifications.push({ text: 'BALL RELEASED', time: 1.2, y: this.state.player.y - 30 })
+  }
+
   pause() { this.publish('paused') }
   resume() { this.publish('running') }
   restart() {
@@ -143,7 +162,7 @@ export class PongEngine {
   stepPhysics(dt: number) {
     const s = this.state
 
-    const currentW = s.player.w * (s.player.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+    const currentW = s.player.w * extensionScale(s.player.activePowerups)
     const currentMaxV = s.player.maxV * (s.player.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
 
     const dx = this.pointerX - s.player.x
@@ -154,7 +173,7 @@ export class PongEngine {
     }
     s.player.x = Math.max(currentW/2, Math.min(ARENA.width - currentW/2, s.player.x))
 
-    const aiW = s.ai.w * (s.ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+    const aiW = s.ai.w * extensionScale(s.ai.activePowerups)
     const aiBaseMaxV = s.player.maxV * (s.difficulty === 'easy' ? 0.9 : 1)
     s.ai.maxV = aiBaseMaxV
     const aiMaxV = aiBaseMaxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
@@ -171,11 +190,6 @@ export class PongEngine {
        s.ball.stuckTime += dt
        s.ball.x = s.player.x
        s.ball.y = s.player.y - s.player.h/2 - s.ball.radius
-       if (!this.pointerDown || s.ball.stuckTime >= 1.5) {
-          s.ball.stuckToPlayer = false
-          s.ball.stuckTime = 0
-          this.bounceBall(s.player, -1)
-       }
     } else {
        s.ball.x += s.ball.vx * dt
        s.ball.y += s.ball.vy * dt
@@ -200,7 +214,7 @@ export class PongEngine {
 
   bounceBall(paddle: PaddleState, dir: 1 | -1) {
     const s = this.state
-    const currentW = paddle.w * (paddle.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+    const currentW = paddle.w * extensionScale(paddle.activePowerups)
 
     const intersect = (s.ball.x - paddle.x) / (currentW / 2)
     const clamped = Math.max(-1, Math.min(1, intersect))
@@ -217,7 +231,7 @@ export class PongEngine {
     const s = this.state
     const { ball, player, ai } = s
 
-    const aiW = ai.w * (ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+    const aiW = ai.w * extensionScale(ai.activePowerups)
     if (ball.vy < 0 && ball.y - ball.radius <= ai.y + ai.h/2) {
        if (Math.abs(ball.x - ai.x) <= aiW/2 + ball.radius) {
           ball.y = ai.y + ai.h/2 + ball.radius
@@ -226,7 +240,7 @@ export class PongEngine {
        }
     }
 
-    const plW = player.w * (player.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
+    const plW = player.w * extensionScale(player.activePowerups)
     if (!ball.stuckToPlayer && ball.vy > 0 && ball.y + ball.radius >= player.y - player.h/2) {
        if (Math.abs(ball.x - player.x) <= plW/2 + ball.radius) {
           ball.y = player.y - player.h/2 - ball.radius
@@ -242,6 +256,7 @@ export class PongEngine {
           }
        } else if (s.playerGlassWallActive && ball.y > player.y) {
           s.playerGlassWallActive = false
+          s.playerGlassWallTimeRemaining = 0
           ball.y = player.y - ball.radius
           ball.vy *= -1
           s.lastHitBy = 'player'
@@ -286,12 +301,11 @@ export class PongEngine {
           const dx = s.ball.x - c.x
           const dy = s.ball.y - c.y
           const dist = Math.sqrt(dx*dx + dy*dy)
-          if (dist <= s.ball.radius + c.radius) {
+          if (dist <= s.ball.radius + c.radius && s.lastHitBy === 'player') {
              c.active = false
-             if (s.lastHitBy === 'player') {
-                this.deps.current.bankBonus(10)
-                s.notifications.push({ text: '+10 CANDY', time: 1.5, y: c.y - 20 })
-             }
+             c.claimedBy = 'player'
+             this.deps.current.bankBonus(5)
+             s.notifications.push({ text: '+5 CANDY', time: 1.5, y: c.y - 20 })
           }
        }
     }
@@ -301,7 +315,10 @@ export class PongEngine {
     const s = this.state
     if (s.playerScore >= s.mode || s.aiScore >= s.mode) {
        s.phase = 'over'
-       this.deps.current.finishRun(s.playerHits)
+       this.deps.current.finishRun(s.playerHits, {
+         difficulty: s.difficulty,
+         won: s.playerScore >= s.mode,
+       })
     }
   }
 
@@ -318,10 +335,23 @@ export class PongEngine {
     }
     tick(s.player.activePowerups)
     tick(s.ai.activePowerups)
+
+    if (s.playerGlassWallActive) {
+      s.playerGlassWallTimeRemaining -= dt
+      if (s.playerGlassWallTimeRemaining <= 0) {
+        s.playerGlassWallTimeRemaining = 0
+        s.playerGlassWallActive = false
+        s.notifications.push({ text: 'GLASS WALL GONE', time: 1.5, y: s.player.y - 30 })
+      }
+    }
   }
 
   handleInput(key: string, isDown: boolean) {
     if (isDown) {
+      if (this.state.ball.stuckToPlayer && (key === ' ' || key === 'Space' || key === 'Spacebar')) {
+        this.releaseMagnetBall()
+        return
+      }
       if (['1','2','3','4','5','6','7'].includes(key)) {
         const idx = parseInt(key) - 1
         if (idx < this.state.slots.length && this.state.slots[idx]) {

@@ -10,6 +10,7 @@ export const EMPTY_GAME_STATS: GameStatsView = {
   personalBest: null,
   globalRecord: null,
   candy: 0,
+  completedDifficulties: [],
   distributed: false,
   synced: false,
 }

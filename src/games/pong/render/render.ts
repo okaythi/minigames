@@ -1,6 +1,6 @@
 import type { GameHost, GameViewport } from '../../runtime/types'
 import type { PongEngine, PowerupType } from '../engine/engine'
-import { ARENA, COSTS } from '../engine/config'
+import { ARENA, COSTS, extensionScale } from '../engine/config'
 import { drawPongCandy } from './candy'
 import { PALETTE, withAlpha } from '../../../theme/palette'
 import { roundRectPath } from '../../avoid-the-spikes/render/draw-utils'
@@ -94,6 +94,11 @@ export function attachPongRender(engine: PongEngine, host: GameHost) {
 
     if (e.cancelable && e.type === 'touchstart') e.preventDefault()
 
+    if (engine.state.phase === 'playing' && engine.state.ball.stuckToPlayer) {
+      engine.releaseMagnetBall()
+      return
+    }
+
     if (engine.state.phase === 'config') {
       if (point.y >= 100 && point.y <= 140) {
         if (point.x >= 40 && point.x <= 120) engine.state.mode = 11
@@ -107,7 +112,7 @@ export function attachPongRender(engine: PongEngine, host: GameHost) {
         else if (point.x >= 220 && point.x <= 280) engine.state.difficulty = 'hard'
       }
       if (point.y >= 250 && point.y <= 290) {
-        if (point.x >= 40 && point.x <= 180 && (engine.deps.current.best || 0) >= 3) {
+        if (point.x >= 40 && point.x <= 180 && engine.isVeryHardUnlocked()) {
           engine.state.difficulty = 'very-hard'
         }
       }
@@ -395,7 +400,7 @@ function drawArena(
   drawPaddle(ctx, engine.state.player.x, engine.state.player.y, playerWidth, engine.state.player.h, PALETTE.blue, PALETTE.blueDeep, time)
   drawPaddle(ctx, engine.state.ai.x, engine.state.ai.y, aiWidth, engine.state.ai.h, PALETTE.orange, PALETTE.orangeDeep, time + 1)
 
-  if (engine.state.playerGlassWallActive) {
+  if (engine.state.playerGlassWallActive && glassWallIsVisible(engine.state.playerGlassWallTimeRemaining, time)) {
     const wallGradient = ctx.createLinearGradient(0, engine.state.player.y, 0, engine.state.player.y + 18)
     wallGradient.addColorStop(0, withAlpha(PALETTE.blue, 0.05))
     wallGradient.addColorStop(0.5, withAlpha(PALETTE.blue, 0.32))
@@ -412,6 +417,9 @@ function drawArena(
   }
 
   drawBall(ctx, engine.state.ball.x, engine.state.ball.y, engine.state.ball.radius, time)
+  if (engine.state.ball.stuckToPlayer) {
+    drawMagnetPrompt(ctx, engine.state.ball.x, engine.state.ball.y, time, fonts)
+  }
   drawNotifications(ctx, engine, fonts)
 }
 
@@ -547,6 +555,34 @@ function drawBall(ctx: CanvasRenderingContext2D, x: number, y: number, radius: n
   ctx.restore()
 }
 
+function glassWallIsVisible(timeRemaining: number, time: number): boolean {
+  if (timeRemaining > 2.4) return true
+  const flicker = Math.sin(time * 37.7) + Math.sin(time * 83.1) * 0.55 + Math.sin(time * 127.3) * 0.3
+  return flicker > -0.15
+}
+
+function drawMagnetPrompt(ctx: CanvasRenderingContext2D, x: number, y: number, time: number, fonts: PongFonts): void {
+  const width = 210
+  const height = 38
+  const left = Math.max(12, Math.min(ARENA.width - width - 12, x - width / 2))
+  const top = Math.max(24, y - 58)
+  ctx.save()
+  ctx.globalAlpha = 0.94 + Math.sin(time * 4) * 0.04
+  roundRectPath(ctx, left, top, width, height, 8)
+  ctx.fillStyle = withAlpha(PALETTE.blueDeep, 0.94)
+  ctx.fill()
+  ctx.strokeStyle = withAlpha(PALETTE.blue, 0.9)
+  ctx.stroke()
+  setFont(ctx, 800, 9, fonts.mono)
+  ctx.fillStyle = PALETTE.card
+  ctx.textAlign = 'center'
+  ctx.fillText('MAGNET LOCKED', left + width / 2, top + 14)
+  setFont(ctx, 650, 8, fonts.sans)
+  ctx.fillStyle = withAlpha(PALETTE.card, 0.9)
+  ctx.fillText('CLICK · TAP · SPACE TO RELEASE', left + width / 2, top + 28)
+  ctx.restore()
+}
+
 function drawNotifications(ctx: CanvasRenderingContext2D, engine: PongEngine, fonts: PongFonts): void {
   setFont(ctx, 800, 11, fonts.mono)
   ctx.textAlign = 'center'
@@ -586,8 +622,9 @@ function drawConfig(ctx: CanvasRenderingContext2D, engine: PongEngine, fonts: Po
     x += difficulty.width + 20
   }
 
-  const unlocked = (engine.deps.current.best || 0) >= 3
-  drawChoice(ctx, 40, 250, 140, 38, unlocked ? 'Very Hard' : 'Locked', unlocked && engine.state.difficulty === 'very-hard', fonts.sans, !unlocked)
+  if (engine.isVeryHardUnlocked()) {
+    drawChoice(ctx, 40, 250, 140, 38, 'Very Hard', engine.state.difficulty === 'very-hard', fonts.sans)
+  }
 
   drawButton(ctx, ARENA.width / 2 - 50, ARENA.height - 80, 100, 40, 'Next', PALETTE.blue, PALETTE.blueDeep, fonts.sans)
 }
@@ -735,5 +772,5 @@ function itemYFor(type: PowerupType): number {
 }
 
 function paddleWidth(paddle: { readonly w: number; readonly activePowerups: readonly { readonly type: string }[] }): number {
-  return paddle.w * (paddle.activePowerups.some((powerup) => powerup.type === 'extension') ? 1.5 : 1)
+  return paddle.w * extensionScale(paddle.activePowerups)
 }

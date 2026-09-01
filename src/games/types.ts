@@ -56,6 +56,8 @@ export interface GameManifest {
   readonly scoreLabel: string
   /** What the bonus pickup is called, e.g. `Candy`. */
   readonly bonusLabel: string
+  /** Optional run-duration label; Pong ends on points rather than elapsed time. */
+  readonly runDurationLabel?: string
   /** The one-button verb on the primary control, e.g. `Flap`. */
   readonly primaryLabel: string
   /** How the score is earned - one line, shown in the page's Scoring block. */

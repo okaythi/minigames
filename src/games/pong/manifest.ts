@@ -52,6 +52,6 @@ export const pongManifest: GameManifest = {
   startLine: 'Click, tap or hit Enter to start.',
   intro: 'Choose your loadout and difficulty. Move the paddle at the bottom to beat the AI at the top.',
   pauseNote: 'Use 1-5 to trigger your equipped powerups.',
-  tip: 'Hold the Magnet (if equipped) to stall the ball and ruin the AI\'s timing.',
+  tip: 'When Magnet catches the ball, click, tap or press Space to release it.',
   legend: LEGEND,
 }

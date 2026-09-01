@@ -34,10 +34,12 @@ export function GameOverlay({ runtime, manifest, snapshot }: GameOverlayProps) {
               <dt>{manifest.bonusLabel}</dt>
               <dd>{result === null ? 0 : compactCount(result.bonus)}</dd>
             </div>
-            <div>
-              <dt>Alive for</dt>
-              <dd>{result === null ? '0s' : formatSeconds(result.seconds)}</dd>
-            </div>
+            {manifest.runDurationLabel !== undefined && (
+              <div>
+                <dt>{manifest.runDurationLabel}</dt>
+                <dd>{result === null ? '0s' : formatSeconds(result.seconds)}</dd>
+              </div>
+            )}
             <div>
               <dt>Your best</dt>
               <dd>{snapshot.best ?? 0}</dd>

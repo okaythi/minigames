@@ -1,6 +1,7 @@
 import type { Store } from '../../lib/observable-store'
 import type { GameViewFactory } from '../runtime/types'
 import type { GameSnapshot } from './snapshot'
+import type { PongDifficulty } from '../../../shared/stats-protocol'
 
 /**
  * The contract between the shared chrome and a game. A game supplies one of
@@ -23,11 +24,18 @@ export interface GameActions {
  * reporting hooks. The template keeps this in a ref, so a runtime created once
  * never captures a stale value.
  */
+export interface GameFinishDetails {
+  /** Optional progression metadata for games whose score has a mode. */
+  readonly difficulty?: PongDifficulty
+  readonly won?: boolean
+}
+
 export interface GameRuntimeDeps {
   readonly best: number | null
   readonly bonus: number
+  readonly completedDifficulties: readonly Exclude<PongDifficulty, 'very-hard'>[]
   readonly beginRun: () => void
-  readonly finishRun: (score: number) => void
+  readonly finishRun: (score: number, details?: GameFinishDetails) => void
   readonly bankBonus: (amount: number) => void
 }
 

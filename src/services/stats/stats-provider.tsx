@@ -8,9 +8,15 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
-import type { GameStatsRecord, StatsMap } from '../../../shared/stats-protocol'
+import type {
+  GameStatsRecord,
+  PlayerRecord,
+  PongDifficulty,
+  StatsMap,
+} from '../../../shared/stats-protocol'
 import { announceVisit, fetchAllStats, pushStatsEvent } from './stats-api'
 import { claimVisitAnnouncement } from './player-identity'
+import type { GameFinishDetails } from '../../games/template/types'
 import {
   bankCandy as bankCandyLocal,
   readLocalCounters,
@@ -35,6 +41,8 @@ export interface GameStatsView {
   readonly personalBest: number | null
   readonly globalRecord: number | null
   readonly candy: number
+  /** D1-backed Pong progression for this player. */
+  readonly completedDifficulties: readonly Exclude<PongDifficulty, 'very-hard'>[]
   /** True when the deployment really is counting across visitors. */
   readonly distributed: boolean
   /** False while the first fetch is in flight or after it failed. */
@@ -46,7 +54,7 @@ export interface StatsController {
   readonly uniquePlayers: number
   readonly view: (slug: string) => GameStatsView
   readonly beginRun: (slug: string) => void
-  readonly finishRun: (slug: string, score: number) => void
+  readonly finishRun: (slug: string, score: number, details?: GameFinishDetails) => void
   readonly bankCandy: (slug: string, amount: number) => void
 }
 
@@ -54,6 +62,7 @@ const StatsContext = createContext<StatsController | null>(null)
 
 export function StatsProvider({ children }: { readonly children: ReactNode }) {
   const [edge, setEdge] = useState<StatsMap | null>(null)
+  const [playerRecord, setPlayerRecord] = useState<PlayerRecord | null>(null)
   const [uniquePlayers, setUniquePlayers] = useState(0)
   const [synced, setSynced] = useState(false)
   const [revision, setRevision] = useState(0)
@@ -69,6 +78,7 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
         return
       }
       setEdge(payload.games)
+      setPlayerRecord(payload.player)
       setUniquePlayers(payload.uniquePlayers)
       setSynced(true)
     })
@@ -88,21 +98,27 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
     }
   }, [])
 
-  const mergeRemote = useCallback((slug: string, record: GameStatsRecord): void => {
+  const mergeRemote = useCallback((slug: string, record: GameStatsRecord, player: PlayerRecord | null): void => {
     setEdge((current) => ({ ...(current ?? {}), [slug]: record }))
+    if (player !== null) {
+      setPlayerRecord(player)
+    }
     setSynced(true)
   }, [])
 
   const push = useCallback(
-    (slug: string, event: { type: 'play' } | { type: 'score'; score: number }): void => {
+    (
+      slug: string,
+      event: { type: 'play' } | ({ type: 'score'; score: number } & GameFinishDetails),
+    ): void => {
       if (pending.current.has(slug + event.type)) {
         return
       }
       pending.current.add(slug + event.type)
       void pushStatsEvent(slug, event)
-        .then((record) => {
-          if (record !== null) {
-            mergeRemote(slug, record)
+        .then((result) => {
+          if (result !== null && result.stats !== null) {
+            mergeRemote(slug, result.stats, result.player)
           } else {
             setSynced(false)
           }
@@ -124,10 +140,10 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
   )
 
   const finishRun = useCallback(
-    (slug: string, score: number): void => {
+    (slug: string, score: number, details?: GameFinishDetails): void => {
       registerScore(slug, score)
       setRevision((value) => value + 1)
-      push(slug, { type: 'score', score })
+      push(slug, details === undefined ? { type: 'score', score } : { type: 'score', score, ...details })
     },
     [push],
   )
@@ -149,13 +165,14 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
         personalBest: local.best,
         globalRecord: remote?.highscore ?? null,
         candy: local.candy,
+        completedDifficulties: playerRecord?.games[slug]?.completedDifficulties ?? [],
         distributed,
         synced,
       }
     }
     return { view, beginRun, finishRun, bankCandy, uniquePlayers }
     // `revision` intentionally busts the memo when localStorage moves.
-  }, [edge, synced, revision, beginRun, finishRun, bankCandy, uniquePlayers])
+  }, [edge, playerRecord, synced, revision, beginRun, finishRun, bankCandy, uniquePlayers])
 
   return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
 }
