@@ -105,9 +105,12 @@ export function GamePage({ slug }: GamePageProps) {
           </dl>
           <h2>Scoring</h2>
           <p className="nx-game-side-note">
-            {manifest.scoringNote} <Tag>{manifest.scoreLabel}</Tag>
+            {manifest.scoringNote}
           </p>
-          <ul className="nx-game-tags">
+          <ul className="nx-game-tags" style={{ marginTop: 6 }}>
+            <li>
+              <Tag>{manifest.scoreLabel}</Tag>
+            </li>
             {manifest.tags.map((tag) => (
               <li key={tag}>
                 <Tag>{tag}</Tag>
