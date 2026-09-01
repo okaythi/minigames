@@ -13,6 +13,9 @@ export const AI_SPEED_FACTORS: Readonly<Record<Difficulty, number>> = {
   'very-hard': 1,
 } as const
 
+export const AI_REACTION_DELAY = 0.14 // 140ms
+
+
 export const POWERUP_DURATIONS: Readonly<
   Record<'speed' | 'extension' | 'glass-wall', Readonly<Record<Difficulty, number>>>
 > = {

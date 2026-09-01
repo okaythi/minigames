@@ -1,7 +1,7 @@
 import type { GameRuntimeDeps } from '../../template/types'
 import type { Store } from '../../../lib/observable-store'
 import type { GameSnapshot, GameRunStatus } from '../../template/snapshot'
-import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE } from './config'
+import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE, AI_REACTION_DELAY } from './config'
 import { activatePowerupState, updatePowerups } from './powerups'
 import { updateAI } from './ai'
 import { stepPhysics } from './physics'
@@ -132,7 +132,7 @@ export class PongEngine {
     this.state.candy = []
     this.state.candySpawnTimer = 8 + Math.random() * 6
     if (dir === -1) {
-      this.state.aiReactionTimer = 0.08
+      this.state.aiReactionTimer = AI_REACTION_DELAY
       this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
     } else {
       this.state.aiReactionTimer = 0
@@ -145,7 +145,7 @@ export class PongEngine {
     this.state.ball.stuckToPlayer = false
     this.state.ball.stuckTime = 0
     bounceBall(this.state, this.state.player, -1)
-    this.state.aiReactionTimer = 0.08
+    this.state.aiReactionTimer = AI_REACTION_DELAY
     this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
     this.audio.play('flap')
     this.state.notifications.push({ text: 'BALL RELEASED', time: 1.2, y: this.state.player.y - 30 })

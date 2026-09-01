@@ -1,4 +1,4 @@
-import { ARENA, BALL, MAX_BOUNCE_ANGLE, extensionScale } from './config'
+import { ARENA, BALL, MAX_BOUNCE_ANGLE, extensionScale, AI_REACTION_DELAY } from './config'
 import type { PaddleState, PongState } from './types'
 
 export interface CollisionHandlers {
@@ -44,7 +44,7 @@ export function checkCollisions(state: PongState, handlers: CollisionHandlers): 
         s.notifications.push({ text: 'MAGNETIZED', time: 1.5, y: player.y - 30 })
       } else {
         bounceBall(s, player, -1)
-        s.aiReactionTimer = 0.08
+        s.aiReactionTimer = AI_REACTION_DELAY
         s.aiErrorOffset = (Math.random() - 0.5) * (s.ai.w * 0.7)
         handlers.onPaddleHit()
       }
@@ -54,7 +54,7 @@ export function checkCollisions(state: PongState, handlers: CollisionHandlers): 
       ball.y = player.y - ball.radius
       ball.vy *= -1
       s.lastHitBy = 'player'
-      s.aiReactionTimer = 0.08
+      s.aiReactionTimer = AI_REACTION_DELAY
       s.aiErrorOffset = (Math.random() - 0.5) * (s.ai.w * 0.7)
       s.notifications.push({ text: 'GLASS WALL SHATTERED', time: 2, y: player.y - 30 })
       handlers.onPaddleHit()
