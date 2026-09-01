@@ -50,13 +50,14 @@ export function AboutPage() {
     registry.ts           one line per game
     types.ts              GameManifest + GameModule
     runtime/              canvas host, rAF loop, DPR, resize
+    template/             the one game page: stage, readout, overlay
     avoid-the-spikes/
-      manifest.ts         what the site shows
+      manifest.ts         what the site shows, in words
+      runtime.ts          the engine behind the template's contract
       engine/             the simulation: physics, spikes, movers,
                           pickups, particles, audio, session
       render/             canvas layers, world transform
-      hud/                DOM readout and overlays
-      state.ts            the snapshot the HUD may read
+      state.ts            the engine's own snapshot
 shared/
   stats-protocol.ts       wire format for the counters
 functions/

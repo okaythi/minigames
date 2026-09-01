@@ -260,6 +260,8 @@
   border-radius: 4px;
   border: var(--nx-hairline);
   background: var(--nx-sand);
+  color: var(--nx-graphite);
+  white-space: nowrap;
 }
 
 .nx-play-card-legend {
