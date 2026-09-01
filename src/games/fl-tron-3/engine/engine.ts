@@ -33,13 +33,12 @@ export class TronEngine {
   }
 
   public start(): void {
-    if (this.state.phase === 'menu') {
-      this.startCampaign()
-    } else if (this.state.phase === 'intermission') {
+    if (this.state.phase === 'intermission') {
       this.advanceFromIntermission()
     } else if (this.state.phase === 'game_over' || this.state.phase === 'victory') {
       this.restart()
     }
+    // Note: If phase is 'menu', we do nothing so the user can interact with drawMainMenu
   }
 
   public startCampaign(): void {
@@ -67,7 +66,8 @@ export class TronEngine {
       this.setupRound()
     } else {
       this.state.phase = 'victory'
-      this.deps.current.finishRun(this.state.level)
+      const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
+      this.deps.current.finishRun(finalScore)
       this.publish()
     }
   }
@@ -340,7 +340,8 @@ export class TronEngine {
         if (this.state.level >= RULES.totalLevels) {
           this.state.phase = 'victory'
           this.audio.play('level_clear')
-          this.deps.current.finishRun(this.state.level)
+          const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
+          this.deps.current.finishRun(finalScore)
         } else {
           this.state.phase = 'intermission'
           this.audio.play('level_clear')

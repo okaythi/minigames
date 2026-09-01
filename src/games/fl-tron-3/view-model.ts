@@ -50,11 +50,29 @@ export function toGameSnapshot(state: TronState, bestLevel: number | null, isMut
         ? 'READY'
         : 'DEPLETED'
 
+  const isWin = state.phase === 'victory'
+  
+  // Score formula:
+  // If won, score = 1000000 - (milliseconds elapsed). Faster time = higher score.
+  // If not won, score = level (1-5).
+  // Thus any win beats any loss, and faster wins beat slower wins.
+  const rawScore = isWin
+    ? Math.floor(1000000 - state.elapsedRunSeconds * 1000)
+    : state.level
+
+  const formatBest = (score: number | null) => {
+    if (score === null) return '--'
+    if (score > 1000) {
+      return formatRunTime((1000000 - score) / 1000)
+    }
+    return `LVL ${score}`
+  }
+
   const tiles: readonly GameStatTile[] = [
     {
-      label: 'LEVEL',
-      value: `${state.level} / 6`,
-      note: aiConfig.name,
+      label: 'BEST RUN',
+      value: formatBest(bestLevel),
+      note: 'Global record',
     },
     {
       label: 'MATCH SCORE',
@@ -81,15 +99,23 @@ export function toGameSnapshot(state: TronState, bestLevel: number | null, isMut
 
   let runSummary: GameRunSummary | null = null
   if (status === 'over') {
-    const isWin = state.phase === 'victory'
     const note = isWin
       ? `Victory! All 6 levels cleared in ${timeFormatted}.`
       : `Eliminated on Level ${state.level} (${aiConfig.name}).`
-    const isRecord = bestLevel === null || state.level > bestLevel
-    const beatBestBy = isRecord && bestLevel !== null ? state.level - bestLevel : null
+    const isRecord = bestLevel === null || rawScore > bestLevel
+    let beatBestBy: number | null = null
+    
+    if (isRecord && bestLevel !== null) {
+      // If previous best was also a win, we show how many seconds faster they were.
+      if (bestLevel > 1000 && isWin) {
+        beatBestBy = (rawScore - bestLevel) / 1000 // difference in seconds
+      } else {
+        beatBestBy = rawScore - bestLevel // generic raw difference if mixing metrics
+      }
+    }
 
     runSummary = {
-      score: state.level,
+      score: rawScore,
       bonus: state.p1.turbosLeft,
       seconds: state.elapsedRunSeconds,
       note,
@@ -100,7 +126,7 @@ export function toGameSnapshot(state: TronState, bestLevel: number | null, isMut
 
   return {
     status,
-    score: state.level,
+    score: rawScore,
     best: bestLevel,
     bonus: state.p1.turbosLeft,
     tiles,

@@ -7,14 +7,16 @@ export function drawCycleTrails(
   ai: CycleState,
   _time: number,
 ): void {
-  drawSingleTrail(ctx, p1.trail, PALETTE.blue)
-  drawSingleTrail(ctx, ai.trail, PALETTE.orange)
+  drawSingleTrail(ctx, p1.trail, PALETTE.blue, '#94c2ff', p1.isTurbo)
+  drawSingleTrail(ctx, ai.trail, PALETTE.orange, '#ffd79c', ai.isTurbo)
 }
 
 function drawSingleTrail(
   ctx: CanvasRenderingContext2D,
   trail: readonly Point[],
   baseColor: string,
+  turboColor: string,
+  isTurbo: boolean,
 ): void {
   if (trail.length < 2) return
 
@@ -24,7 +26,7 @@ function drawSingleTrail(
 
   // Primary Solid Light Wall
   ctx.lineWidth = 7 // Matches RULES.trailWidth
-  ctx.strokeStyle = baseColor
+  ctx.strokeStyle = isTurbo ? turboColor : baseColor
   renderPolyline(ctx, trail)
   ctx.stroke()
 

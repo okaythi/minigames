@@ -251,12 +251,16 @@ export class PersonalityEngine {
 
     const dist = Math.hypot(ai.col - p1.col, ai.row - p1.row)
 
-    // 10+ Tactical Turbo Decision Calculations (Level 5 & 6)
-    if (p1.isTurbo && dist < 35) return true // Counter-turbo
-    if (this.isOvertakePossible(ai, p1)) return true // Overtake cutoff
-    if (this.isCorridorClosing(p1, grid, dist)) return true // Box closure
+    // Essential defensive/offensive moves (Level 4, 5, 6)
     if (this.isEscapeNeeded(ai, grid)) return true // Escape pinch
-    if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true // Speedrun straightaway
+    if (this.isOvertakePossible(ai, p1)) return true // Overtake cutoff
+
+    // Aggressive advanced tactics (Level 5 & 6 only, since they have enough turbos)
+    if (config.level >= 5) {
+      if (p1.isTurbo && dist < 35) return true // Counter-turbo
+      if (this.isCorridorClosing(p1, grid, dist)) return true // Box closure
+      if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true // Speedrun straightaway
+    }
 
     return false
   }
