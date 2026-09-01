@@ -24,7 +24,7 @@ export const RULES = {
   turboDurationSeconds: 1.2,
   turboCooldownSeconds: 1.0,
   turboSpeedMultiplier: 1.8,
-  baseCycleSpeed: 270, // pixels per second (~45 grid cells / sec)
+  baseCycleSpeed: 240, // pixels per second (~40 grid cells / sec)
   cycleLength: 14,
   cycleWidth: 7,
   trailWidth: 7,
