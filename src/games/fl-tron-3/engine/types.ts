@@ -64,6 +64,11 @@ export interface Particle {
   vRot?: number
 }
 
+export interface QueuedInput {
+  readonly dir: Direction
+  readonly expiresAt: number
+}
+
 export interface CycleState {
   readonly id: CycleId
   x: number
@@ -72,7 +77,7 @@ export interface CycleState {
   row: number
   dir: Direction
   targetDir: Direction
-  inputBuffer: readonly Direction[]
+  inputBuffer: readonly QueuedInput[]
   alive: boolean
   crashedAt: Point | null
   crashTime: number | null

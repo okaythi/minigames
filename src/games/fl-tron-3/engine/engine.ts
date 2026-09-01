@@ -2,7 +2,7 @@ import type { Store } from '../../../lib/observable-store'
 import type { GameRuntimeDeps } from '../../template/types'
 import type { GameSnapshot } from '../../template/snapshot'
 import { AI_CONFIGS, RULES } from './config'
-import { createCycle, queueDirection, triggerCycleCrash, triggerCycleTurbo, updateCycleTimers, DIRECTION_VECTORS } from './cycle'
+import { createCycle, queueDirection, triggerCycleCrash, triggerCycleTurbo, updateCycleTimers, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS } from './cycle'
 import { OCCUPANCY, OccupancyGrid, type OccupancyType } from './grid'
 import { AIController } from './ai'
 import type { TronAudioEngine } from './audio/audio-engine'
@@ -149,16 +149,16 @@ export class TronEngine {
     }
 
     if (this.state.phase === 'playing' && !this.isPaused) {
-      if (key === 'ArrowUp') {
+      if (key === 'ArrowUp' || key === 'w' || key === 'W') {
         queueDirection(this.state.p1, 'up')
         this.audio.play('turn')
-      } else if (key === 'ArrowDown') {
+      } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
         queueDirection(this.state.p1, 'down')
         this.audio.play('turn')
-      } else if (key === 'ArrowLeft') {
+      } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
         queueDirection(this.state.p1, 'left')
         this.audio.play('turn')
-      } else if (key === 'ArrowRight') {
+      } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
         queueDirection(this.state.p1, 'right')
         this.audio.play('turn')
       } else if (key === ' ') {
@@ -259,54 +259,112 @@ export class TronEngine {
   }
 
   private stepPhysics(dt: number): void {
+    const now = performance.now() / 1000
     const p1Speed = RULES.baseCycleSpeed * (this.state.p1.isTurbo ? RULES.turboSpeedMultiplier : 1.0)
     const aiSpeed = RULES.baseCycleSpeed * (this.state.ai.isTurbo ? RULES.turboSpeedMultiplier : 1.0)
 
-    const p1Crashed = this.advanceCycle(this.state.p1, p1Speed * dt, OCCUPANCY.p1Trail)
-    const aiCrashed = this.advanceCycle(this.state.ai, aiSpeed * dt, OCCUPANCY.aiTrail)
+    let p1Crashed = this.advanceCycle(this.state.p1, p1Speed * dt, OCCUPANCY.p1Trail, now)
+    let aiCrashed = this.advanceCycle(this.state.ai, aiSpeed * dt, OCCUPANCY.aiTrail, now)
+
+    // Head-on collision check: if both cycles ended up in the same grid cell
+    if (this.state.p1.col === this.state.ai.col && this.state.p1.row === this.state.ai.row) {
+      p1Crashed = true
+      aiCrashed = true
+    }
 
     if (p1Crashed || aiCrashed) {
       this.handleRoundEnd(p1Crashed, aiCrashed)
     }
   }
 
-  private advanceCycle(cycle: CycleState, dist: number, occupancyType: OccupancyType): boolean {
+  private advanceCycle(
+    cycle: CycleState,
+    dist: number,
+    occupancyType: OccupancyType,
+    now: number,
+  ): boolean {
     if (!cycle.alive) return false
 
     const currentSeg = cycle.trail[cycle.trail.length - 1]
+    let remainingDist = dist
+    let safetySteps = 0
 
-    // Consume input buffer on turn alignment
-    if (cycle.inputBuffer.length > 0) {
-      const nextDir = cycle.inputBuffer[0]
-      if (nextDir) {
-        cycle.dir = nextDir
-        cycle.inputBuffer = cycle.inputBuffer.slice(1)
-        if (currentSeg) {
-          currentSeg.points.push({ x: cycle.x, y: cycle.y })
+    while (remainingDist > 0.0001 && safetySteps++ < 16) {
+      const vec = DIRECTION_VECTORS[cycle.dir]
+      const targetCol = cycle.col + vec.x
+      const targetRow = cycle.row + vec.y
+      const targetCenter = OccupancyGrid.gridToWorld(targetCol, targetRow)
+
+      // Distance from current position to target cell center along current movement axis
+      const distToCenter = Math.abs(vec.x !== 0 ? targetCenter.x - cycle.x : targetCenter.y - cycle.y)
+
+      if (remainingDist < distToCenter) {
+        // Advance within current cell towards target center
+        cycle.x += vec.x * remainingDist
+        cycle.y += vec.y * remainingDist
+        remainingDist = 0
+
+        // Synchronize tip of active trail segment
+        if (currentSeg && currentSeg.points.length > 0) {
+          currentSeg.points[currentSeg.points.length - 1] = { x: cycle.x, y: cycle.y }
         }
+      } else {
+        // Cycle reaches the exact center of target cell!
+        cycle.x = targetCenter.x
+        cycle.y = targetCenter.y
+        remainingDist -= distToCenter
+
+        // Synchronize tip of active trail segment to target center
+        if (currentSeg && currentSeg.points.length > 0) {
+          currentSeg.points[currentSeg.points.length - 1] = { x: targetCenter.x, y: targetCenter.y }
+        }
+
+        // Collision Check upon entering target cell:
+        if (!this.grid.isFree(targetCol, targetRow)) {
+          cycle.col = targetCol
+          cycle.row = targetRow
+          return true // Collided with boundary, enemy trail, or own trail!
+        }
+
+        // Mark previous cell in occupancy grid as committed trail
+        this.grid.set(cycle.col, cycle.row, occupancyType)
+        cycle.col = targetCol
+        cycle.row = targetRow
+
+        // One Turn Per Cell Entry:
+        // Filter expired inputs first (TTL 1.2s)
+        const validInputs = cycle.inputBuffer.filter((entry) => entry.expiresAt > now)
+        let remainingBuffer = validInputs
+
+        while (remainingBuffer.length > 0) {
+          const first = remainingBuffer[0]
+          remainingBuffer = remainingBuffer.slice(1)
+          if (!first) continue
+
+          const nextDir = first.dir
+          if (nextDir === cycle.dir) {
+            // Redundant direction, discard and continue checking
+            continue
+          }
+          if (nextDir === OPPOSITE_DIRECTIONS[cycle.dir]) {
+            // 180° reverse direction, invalid, discard
+            continue
+          }
+
+          // Valid 90° turn found!
+          cycle.dir = nextDir
+
+          // Add a corner waypoint at exact grid cell center for seamless visual fill
+          if (currentSeg) {
+            currentSeg.points.push({ x: cycle.x, y: cycle.y })
+          }
+
+          // Stop: strictly ONE turn command executed per cell entered!
+          break
+        }
+
+        cycle.inputBuffer = remainingBuffer
       }
-    }
-
-    const vec = DIRECTION_VECTORS[cycle.dir]
-    cycle.x += vec.x * dist
-    cycle.y += vec.y * dist
-
-    // Keep tip of trail synchronized
-    if (currentSeg && currentSeg.points.length > 0) {
-      currentSeg.points[currentSeg.points.length - 1] = { x: cycle.x, y: cycle.y }
-    }
-
-    const gridCoord = OccupancyGrid.worldToGridUnclamped(cycle.x, cycle.y)
-    if (gridCoord.col !== cycle.col || gridCoord.row !== cycle.row) {
-      // Check collision on entry into new grid cell
-      if (!this.grid.isFree(gridCoord.col, gridCoord.row)) {
-        return true // collision!
-      }
-
-      // Mark previous grid cell
-      this.grid.set(cycle.col, cycle.row, occupancyType)
-      cycle.col = gridCoord.col
-      cycle.row = gridCoord.row
     }
 
     return false

@@ -6,6 +6,7 @@ import { OccupancyGrid, OCCUPANCY } from '../src/games/fl-tron-3/engine/grid'
 import { createCycle, queueDirection, triggerCycleTurbo, updateCycleTimers, OPPOSITE_DIRECTIONS } from '../src/games/fl-tron-3/engine/cycle'
 import { AIController, SurvivalEngine, PersonalityEngine } from '../src/games/fl-tron-3/engine/ai'
 import { AI_CONFIGS, RULES } from '../src/games/fl-tron-3/engine/config'
+import { TronEngine } from '../src/games/fl-tron-3/engine/engine'
 import type { DifficultyLevel } from '../src/games/fl-tron-3/engine/types'
 
 const checks: { readonly name: string; readonly ok: boolean }[] = []
@@ -151,11 +152,101 @@ function aiCampaignScalingProbe(): void {
   check('Level 6 Master Core gets infinite turbos', AI_CONFIGS[6].infiniteTurbos)
 }
 
+function ghostCollisionAndInputQueueProbe(): void {
+  // 1. Test 6-item buffer capacity and TTL expiry
+  const p1 = createCycle('p1', 20, 75, 'up', 3)
+  const t0 = 100.0
+
+  // Queue up to 6 valid alternating turns
+  queueDirection(p1, 'right', t0)
+  queueDirection(p1, 'down', t0)
+  queueDirection(p1, 'left', t0)
+  queueDirection(p1, 'down', t0)
+  queueDirection(p1, 'right', t0)
+  queueDirection(p1, 'down', t0)
+  const sixInputsBuffered = p1.inputBuffer.length === 6
+
+  // 7th input should be capped / rejected
+  queueDirection(p1, 'left', t0)
+  const cappedAtSix = p1.inputBuffer.length === 6
+
+  // Check TTL (1.2s): at t = t0 + 1.25, active inputs should expire on next queue
+  queueDirection(p1, 'right', t0 + 1.25)
+  const ttlExpiredOldInputs = p1.inputBuffer.length === 1 && p1.inputBuffer[0]?.dir === 'right'
+
+  line('6-input buffer capacity holds', sixInputsBuffered ? '6 QUEUED' : 'FAILED')
+  line('buffer capacity strictly capped at 6', cappedAtSix ? 'CAPPED' : 'OVERFLOW')
+  line('1.2s TTL purges stale inputs', ttlExpiredOldInputs ? 'PURGED' : 'FAILED')
+  check('input buffer stores up to 6 turns', sixInputsBuffered)
+  check('input buffer caps at 6 maximum entries', cappedAtSix)
+  check('input buffer TTL (1.2s) purges expired commands', ttlExpiredOldInputs)
+
+  // 2. Test Ghost Collision Fix: Rapid Right -> Down while moving Up
+  const mockDeps = { current: { beginRun: () => {}, finishRun: () => {}, best: null } }
+  const mockAudio = {
+    isMuted: false,
+    unlock: () => {},
+    play: () => {},
+    startBikeHum: () => {},
+    stopBikeHum: () => {},
+    updateBikeHumSpeed: () => {},
+    toggleMuted: () => false,
+    dispose: () => {},
+  }
+  const store = {
+    get: () => ({}),
+    set: () => {},
+    update: () => {},
+    subscribe: () => () => {},
+  }
+
+  const engine = new TronEngine(mockDeps as any, store as any, mockAudio as any)
+  engine.startCampaign()
+  // Advance past countdown phase (2.4s)
+  for (let i = 0; i < 60; i += 1) {
+    engine.update(0.05)
+  }
+
+  // Verify starting position: p1 at (20, 75) moving 'up'
+  const startCol = engine.state.p1.col
+  const startRow = engine.state.p1.row
+  const initialAlive = engine.state.p1.alive && engine.state.phase === 'playing'
+
+  // Rapidly press Right then Down
+  engine.handleInput('ArrowRight', true)
+  engine.handleInput('ArrowDown', true)
+
+  const twoTurnsQueued = engine.state.p1.inputBuffer.length === 2
+
+  // Simulate 30 frames (0.5 seconds at 60fps) of physics
+  for (let f = 0; f < 30; f += 1) {
+    engine.update(1 / 60)
+  }
+
+  // Under the old bug, the cycle would immediately crash into its own trail cell at (20, 75).
+  // With grid snapping and one turn per cell entry, the cycle travels to (20, 74), turns Right to (21, 74),
+  // turns Down to (21, 75+), remaining fully alive and intact!
+  const survivedRapidTurns = engine.state.p1.alive && engine.state.phase === 'playing'
+  const movedToNewCol = engine.state.p1.col === 21
+  const turnedDownSafely = engine.state.p1.dir === 'down'
+
+  line('start position at (20, 75) moving up', `col: ${startCol}, row: ${startRow}, alive: ${initialAlive}`)
+  line('rapid Right then Down buffering', `buffer length: ${twoTurnsQueued ? 2 : 'invalid'}`)
+  line('ghost collision eliminated', survivedRapidTurns ? 'SURVIVED (ALIVE)' : 'CRASHED (BUG)')
+  line('hairpin maneuver executed cleanly', `col: ${engine.state.p1.col}, row: ${engine.state.p1.row}, dir: ${engine.state.p1.dir}`)
+
+  check('rapid Right+Down inputs successfully buffered', twoTurnsQueued)
+  check('eliminated ghost collision: player survives rapid Right->Down turn', survivedRapidTurns)
+  check('cycle reached column 21 after Right turn', movedToNewCol)
+  check('cycle completed second 90° turn to Down without self-collision', turnedDownSafely)
+}
+
 console.log('--- FL Tron 3.0: Engine & Invariant Simulation ---')
 gridInvariantProbe()
 cycleMechanicsProbe()
 vetoArchitectureProbe()
 aiCampaignScalingProbe()
+ghostCollisionAndInputQueueProbe()
 
 const failed = checks.filter((entry) => !entry.ok)
 console.log('')
@@ -164,3 +255,4 @@ for (const entry of checks) {
 }
 console.log(failed.length === 0 ? `\nRESULT: ${checks.length}/${checks.length} hold` : `\nRESULT: ${failed.length} failed`)
 process.exitCode = failed.length === 0 ? 0 : 1
+

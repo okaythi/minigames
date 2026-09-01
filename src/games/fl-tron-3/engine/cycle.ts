@@ -45,14 +45,35 @@ export function createCycle(id: CycleId, col: number, row: number, dir: Directio
   }
 }
 
-export function queueDirection(cycle: CycleState, newDir: Direction): void {
+export function queueDirection(
+  cycle: CycleState,
+  newDir: Direction,
+  now: number = performance.now() / 1000,
+): void {
   if (!cycle.alive) return
-  const currentRefDir = cycle.inputBuffer.length > 0 ? cycle.inputBuffer[cycle.inputBuffer.length - 1] ?? cycle.dir : cycle.dir
+
+  // Filter out any expired inputs (TTL 1.2s)
+  const activeBuffer = cycle.inputBuffer.filter((entry) => entry.expiresAt > now)
+
+  // Compare against the projected final direction in the buffer, or current cycle.dir if buffer is empty
+  const lastItem = activeBuffer[activeBuffer.length - 1]
+  const currentRefDir = lastItem ? lastItem.dir : cycle.dir
+
   if (newDir === currentRefDir || newDir === OPPOSITE_DIRECTIONS[currentRefDir]) {
+    cycle.inputBuffer = activeBuffer
     return
   }
-  if (cycle.inputBuffer.length < 2) {
-    cycle.inputBuffer = [...cycle.inputBuffer, newDir]
+
+  if (activeBuffer.length < 6) {
+    cycle.inputBuffer = [
+      ...activeBuffer,
+      {
+        dir: newDir,
+        expiresAt: now + 1.2,
+      },
+    ]
+  } else {
+    cycle.inputBuffer = activeBuffer
   }
 }
 

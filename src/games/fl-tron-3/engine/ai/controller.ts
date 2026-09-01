@@ -1,5 +1,5 @@
 import { AI_CONFIGS } from '../config'
-import { queueDirection, triggerCycleTurbo } from '../cycle'
+import { triggerCycleTurbo } from '../cycle'
 import type { OccupancyGrid } from '../grid'
 import type { CycleState, DifficultyLevel } from '../types'
 import { PersonalityEngine } from './personality-engine'
@@ -38,7 +38,9 @@ export class AIController {
 
     // 3. Execute the final approved direction
     if (verdict.finalDir !== aiCycle.dir) {
-      queueDirection(aiCycle, verdict.finalDir)
+      aiCycle.inputBuffer = [{ dir: verdict.finalDir, expiresAt: performance.now() / 1000 + 1.2 }]
+    } else {
+      aiCycle.inputBuffer = []
     }
 
     // 4. Execute turbo if approved
