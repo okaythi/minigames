@@ -75,6 +75,7 @@ export function toGameSnapshot(
     {
       label: 'BEST RUN',
       value: formatTronScore(bestLevel),
+      note: '',
     },
     {
       label: 'MATCH SCORE',
@@ -84,6 +85,7 @@ export function toGameSnapshot(
     {
       label: 'ELAPSED TIME',
       value: timeFormatted,
+      note: '',
     },
     {
       label: 'TURBOS',
