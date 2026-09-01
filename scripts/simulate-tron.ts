@@ -90,8 +90,10 @@ function vetoArchitectureProbe(): void {
   const ai = createCycle('ai', 40, 50, 'up', 3)
   const p1 = createCycle('p1', 10, 10, 'down', 3)
 
-  // 1. Test lethal proposal veto: Propose moving straight into a wall obstacle
-  grid.set(40, 49, OCCUPANCY.p1Trail)
+  // 1. Test lethal proposal veto: Propose moving towards a wall 2 cells ahead.
+  // AI at (40,50) moving 'up' -> destination cell is (40,49), but the cell after that (40,48) is blocked.
+  // The veto should detect 'up' is a dead end and redirect to left or right.
+  grid.set(40, 48, OCCUPANCY.p1Trail)
   const lethalProposal = { desiredDir: 'up' as const, wantsTurbo: true, intent: 'chase' as const }
   const vetoVerdict = SurvivalEngine.evaluateVeto(ai, lethalProposal, grid)
 
@@ -241,12 +243,56 @@ function ghostCollisionAndInputQueueProbe(): void {
   check('cycle completed second 90° turn to Down without self-collision', turnedDownSafely)
 }
 
+function aiPerimeterNavigationProbe(): void {
+  // Simulate full AI gameplay across all difficulty levels for 300 physics frames each
+  for (let lvl = 1; lvl <= 6; lvl += 1) {
+    const mockDeps = { current: { beginRun: () => {}, finishRun: () => {}, best: null } }
+    const mockAudio = {
+      isMuted: false,
+      unlock: () => {},
+      play: () => {},
+      startBikeHum: () => {},
+      stopBikeHum: () => {},
+      updateBikeHumSpeed: () => {},
+      toggleMuted: () => false,
+      dispose: () => {},
+    }
+    const store = { get: () => ({}), set: () => {}, update: () => {}, subscribe: () => () => {} }
+
+    const engine = new TronEngine(mockDeps as any, store as any, mockAudio as any)
+    engine.startCampaign()
+    engine.state.level = lvl as DifficultyLevel
+
+    // Advance countdown
+    for (let i = 0; i < 60; i += 1) {
+      engine.update(0.05)
+    }
+
+    // Run 300 physics frames of AI navigation
+    for (let f = 0; f < 300; f += 1) {
+      if (engine.state.phase !== 'playing') break
+      engine.update(1 / 60)
+    }
+
+    const aiInBounds =
+      engine.state.ai.col >= 0 &&
+      engine.state.ai.col < engine.grid.cols &&
+      engine.state.ai.row >= 0 &&
+      engine.state.ai.row < engine.grid.rows
+    const aiAlive = engine.state.ai.alive
+
+    line(`Level ${lvl} AI 300-frame navigation`, `alive: ${aiAlive}, in-bounds: ${aiInBounds} (${engine.state.ai.col}, ${engine.state.ai.row})`)
+    check(`Level ${lvl} AI survives perimeter and stays inside arena`, aiInBounds && aiAlive)
+  }
+}
+
 console.log('--- FL Tron 3.0: Engine & Invariant Simulation ---')
 gridInvariantProbe()
 cycleMechanicsProbe()
 vetoArchitectureProbe()
 aiCampaignScalingProbe()
 ghostCollisionAndInputQueueProbe()
+aiPerimeterNavigationProbe()
 
 const failed = checks.filter((entry) => !entry.ok)
 console.log('')

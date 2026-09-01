@@ -132,10 +132,14 @@ export class PersonalityEngine {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -Infinity
 
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = ai.col + vec.x
-      const nextRow = ai.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
 
       const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 500)
       const chamber = grid.floodFillArea(nextCol, nextRow, 400)
@@ -161,10 +165,14 @@ export class PersonalityEngine {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -Infinity
 
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = ai.col + vec.x
-      const nextRow = ai.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
 
       const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 35)
       const chamber = grid.floodFillArea(nextCol, nextRow, 600)
@@ -196,10 +204,14 @@ export class PersonalityEngine {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -Infinity
 
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = ai.col + vec.x
-      const nextRow = ai.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
       const chamber = grid.floodFillArea(nextCol, nextRow, 600)
       if (chamber < 30) continue
 
@@ -226,10 +238,14 @@ export class PersonalityEngine {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -1
 
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = ai.col + vec.x
-      const nextRow = ai.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
       const chamber = grid.floodFillArea(nextCol, nextRow, 300)
       if (chamber > bestScore) {
         bestScore = chamber

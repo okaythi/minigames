@@ -51,20 +51,20 @@ export class SurvivalEngine {
       }
     }
 
-    const vec = DIRECTION_VECTORS[proposal.desiredDir]
-    const nextCol = ai.col + vec.x
-    const nextRow = ai.row + vec.y
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
 
-    // 1. Lethal collision check on immediate next cell
-    const isNextCellFree = grid.isFree(nextCol, nextRow)
-    const isNotReverse = proposal.desiredDir !== OPPOSITE_DIRECTIONS[ai.dir]
-
-    let isSafe = isNextCellFree && isNotReverse
+    const isDirectionSafe = safeDirections.includes(proposal.desiredDir)
+    let isSafe = isDirectionSafe
 
     // 2. Chamber volume check on proposed move
     let proposedChamberArea = 0
     if (isSafe) {
-      proposedChamberArea = grid.floodFillArea(nextCol, nextRow, 500)
+      const propVec = DIRECTION_VECTORS[proposal.desiredDir]
+      const futureCol = destCol + propVec.x
+      const futureRow = destRow + propVec.y
+      proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 500)
       // If the resulting volume is below a critical survival threshold (e.g. < 30 cells), veto!
       if (proposedChamberArea < 30) {
         isSafe = false
@@ -77,13 +77,13 @@ export class SurvivalEngine {
     if (!isSafe) {
       // VETO TRIGGERED: Find the safest alternative turn with maximum open chamber volume
       finalDir = this.findSafestDirection(ai, safeDirections, grid)
-      overrideReason = !isNextCellFree ? 'immediate_lethal_hazard' : 'chamber_volume_too_small'
+      overrideReason = !isDirectionSafe ? 'immediate_lethal_hazard' : 'chamber_volume_too_small'
     }
 
     // 3. Turbo safety check: do not turbo straight into a wall without clear runway
     let finalTurbo = proposal.wantsTurbo
     if (finalTurbo) {
-      const runway = this.getClearRunway(ai.col, ai.row, finalDir, grid)
+      const runway = this.getClearRunway(destCol, destRow, finalDir, grid)
       if (runway < 6) {
         finalTurbo = false // Veto turbo into tight space
       }
@@ -100,12 +100,20 @@ export class SurvivalEngine {
   public static getSafeDirections(cycle: CycleState, grid: OccupancyGrid): Direction[] {
     const result: Direction[] = []
     const opposite = OPPOSITE_DIRECTIONS[cycle.dir]
+    const curVec = DIRECTION_VECTORS[cycle.dir]
+    const destCol = cycle.col + curVec.x
+    const destRow = cycle.row + curVec.y
+
+    // If the immediate destination cell is already blocked, no turns from it can save the cycle
+    if (!grid.isFree(destCol, destRow)) {
+      return result
+    }
 
     for (const dir of ALL_DIRECTIONS) {
       if (dir === opposite) continue
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = cycle.col + vec.x
-      const nextRow = cycle.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
       if (grid.isFree(nextCol, nextRow)) {
         result.push(dir)
       }
@@ -136,12 +144,16 @@ export class SurvivalEngine {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -1
 
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
-      const nextCol = ai.col + vec.x
-      const nextRow = ai.row + vec.y
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
       const chamber = grid.floodFillArea(nextCol, nextRow, 600)
-      const runway = this.getClearRunway(nextCol, nextRow, dir, grid)
+      const runway = this.getClearRunway(destCol, destRow, dir, grid)
       const score = chamber * 2 + runway * 10 + (dir === ai.dir ? 25 : 0)
 
       if (score > bestScore) {

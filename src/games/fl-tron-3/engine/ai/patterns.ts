@@ -31,13 +31,13 @@ export class AIPatterns {
     grid: OccupancyGrid,
     pattern: PatternState,
   ): Direction {
-    const vec = DIRECTION_VECTORS[ai.dir]
-    const nextCol1 = ai.col + vec.x
-    const nextRow1 = ai.row + vec.y
-    const nextCol2 = ai.col + vec.x * 2
-    const nextRow2 = ai.row + vec.y * 2
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+    const nextCol2 = destCol + curVec.x
+    const nextRow2 = destRow + curVec.y
 
-    const isDirectlyBlocked = !grid.isFree(nextCol1, nextRow1)
+    const isDirectlyBlocked = !grid.isFree(destCol, destRow)
     const isOneCellAway = !grid.isFree(nextCol2, nextRow2)
 
     if (isDirectlyBlocked || isOneCellAway) {
@@ -116,9 +116,12 @@ export class AIPatterns {
   }
 
   private static isDirectionClear(cycle: CycleState, dir: Direction, grid: OccupancyGrid): boolean {
+    const curVec = DIRECTION_VECTORS[cycle.dir]
+    const destCol = cycle.col + curVec.x
+    const destRow = cycle.row + curVec.y
     const vec = DIRECTION_VECTORS[dir]
-    const nextCol = cycle.col + vec.x
-    const nextRow = cycle.row + vec.y
+    const nextCol = destCol + vec.x
+    const nextRow = destRow + vec.y
     return grid.isFree(nextCol, nextRow)
   }
 }
