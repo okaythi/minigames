@@ -24,18 +24,10 @@ export const RULES = {
   turboDurationSeconds: 1.2,
   turboCooldownSeconds: 1.0,
   turboSpeedMultiplier: 1.8,
-  baseCycleSpeed: 135, // pixels per second (~22.5 grid cells / sec)
+  baseCycleSpeed: 135, // pixels per second (22.5 grid cells / sec)
   cycleLength: 14,
   cycleWidth: 7,
   trailWidth: 7,
-} as const
-
-/** Target physics tick rates depending on screen refresh rate. */
-export const FRAMERATE_CONFIG = {
-  lowFpsThreshold: 61,
-  lowFpsTarget: 58.5,
-  minDt: 1 / 240,
-  maxDt: 1 / 30,
 } as const
 
 export const AI_CONFIGS: Readonly<Record<DifficultyLevel, AILevelConfig>> = {

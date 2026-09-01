@@ -1,7 +1,7 @@
 import type { Store } from '../../../lib/observable-store'
 import type { GameRuntimeDeps } from '../../template/types'
 import type { GameSnapshot } from '../../template/snapshot'
-import { AI_CONFIGS, FRAMERATE_CONFIG, RULES } from './config'
+import { AI_CONFIGS, RULES } from './config'
 import { createCycle, queueDirection, triggerCycleCrash, triggerCycleTurbo, updateCycleTimers, DIRECTION_VECTORS } from './cycle'
 import { OCCUPANCY, OccupancyGrid, type OccupancyType } from './grid'
 import { AIController } from './ai'
@@ -174,13 +174,7 @@ export class TronEngine {
   public update(rawDt: number): void {
     if (this.isPaused) return
 
-    // Screen max FPS / low FPS calibration:
-    // If screen FPS <= 61 (dt >= ~0.0163), target 58.5 FPS simulation step
-    let effectiveDt = rawDt
-    if (rawDt >= 1 / FRAMERATE_CONFIG.lowFpsThreshold) {
-      effectiveDt = 1 / FRAMERATE_CONFIG.lowFpsTarget
-    }
-    effectiveDt = Math.min(effectiveDt, FRAMERATE_CONFIG.maxDt)
+    const effectiveDt = Math.min(Math.max(rawDt, 0), 0.05)
 
     this.updateParticles(effectiveDt)
     updateCycleTimers(this.state.p1, effectiveDt)
@@ -253,11 +247,14 @@ export class TronEngine {
     const stepTime = 1 / 120
     this.accumulator += dt
     let steps = 0
-    while (this.accumulator >= stepTime && steps < 5) {
+    while (this.accumulator >= stepTime && steps < 8) {
       this.accumulator -= stepTime
       steps += 1
       this.stepPhysics(stepTime)
       if (this.state.phase !== 'playing') break
+    }
+    if (steps >= 8) {
+      this.accumulator = 0
     }
   }
 
