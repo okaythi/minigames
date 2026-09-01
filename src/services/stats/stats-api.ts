@@ -1,20 +1,23 @@
 import {
   parseGameStatsRecord,
   parseStatsResponse,
-  STATS_ENDPOINT,
   readField,
+  STATS_ENDPOINT,
   type GameStatsRecord,
   type StatsEvent,
-  type StatsMap,
 } from '../../../shared/stats-protocol'
+import { playerId } from './player-identity'
 
 /**
  * Thin client for the Cloudflare Pages Function (and the identical Vite dev
  * middleware). Every method degrades to `null` rather than throwing: the site
- * must still render offline.
+ * must still render offline, with a cold cache, or without a bound database.
  */
 
 const REQUEST_TIMEOUT_MS = 2500
+
+/** Derived from the parser so the two can never drift apart. */
+export type StatsPayload = NonNullable<ReturnType<typeof parseStatsResponse>>
 
 const makeNonce = (): string => {
   const uuid = globalThis.crypto?.randomUUID?.()
@@ -33,7 +36,12 @@ const withTimeout = async <T>(work: (signal: AbortSignal) => Promise<T>): Promis
   }
 }
 
-export async function fetchAllStats(): Promise<{ games: StatsMap; distributed: boolean } | null> {
+const readNumber = (source: unknown, key: string): number | null => {
+  const value = readField(source, key)
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+export async function fetchAllStats(): Promise<StatsPayload | null> {
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
       method: 'GET',
@@ -48,11 +56,13 @@ export async function fetchAllStats(): Promise<{ games: StatsMap; distributed: b
   })
 }
 
-export async function pushStatsEvent(
-  game: string,
-  event: StatsEvent,
-): Promise<GameStatsRecord | null> {
-  const body = JSON.stringify({ game, event, nonce: makeNonce() })
+interface PushPayload {
+  readonly stats: GameStatsRecord | null
+  readonly uniquePlayers: number | null
+}
+
+const post = async (game: string, event: StatsEvent): Promise<PushPayload | null> => {
+  const body = JSON.stringify({ game, event, nonce: makeNonce(), playerId: playerId() })
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
       method: 'POST',
@@ -64,13 +74,29 @@ export async function pushStatsEvent(
       return null
     }
     const payload: unknown = await response.json()
-    if (typeof payload !== 'object' || payload === null) {
-      return null
-    }
     // The edge has already applied the event; we only re-validate the shape.
     if (readField(payload, 'ok') !== true) {
       return null
     }
-    return parseGameStatsRecord(readField(payload, 'stats'))
+    return {
+      stats: parseGameStatsRecord(readField(payload, 'stats')),
+      uniquePlayers: readNumber(payload, 'uniquePlayers'),
+    }
   })
+}
+
+/** A run was started, or a score was submitted: both move the counters. */
+export async function pushStatsEvent(game: string, event: StatsEvent): Promise<GameStatsRecord | null> {
+  const result = await post(game, event)
+  return result?.stats ?? null
+}
+
+/**
+ * Counts this browser in `players` without touching any game's counters, so a
+ * visitor shows up in "unique players" even if they never press play. The event
+ * carries no game slug because it is site-wide.
+ */
+export async function announceVisit(): Promise<number | null> {
+  const result = await post('', { type: 'visit' })
+  return result?.uniquePlayers ?? null
 }

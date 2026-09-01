@@ -1,11 +1,11 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { dirname, resolve } from 'node:path'
 import type { Plugin } from 'vite'
 import {
   applyStatsEvent,
-  parseGameStatsRecord,
   EMPTY_STATS_RECORD,
+  parseGameStatsRecord,
   parseStatsEventBody,
   readField,
   STATS_ENDPOINT,
@@ -16,20 +16,22 @@ import {
 /**
  * Local stand-in for `functions/api/stats/index.ts`.
  *
- * On Cloudflare Pages the counters live in a KV namespace; `vite dev` has no
- * KV, so this middleware implements the exact same endpoint against a JSON
- * file. The browser code is therefore identical in both environments and the
- * "times played" counter really is shared across tabs/machines on the LAN.
+ * On Cloudflare Pages the counters live in D1; `vite dev` has no database, so
+ * this middleware implements the exact same endpoint (including the
+ * unique-player count and the nonce guard) against a JSON file. The browser
+ * code is therefore identical in both environments.
  */
 
 interface PersistedStats {
   games: Record<string, GameStatsRecord>
+  players: string[]
   recentNonces: string[]
 }
 
 const MAX_TRACKED_NONCES = 64
+const MAX_BODY_BYTES = 2048
 
-const emptyStats = (): PersistedStats => ({ games: {}, recentNonces: [] })
+const emptyStats = (): PersistedStats => ({ games: {}, players: [], recentNonces: [] })
 
 const parseBody = (raw: string): ReturnType<typeof parseStatsEventBody> => {
   try {
@@ -40,11 +42,10 @@ const parseBody = (raw: string): ReturnType<typeof parseStatsEventBody> => {
 }
 
 const sendJson = (res: ServerResponse, status: number, payload: unknown): void => {
-  const body = JSON.stringify(payload)
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   res.setHeader('Cache-Control', 'no-store')
-  res.end(body)
+  res.end(JSON.stringify(payload))
 }
 
 const readBody = async (req: IncomingMessage): Promise<string> => {
@@ -53,7 +54,7 @@ const readBody = async (req: IncomingMessage): Promise<string> => {
   for await (const chunk of req) {
     const buffer: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
     size += buffer.byteLength
-    if (size > 64 * 1024) {
+    if (size > MAX_BODY_BYTES) {
       throw new Error('payload too large')
     }
     chunks.push(buffer)
@@ -66,12 +67,9 @@ export function statsDevPlugin(): Plugin {
 
   const load = async (): Promise<PersistedStats> => {
     try {
-      const raw = await readFile(filePath, 'utf8')
-      const parsed: unknown = JSON.parse(raw)
-      if (typeof parsed !== 'object' || parsed === null) {
-        return emptyStats()
-      }
+      const parsed: unknown = JSON.parse(await readFile(filePath, 'utf8'))
       const gamesRaw = readField(parsed, 'games')
+      const playersRaw = readField(parsed, 'players')
       const noncesRaw = readField(parsed, 'recentNonces')
       const games: Record<string, GameStatsRecord> = {}
       if (typeof gamesRaw === 'object' && gamesRaw !== null) {
@@ -82,12 +80,9 @@ export function statsDevPlugin(): Plugin {
           }
         }
       }
-      return {
-        games,
-        recentNonces: Array.isArray(noncesRaw)
-          ? noncesRaw.filter((entry): entry is string => typeof entry === 'string')
-          : [],
-      }
+      const list = (input: unknown): string[] =>
+        Array.isArray(input) ? input.filter((entry): entry is string => typeof entry === 'string') : []
+      return { games, players: list(playersRaw), recentNonces: list(noncesRaw) }
     } catch {
       return emptyStats()
     }
@@ -106,8 +101,7 @@ export function statsDevPlugin(): Plugin {
     },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const url = req.url ?? ''
-        if (!url.startsWith(STATS_ENDPOINT)) {
+        if (!(req.url ?? '').startsWith(STATS_ENDPOINT)) {
           next()
           return
         }
@@ -115,7 +109,13 @@ export function statsDevPlugin(): Plugin {
           if (req.method === 'GET' || req.method === 'HEAD') {
             const stats = await load()
             const games: StatsMap = stats.games
-            sendJson(res, 200, { ok: true, games, distributed: false })
+            sendJson(res, 200, {
+              ok: true,
+              games,
+              uniquePlayers: stats.players.length,
+              // Local file, not a real fleet-wide database.
+              distributed: false,
+            })
             return
           }
           if (req.method === 'POST') {
@@ -125,19 +125,26 @@ export function statsDevPlugin(): Plugin {
               return
             }
             const stats = await load()
-            if (stats.recentNonces.includes(body.nonce)) {
-              sendJson(res, 200, {
-                ok: true,
-                stats: stats.games[body.game] ?? EMPTY_STATS_RECORD,
-              })
-              return
+            if (!stats.recentNonces.includes(body.nonce)) {
+              if (body.game.length > 0) {
+                stats.games[body.game] = applyStatsEvent(
+                  stats.games[body.game] ?? EMPTY_STATS_RECORD,
+                  body.event,
+                  Date.now(),
+                )
+              }
+              const playerId = body.playerId
+              if (typeof playerId === 'string' && !stats.players.includes(playerId)) {
+                stats.players.push(playerId)
+              }
+              stats.recentNonces = [body.nonce, ...stats.recentNonces].slice(0, MAX_TRACKED_NONCES)
+              await save(stats)
             }
-            const current = stats.games[body.game] ?? EMPTY_STATS_RECORD
-            const nextRecord = applyStatsEvent(current, body.event, Date.now())
-            stats.games[body.game] = nextRecord
-            stats.recentNonces = [body.nonce, ...stats.recentNonces].slice(0, MAX_TRACKED_NONCES)
-            await save(stats)
-            sendJson(res, 200, { ok: true, stats: nextRecord })
+            sendJson(res, 200, {
+              ok: true,
+              stats: stats.games[body.game] ?? EMPTY_STATS_RECORD,
+              uniquePlayers: stats.players.length,
+            })
             return
           }
           sendJson(res, 405, { ok: false, stats: null, error: 'method not allowed' })

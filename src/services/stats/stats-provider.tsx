@@ -9,7 +9,8 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import type { GameStatsRecord, StatsMap } from '../../../shared/stats-protocol'
-import { fetchAllStats, pushStatsEvent } from './stats-api'
+import { announceVisit, fetchAllStats, pushStatsEvent } from './stats-api'
+import { claimVisitAnnouncement } from './player-identity'
 import {
   bankCandy as bankCandyLocal,
   readLocalCounters,
@@ -21,7 +22,7 @@ import {
 /**
  * One provider at the app root. It reconciles two sources:
  *
- *  - the edge (Cloudflare Pages Function + KV) for genuinely global counters
+ *  - the edge (Cloudflare Pages Function + D1) for genuinely global counters
  *  - localStorage for the current player's personal best and banked candy
  *
  * Components only ever read `GameStatsView`, so they do not care which source
@@ -29,7 +30,7 @@ import {
  */
 
 export interface GameStatsView {
-  /** Shown on the card. Falls back to this browser's counter when no KV. */
+  /** Shown on the card. Falls back to this browser's counter when the edge is dark. */
   readonly plays: number
   readonly personalBest: number | null
   readonly globalRecord: number | null
@@ -41,6 +42,8 @@ export interface GameStatsView {
 }
 
 export interface StatsController {
+  /** Distinct anonymous visitors, straight from the edge. */
+  readonly uniquePlayers: number
   readonly view: (slug: string) => GameStatsView
   readonly beginRun: (slug: string) => void
   readonly finishRun: (slug: string, score: number) => void
@@ -51,6 +54,7 @@ const StatsContext = createContext<StatsController | null>(null)
 
 export function StatsProvider({ children }: { readonly children: ReactNode }) {
   const [edge, setEdge] = useState<StatsMap | null>(null)
+  const [uniquePlayers, setUniquePlayers] = useState(0)
   const [synced, setSynced] = useState(false)
   const [revision, setRevision] = useState(0)
   const pending = useRef(new Set<string>())
@@ -59,13 +63,26 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+
     void fetchAllStats().then((payload) => {
       if (cancelled || payload === null) {
         return
       }
       setEdge(payload.games)
+      setUniquePlayers(payload.uniquePlayers)
       setSynced(true)
     })
+
+    // One visit per page load: counts a player without counting a run. The
+    // module-level claim keeps React's double-mount from sending it twice.
+    if (claimVisitAnnouncement()) {
+      void announceVisit().then((count) => {
+        if (!cancelled && count !== null) {
+          setUniquePlayers((current) => Math.max(current, count))
+        }
+      })
+    }
+
     return () => {
       cancelled = true
     }
@@ -136,9 +153,9 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
         synced,
       }
     }
-    return { view, beginRun, finishRun, bankCandy }
+    return { view, beginRun, finishRun, bankCandy, uniquePlayers }
     // `revision` intentionally busts the memo when localStorage moves.
-  }, [edge, synced, revision, beginRun, finishRun, bankCandy])
+  }, [edge, synced, revision, beginRun, finishRun, bankCandy, uniquePlayers])
 
   return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
 }

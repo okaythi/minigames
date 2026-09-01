@@ -67,9 +67,9 @@ import { myGame } from './my-game'
 export const GAMES: readonly GameModule[] = [avoidTheSpikes, myGame]
 ```
 
-Then add the slug to `listKnownSlugs()` in `functions/api/stats/index.ts` so the edge is willing
-to store counters for it (the function refuses unknown slugs on purpose - otherwise anyone could
-mint KV keys).
+Then add the slug to `ALLOWED_SLUGS` in `functions/api/stats/index.ts` so the edge is willing to
+store counters for it (the function refuses unknown slugs on purpose - otherwise anyone could
+mint D1 rows).
 
 ## 5. The engine contract
 

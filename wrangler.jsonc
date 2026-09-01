@@ -1,18 +1,25 @@
 // Cloudflare Pages configuration.
 // Docs: https://developers.cloudflare.com/pages/
-// `kv_namespaces` is what backs the global "times played" counter; create the
-// namespace with `npx wrangler kv namespace create GAMES_STATS` and paste the
-// resulting id below. Everything degrades to localStorage when the binding is
-// absent, so the site still ships without it.
+//
+// The D1 database backs the global counters and the unique-player count:
+// `game_stats` (one row per game) and `players` (one row per anonymous
+// visitor). Create it with `npm run db:create` and paste the printed
+// database_id below; the schema comes from ./migrations.
+//
+// Without the binding the Pages Function still answers, from memory, and
+// reports `distributed: false` - so a preview deploy or a bare `pages dev`
+// never 500s and never shows a fake global number.
 {
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
   "name": "nixlabs-games",
   "compatibility_date": "2026-08-01",
   "pages_build_output_dir": "./dist",
-  "kv_namespaces": [
+  "d1_databases": [
     {
-      "binding": "GAMES_STATS",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "binding": "NIXLABS_DB",
+      "database_name": "nixlabs-games",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "./migrations"
     }
   ],
   "observability": {

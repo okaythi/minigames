@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
 import { GameGrid } from '../games/game-grid'
+import { useStatsController } from '../services/stats/stats-provider'
+import { compactCount } from '../lib/format'
 import { MANIFESTS, gameCount } from '../games/registry'
 import { LOAD_MORE, pageLimit } from './pagination'
 import './pages.css'
 
 /** 9 cards, then +6 per press, exactly as specified. */
 export function HomePage() {
+  const { uniquePlayers } = useStatsController()
   const [page, setPage] = useState(1)
   const limit = pageLimit(page)
   const shown = MANIFESTS.slice(0, limit)
@@ -25,8 +28,8 @@ export function HomePage() {
             <dd>{gameCount}</dd>
           </div>
           <div>
-            <dt>Per page</dt>
-            <dd>9</dd>
+            <dt>Unique players</dt>
+            <dd>{compactCount(uniquePlayers)}</dd>
           </div>
         </dl>
       </section>

@@ -60,7 +60,7 @@ export function AboutPage() {
 shared/
   stats-protocol.ts       wire format for the counters
 functions/
-  api/stats/index.ts      Cloudflare Pages Function (KV)
+  api/stats/index.ts      Cloudflare Pages Function (D1)
 vite/
   stats-dev-plugin.ts     the same endpoint during \`vite dev\``}
         </pre>
@@ -100,8 +100,8 @@ vite/
       <section>
         <h2>Counters</h2>
         <p>
-          "Times played" is a real global counter when the deployment has a KV namespace
-          bound (<code>GAMES_STATS</code>): a Pages Function increments it on every run and
+          "Times played" is a real global counter when the deployment has a D1 database
+          bound (<code>NIXLABS_DB</code>): a Pages Function increments it on every run and
           on every submitted score. Without the binding - a fork, a preview, an offline
           <code>vite build</code> - the same UI falls back to <code>localStorage</code> and
           labels the number "this device" instead of pretending.
@@ -119,8 +119,8 @@ vite/
         <ol className="nx-doc-steps">
           <li>Build command <code>npm run build</code>, output directory <code>dist</code>.</li>
           <li>
-            Add a KV namespace and bind it to the Pages project as{' '}
-            <code>GAMES_STATS</code> (optional, but it turns the counters global).
+            Create a D1 database and bind it to the Pages project as{' '}
+            <code>NIXLABS_DB</code> (optional, but it turns the counters global).
           </li>
           <li>
             <code>public/_redirects</code> sends unknown paths to <code>index.html</code>, so

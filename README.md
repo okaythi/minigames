@@ -27,15 +27,18 @@ this repo is built on, and it is deliberate:
 
 ## Scripts
 
-| Command                | What it does                                                       |
-| ---------------------- | ------------------------------------------------------------------ |
-| `npm run dev`          | Vite dev server, including the local stats endpoint.               |
-| `npm run build`        | `tsc -b` (project references, strict) then the production bundle. |
-| `npm run preview`      | Serves `dist/` locally.                                            |
-| `npm run typecheck`    | Type-checks `src` + `shared`, `vite.config.ts` + `vite`, `functions`. |
-| `npm run simulate`     | Headless engine invariants for the games (no browser, no canvas).  |
-| `npm run deploy`       | Build, then `wrangler pages deploy dist`.                          |
-| `npm run preview:functions` | `wrangler pages dev dist --kv GAMES_STATS` on the built site. |
+| Command                     | What it does                                                  |
+| --------------------------- | ------------------------------------------------------------- |
+| `npm run dev`               | Vite dev server, including the local stats endpoint.          |
+| `npm run build`             | `tsc -b` (project references, strict) then the production bundle. |
+| `npm run preview`           | Serves `dist/` locally.                                       |
+| `npm run typecheck`         | Type-checks `src` + `shared`, `vite.config.ts` + `vite`, `functions`. |
+| `npm run simulate`          | Headless engine invariants for the games (no browser, no canvas). |
+| `npm run deploy`            | Build, then `wrangler pages deploy dist`.                     |
+| `npm run preview:functions` | `wrangler pages dev dist --d1 NIXLABS_DB=…` — the built site with a real (local) D1. |
+| `npm run db:create`         | `wrangler d1 create nixlabs-games`; prints the `database_id` for `wrangler.jsonc`. |
+| `npm run db:init`           | Applies `migrations/` to the local D1 sandbox.                |
+| `npm run db:migrate`        | Applies `migrations/` to the online D1 database.              |
 
 ## Repository layout
 
@@ -47,7 +50,8 @@ src/
   lib/                  math, easing, seeded random, disposable, store, format
   services/
     storage/            namespaced localStorage wrapper that never throws
-    stats/              global counters: edge (KV) + local fallback, reconciled
+    stats/              unique players + global counters: edge (D1), local fallback
+    .../player-identity.ts  anonymous uuid, one per browser
   site/                 header, footer, brand, search (fuzzy matcher + combobox)
   components/ui/        button, tag, empty state
   pages/                home, game, about, not found
@@ -69,7 +73,10 @@ src/
 shared/
   stats-protocol.ts     wire format, shared by client and Pages Function
 functions/
-  api/stats/index.ts    Cloudflare Pages Function (KV) for global counters
+  api/stats/index.ts    Cloudflare Pages Function: HTTP layer
+  api/stats/store.ts    D1 + in-memory stores behind one interface
+migrations/
+  0001_init.sql         D1 schema: game_stats, players, seen_nonces
 vite/
   stats-dev-plugin.ts   the same endpoint during `vite dev`, backed by a JSON file
 scripts/
@@ -117,28 +124,35 @@ Full list in [`src/styles/tokens.css`](src/styles/tokens.css); the canvas mirror
 
 ## Counters: global plays, personal bests
 
-"Times played" is a real global counter when the deployment has a KV namespace bound:
-`functions/api/stats/index.ts` increments plays and stores the highest submitted score, with a
-nonce per event so a retry can't double-count. Every card and game page reads the merged view:
+Two tables, one row each per game and per visitor (`migrations/0001_init.sql`):
+`game_stats` holds plays and the best score ever submitted, `players` holds one row per
+anonymous visitor — a uuid minted in `src/services/stats/player-identity.ts`, sent with every
+event, which is what the hero's "Unique players" counts. A visit is announced once per page
+load, so a player is counted even if they never press play. Every event carries a nonce, so a
+retry cannot double-count.
 
-| Data                  | Source                                       |
-| --------------------- | -------------------------------------------- |
-| times played          | KV when bound, otherwise this browser        |
-| highscore (yours)     | `localStorage`                               |
-| global record         | KV                                           |
-| banked candy, mute    | `localStorage`                               |
+| Data                  | Source                                          |
+| --------------------- | ----------------------------------------------- |
+| times played          | D1 when bound, otherwise this browser           |
+| unique players        | D1 only                                         |
+| highscore (yours)     | `localStorage`                                  |
+| global record         | D1                                              |
+| banked candy, mute    | `localStorage`                                  |
 
 No binding, no network, private mode, offline build: the same UI renders, labels the number
-"this device", and nothing breaks. During `vite dev`, `vite/stats-dev-plugin.ts` serves the
-identical endpoint from `.nixlabs/stats.json` so the client code never has two paths.
+"this device", and nothing breaks — `store.ts` swaps `d1Store` for `memoryStore` and reports
+`distributed: false`. During `vite dev`, `vite/stats-dev-plugin.ts` serves the identical
+endpoint from `.nixlabs/stats.json`, so the client never has two code paths.
 
 ## Deploying to Cloudflare Pages
 
 1. Connect the repository; build command `npm run build`, output directory `dist`.
-2. (Optional, but this is what makes the counters global) create a namespace and bind it:
+2. (Optional, but this is what makes the counters global) create the database, paste its id
+   into `wrangler.jsonc`, then push the schema:
 
    ```sh
-   npx wrangler kv namespace create GAMES_STATS   # paste the id into wrangler.jsonc
+   npm run db:create     # -> database_id for wrangler.jsonc (replaces the placeholder)
+   npm run db:migrate    # applies migrations/0001_init.sql online
    ```
 
 3. `public/_redirects` rewrites unknown paths to `index.html`, so `/games/avoid-the-spikes`

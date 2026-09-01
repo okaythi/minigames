@@ -21,6 +21,6 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-# Nixlabs: local stand-in for the Cloudflare KV namespace
+# Nixlabs: local state - the dev stats file and the D1/Wrangler sandbox
 .nixlabs/
 functions/.wrangler/

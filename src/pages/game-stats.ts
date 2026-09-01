@@ -14,11 +14,15 @@ export const EMPTY_GAME_STATS: GameStatsView = {
   synced: false,
 }
 
-const NOOP_CONTROLLER: Pick<StatsController, 'view' | 'beginRun' | 'finishRun' | 'bankCandy'> = {
+const NOOP_CONTROLLER: Pick<
+  StatsController,
+  'view' | 'beginRun' | 'finishRun' | 'bankCandy' | 'uniquePlayers'
+> = {
   view: () => EMPTY_GAME_STATS,
   beginRun: () => undefined,
   finishRun: () => undefined,
   bankCandy: () => undefined,
+  uniquePlayers: 0,
 }
 
 export const emptyGameStats = (): StatsController & GameStatsView => ({

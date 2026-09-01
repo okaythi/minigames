@@ -23,7 +23,9 @@ export type StatsMap = Readonly<Record<string, GameStatsRecord>>
 export interface StatsResponseBody {
   readonly ok: true
   readonly games: StatsMap
-  /** `false` when the deployment has no KV namespace bound, so the client can
+  /** Distinct anonymous visitors ever seen. `0` when the DB is not bound. */
+  readonly uniquePlayers: number
+  /** `false` when the deployment has no D1 database bound, so the client can
    *  stay quiet about a "global" number that is really only its own. */
   readonly distributed: boolean
 }
@@ -37,18 +39,26 @@ export interface ScoreEvent {
   readonly score: number
 }
 
-export type StatsEvent = PlayEvent | ScoreEvent
+/** Sent once per page session: counts a visitor without counting a run. */
+export interface VisitEvent {
+  readonly type: 'visit'
+}
+
+export type StatsEvent = PlayEvent | ScoreEvent | VisitEvent
 
 export interface StatsEventRequestBody {
   readonly game: string
   readonly event: StatsEvent
   /** Stops a client from re-sending the same finished run (e.g. on retry). */
   readonly nonce: string
+  /** Anonymous, stable per browser. Absent means "don't count a player". */
+  readonly playerId?: string
 }
 
 export interface StatsEventResponseBody {
   readonly ok: boolean
   readonly stats: GameStatsRecord | null
+  readonly uniquePlayers?: number
 }
 
 export const EMPTY_STATS_RECORD: GameStatsRecord = {
@@ -66,6 +76,10 @@ export function applyStatsEvent(
   event: StatsEvent,
   now: number,
 ): GameStatsRecord {
+  // A visit only touches the players table, never a game's counters.
+  if (event.type === 'visit') {
+    return record
+  }
   if (event.type === 'play') {
     return { ...record, plays: record.plays + 1, updatedAt: now }
   }
@@ -115,9 +129,10 @@ export function parseGameStatsRecord(value: unknown): GameStatsRecord | null {
   }
 }
 
+/** Defensive parse of the aggregate payload; `null` when it is not usable. */
 export function parseStatsResponse(
   value: unknown,
-): { games: StatsMap; distributed: boolean } | null {
+): { games: StatsMap; uniquePlayers: number; distributed: boolean } | null {
   if (!isRecordOfStats(value)) {
     return null
   }
@@ -132,7 +147,18 @@ export function parseStatsResponse(
       games[key] = parsed
     }
   }
-  return { games, distributed: readField(value, 'distributed') === true }
+  return {
+    games,
+    uniquePlayers: readCount(readField(value, 'uniquePlayers')),
+    distributed: readField(value, 'distributed') === true,
+  }
+}
+
+/** A counter off the wire: non-negative whole number, or 0. */
+function readCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : 0
 }
 
 export function parseStatsEventBody(value: unknown): StatsEventRequestBody | null {
@@ -144,14 +170,34 @@ export function parseStatsEventBody(value: unknown): StatsEventRequestBody | nul
   if (typeof game !== 'string' || typeof nonce !== 'string' || nonce.length === 0) {
     return null
   }
+  const cleanNonce = nonce.slice(0, 64)
+  const playerId = readPlayerId(value)
   const eventRaw = readField(value, 'event')
   const type = readField(eventRaw, 'type')
+  if (type === 'visit') {
+    // A visit needs somebody to visit; without an id there is nothing to count.
+    return playerId === null ? null : { game, event: { type: 'visit' }, nonce: cleanNonce, playerId }
+  }
   if (type === 'play') {
-    return { game, event: { type: 'play' }, nonce: nonce.slice(0, 64) }
+    return { game, event: { type: 'play' }, nonce: cleanNonce, ...(playerId === null ? {} : { playerId }) }
   }
   const score = readField(eventRaw, 'score')
   if (type === 'score' && typeof score === 'number' && Number.isFinite(score)) {
-    return { game, event: { type: 'score', score }, nonce: nonce.slice(0, 64) }
+    return {
+      game,
+      event: { type: 'score', score },
+      nonce: cleanNonce,
+      ...(playerId === null ? {} : { playerId }),
+    }
   }
   return null
+}
+
+/** The anonymous browser id, shape-checked (`crypto.randomUUID()` output). */
+export function readPlayerId(value: unknown): string | null {
+  const raw = readField(value, 'playerId')
+  if (typeof raw !== 'string' || raw.length < 8 || raw.length > 64) {
+    return null
+  }
+  return /^[A-Za-z0-9_-]+$/.test(raw) ? raw : null
 }
