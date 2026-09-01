@@ -1,23 +1,20 @@
-import { PALETTE, withAlpha } from '../../../theme/palette'
+import { PALETTE } from '../../../theme/palette'
 import type { CycleState, Point } from '../engine/types'
 
 export function drawCycleTrails(
   ctx: CanvasRenderingContext2D,
   p1: CycleState,
   ai: CycleState,
-  time: number,
+  _time: number,
 ): void {
-  drawSingleTrail(ctx, p1.trail, PALETTE.blue, '#e4eefb', p1.isTurbo, time)
-  drawSingleTrail(ctx, ai.trail, PALETTE.orange, '#fbad41', ai.isTurbo, time)
+  drawSingleTrail(ctx, p1.trail, PALETTE.blue)
+  drawSingleTrail(ctx, ai.trail, PALETTE.orange)
 }
 
 function drawSingleTrail(
   ctx: CanvasRenderingContext2D,
   trail: readonly Point[],
   baseColor: string,
-  glowColor: string,
-  isTurbo: boolean,
-  time: number,
 ): void {
   if (trail.length < 2) return
 

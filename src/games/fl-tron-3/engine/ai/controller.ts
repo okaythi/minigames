@@ -4,6 +4,7 @@ import type { OccupancyGrid } from '../grid'
 import type { CycleState, DifficultyLevel } from '../types'
 import { PersonalityEngine } from './personality-engine'
 import { SurvivalEngine } from './survival-engine'
+import type { MoveProposal } from './types'
 
 export class AIController {
   private reactionTimer = 0
@@ -24,7 +25,7 @@ export class AIController {
     this.reactionTimer += dt
     const config = AI_CONFIGS[this.level]
 
-    let proposal = { desiredDir: aiCycle.dir, wantsTurbo: false, intent: 'wander' as const }
+    let proposal: MoveProposal = { desiredDir: aiCycle.dir, wantsTurbo: false, intent: 'wander' }
 
     if (this.reactionTimer >= config.reactionTime) {
       proposal = this.personality.proposeMove(aiCycle, playerCycle, grid, this.reactionTimer)
