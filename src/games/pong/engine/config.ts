@@ -5,8 +5,8 @@ export const MAX_BOUNCE_ANGLE = Math.PI / 3 // 60 degrees
 export const POWERUP_DURATION = 5000 // 5 seconds
 
 export const COSTS = {
-  'speed': 50,
-  'extension': 100,
-  'magnet': 150,
-  'glass-wall': 200
+  'speed': 10,
+  'extension': 20,
+  'magnet': 20,
+  'glass-wall': 25
 }

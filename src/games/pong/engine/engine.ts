@@ -2,7 +2,8 @@ import type { GameRuntimeDeps } from '../../template/types'
 import type { Store } from '../../../lib/observable-store'
 import type { GameSnapshot, GameRunStatus, GameStatTile } from '../../template/snapshot'
 import { ARENA, PADDLE, BALL, MAX_BOUNCE_ANGLE } from './config'
-import { activatePowerup } from './powerups'
+import { activatePowerupState } from './powerups'
+import { updateAI } from './ai'
 
 export type Difficulty = 'easy' | 'normal' | 'hard' | 'very-hard'
 export type Mode = 11 | 21 | 30
@@ -17,7 +18,7 @@ export interface PaddleState {
   vx: number
   maxV: number
   activePowerups: { type: string, timeRemaining: number }[]
-  targetX?: number // for AI
+  targetX?: number
 }
 
 export interface PongState {
@@ -26,19 +27,19 @@ export interface PongState {
   difficulty: Difficulty
   playerScore: number
   aiScore: number
-  
+
   ball: { x: number; y: number; vx: number; vy: number; radius: number; speed: number; stuckToPlayer: boolean; stuckTime: number }
   player: PaddleState
   ai: PaddleState
-  
+
   slots: (PowerupType | null)[]
   aiSlots: (AIPowerupType | null)[]
   candy: { x: number; y: number; radius: number; active: boolean; claimedBy: 'player' | 'ai' | null }[]
   candySpawnTimer: number
-  
+
   playerMagnetActive: boolean
   playerGlassWallActive: boolean
-  
+
   lastHitBy: 'player' | 'ai' | null
   notifications: { text: string; time: number; y: number }[]
 }
@@ -89,8 +90,7 @@ export class PongEngine {
     this.state.phase = 'loadout'
     const maxSlots = this.state.mode === 11 ? 5 : this.state.mode === 21 ? 6 : 7
     this.state.slots = Array(maxSlots).fill(null)
-    
-    // Give AI some powerups depending on difficulty
+
     if (this.state.difficulty === 'hard') {
        this.state.aiSlots = ['speed', 'extension']
     } else if (this.state.difficulty === 'very-hard') {
@@ -103,7 +103,7 @@ export class PongEngine {
   startMatch() {
     this.state.phase = 'playing'
     this.deps.current.beginRun()
-    this.resetBall(1) // Towards player
+    this.resetBall(1)
   }
 
   resetBall(dir: 1 | -1) {
@@ -129,7 +129,7 @@ export class PongEngine {
   update(dt: number) {
     if (this.state.phase === 'playing') {
        this.stepPhysics(dt)
-       this.updateAI(dt)
+       updateAI(this.state, dt, (idx) => activatePowerupState(this.state, idx, false))
        this.checkCollisions()
        this.updatePowerups(dt)
        this.updateCandy(dt)
@@ -139,11 +139,10 @@ export class PongEngine {
 
   stepPhysics(dt: number) {
     const s = this.state
-    
-    // Player movement via pointer
+
     const currentW = s.player.w * (s.player.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
     const currentMaxV = s.player.maxV * (s.player.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
-    
+
     const dx = this.pointerX - s.player.x
     const dist = Math.abs(dx)
     if (dist > 0) {
@@ -152,7 +151,6 @@ export class PongEngine {
     }
     s.player.x = Math.max(currentW/2, Math.min(ARENA.width - currentW/2, s.player.x))
 
-    // AI movement
     const aiW = s.ai.w * (s.ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
     const aiMaxV = s.ai.maxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
     if (s.ai.targetX !== undefined) {
@@ -164,7 +162,6 @@ export class PongEngine {
     }
     s.ai.x = Math.max(aiW/2, Math.min(ARENA.width - aiW/2, s.ai.x))
 
-    // Ball movement
     if (s.ball.stuckToPlayer) {
        s.ball.stuckTime += dt
        s.ball.x = s.player.x
@@ -178,8 +175,7 @@ export class PongEngine {
        s.ball.x += s.ball.vx * dt
        s.ball.y += s.ball.vy * dt
     }
-    
-    // Wall bounces
+
     if (s.ball.x - s.ball.radius <= 0) {
        s.ball.x = s.ball.radius
        s.ball.vx *= -1
@@ -188,7 +184,6 @@ export class PongEngine {
        s.ball.vx *= -1
     }
 
-    // Notifications tick
     for (let i = s.notifications.length - 1; i >= 0; i--) {
        const n = s.notifications[i]
        if (n) {
@@ -201,14 +196,14 @@ export class PongEngine {
   bounceBall(paddle: PaddleState, dir: 1 | -1) {
     const s = this.state
     const currentW = paddle.w * (paddle.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
-    
+
     const intersect = (s.ball.x - paddle.x) / (currentW / 2)
     const clamped = Math.max(-1, Math.min(1, intersect))
-    
+
     const angle = clamped * MAX_BOUNCE_ANGLE
-    
+
     s.ball.speed = Math.min(BALL.maxSpeed, s.ball.speed * 1.05)
-    
+
     s.ball.vx = s.ball.speed * Math.sin(angle)
     s.ball.vy = s.ball.speed * Math.cos(angle) * dir
   }
@@ -217,7 +212,6 @@ export class PongEngine {
     const s = this.state
     const { ball, player, ai } = s
 
-    // AI collision
     const aiW = ai.w * (ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
     if (ball.vy < 0 && ball.y - ball.radius <= ai.y + ai.h/2) {
        if (Math.abs(ball.x - ai.x) <= aiW/2 + ball.radius) {
@@ -227,7 +221,6 @@ export class PongEngine {
        }
     }
 
-    // Player collision
     const plW = player.w * (player.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
     if (ball.vy > 0 && ball.y + ball.radius >= player.y - player.h/2) {
        if (Math.abs(ball.x - player.x) <= plW/2 + ball.radius) {
@@ -250,7 +243,6 @@ export class PongEngine {
        }
     }
 
-    // Goals
     if (ball.y < 0) {
        s.playerScore++
        this.checkWin()
@@ -275,7 +267,7 @@ export class PongEngine {
           claimedBy: null
        })
     }
-    
+
     for (let i = s.candy.length - 1; i >= 0; i--) {
        const c = s.candy[i]
        if (c && c.active) {
@@ -320,83 +312,12 @@ export class PongEngine {
     tick(s.ai.activePowerups)
   }
 
-  updateAI(_dt: number) {
-    const s = this.state
-    if (s.ball.vy > 0) {
-      s.ai.targetX = ARENA.width / 2
-      return
-    }
-
-    const t = (s.ai.y + s.ai.h/2 - (s.ball.y - s.ball.radius)) / s.ball.vy
-    if (t < 0) return
-
-    const x_u = s.ball.x + (s.ball.vx * t)
-    const W = ARENA.width - s.ball.radius*2
-    const xu_shifted = x_u - s.ball.radius
-    const mod = ((xu_shifted % (2 * W)) + (2 * W)) % (2 * W)
-    let x_target_shifted = mod
-    if (mod > W) {
-      x_target_shifted = 2 * W - mod
-    }
-    const x_target = x_target_shifted + s.ball.radius
-
-    const aiW = s.ai.w * (s.ai.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
-    const R = aiW / 2
-    let epsilon = 0
-
-    if (s.difficulty === 'easy') {
-       const u = 1 - Math.random()
-       const v = Math.random()
-       const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v)
-       const sigma = R * 1.2
-       epsilon = z * sigma
-    } else if (s.difficulty === 'normal') {
-       epsilon = 0
-    } else if (s.difficulty === 'hard') {
-       const delta = 2
-       epsilon = s.player.x > ARENA.width / 2 ? R - delta : -(R - delta)
-    } else if (s.difficulty === 'very-hard') {
-       // Secret Boss calculating player's limits
-       // For Very Hard mode logic
-       const t_return = (s.player.y - s.player.h/2 - (s.ai.y + s.ai.h/2)) / (s.ball.speed * Math.cos(MAX_BOUNCE_ANGLE))
-       const currentMaxV = s.player.maxV * (s.player.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
-       // Calculate interval where player can reach
-       const xmin = s.player.x - (currentMaxV * t_return)
-       const xmax = s.player.x + (currentMaxV * t_return)
-       
-       // Ensure target is far
-       const delta = 2
-       epsilon = s.player.x > ARENA.width / 2 ? R - delta : -(R - delta)
-       
-       // Just to silence linter
-       if (xmin > xmax) epsilon = 0
-    }
-
-    s.ai.targetX = x_target + epsilon
-
-    const t_a = t
-    const D = Math.abs(s.ai.targetX - s.ai.x)
-    const aiMaxV = s.ai.maxV * (s.ai.activePowerups.some(p => p.type === 'speed') ? 2 : 1)
-    if (D > aiMaxV * t_a) {
-       const speedIdx = s.aiSlots.findIndex(x => x === 'speed')
-       const extIdx = s.aiSlots.findIndex(x => x === 'extension')
-       if (speedIdx !== -1) {
-          activatePowerup(this, speedIdx, false)
-       } else if (extIdx !== -1) {
-          const dX = D - (aiMaxV * t_a)
-          if (dX <= R * 1.5 - R) {
-             activatePowerup(this, extIdx, false)
-          }
-       }
-    }
-  }
-
   handleInput(key: string, isDown: boolean) {
     if (isDown) {
       if (['1','2','3','4','5','6','7'].includes(key)) {
         const idx = parseInt(key) - 1
         if (idx < this.state.slots.length && this.state.slots[idx]) {
-          activatePowerup(this, idx, true)
+          activatePowerupState(this.state, idx, true)
         }
       }
     }
