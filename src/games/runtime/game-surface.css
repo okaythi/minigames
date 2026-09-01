@@ -9,7 +9,7 @@
 .nx-surface-canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;

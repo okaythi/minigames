@@ -73,10 +73,15 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
     const resizeListeners = createListenerSet<ResizeListener>()
     const visibilityListeners = createListenerSet<VisibilityListener>()
 
+    // Start invalid so the first measurement always initializes the backing
+    // store. The canvas defaults to 300×150 until width/height are assigned;
+    // treating its initial CSS size as an already-applied viewport leaves the
+    // drawing buffer at that default size and makes visuals and pointer
+    // coordinates disagree.
     let viewport: GameViewport = {
-      width: canvas.clientWidth,
-      height: canvas.clientHeight,
-      dpr: 1,
+      width: 0,
+      height: 0,
+      dpr: 0,
     }
     let running = true
     let frameHandle = 0
@@ -155,14 +160,13 @@ export function GameSurface({ attach, aspect, label, className }: GameSurfacePro
   const classes = ['nx-surface', className].filter((part): part is string => part !== undefined)
 
   return (
-    <div className={classes.join(' ')} ref={boxRef}>
+    <div className={classes.join(' ')} ref={boxRef} style={{ aspectRatio: String(aspect) }}>
       <canvas
         ref={canvasRef}
         className="nx-surface-canvas"
         tabIndex={0}
         role="img"
         aria-label={label}
-        style={{ aspectRatio: String(aspect) }}
       />
     </div>
   )

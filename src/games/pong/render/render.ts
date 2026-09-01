@@ -1,4 +1,4 @@
-import type { GameHost } from '../../runtime/types'
+import type { GameHost, GameViewport } from '../../runtime/types'
 import type { PongEngine } from '../engine/engine'
 import { ARENA, COSTS } from '../engine/config'
 import { drawPongCandy } from './candy'
@@ -14,7 +14,7 @@ export function attachPongRender(engine: PongEngine, host: GameHost) {
     lastTime = now
 
     engine.update(dt)
-    draw(context, engine, now / 1000)
+    draw(context, engine, now / 1000, host.viewport())
   }
 
   const frameSub = onFrame(tick)
@@ -124,9 +124,26 @@ export function attachPongRender(engine: PongEngine, host: GameHost) {
   }
 }
 
-function draw(ctx: CanvasRenderingContext2D, engine: PongEngine, time: number) {
+function draw(ctx: CanvasRenderingContext2D, engine: PongEngine, time: number, viewport: GameViewport) {
+  // The canvas backing store is DPR-scaled, while the game is authored in its
+  // fixed 360×480 world. Paint the full backing store first, then map world
+  // coordinates to the CSS-sized viewport so the drawing and pointer hit areas
+  // stay aligned at every zoom and device pixel ratio.
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.fillStyle = '#faf7f2'
-  ctx.fillRect(0, 0, ARENA.width, ARENA.height)
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+  const scale = Math.min(viewport.width / ARENA.width, viewport.height / ARENA.height)
+  const offsetX = (viewport.width - ARENA.width * scale) / 2
+  const offsetY = (viewport.height - ARENA.height * scale) / 2
+  ctx.setTransform(
+    viewport.dpr * scale,
+    0,
+    0,
+    viewport.dpr * scale,
+    viewport.dpr * offsetX,
+    viewport.dpr * offsetY,
+  )
 
   if (engine.state.phase === 'config') {
     ctx.fillStyle = '#232324'
@@ -284,4 +301,6 @@ function draw(ctx: CanvasRenderingContext2D, engine: PongEngine, time: number) {
        ctx.fillText(notif.text, ARENA.width/2, notif.y)
     }
   }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
 }

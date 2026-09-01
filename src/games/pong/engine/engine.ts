@@ -27,6 +27,7 @@ export interface PongState {
   difficulty: Difficulty
   playerScore: number
   aiScore: number
+  playerHits: number
 
   ball: { x: number; y: number; vx: number; vy: number; radius: number; speed: number; stuckToPlayer: boolean; stuckTime: number }
   player: PaddleState
@@ -65,6 +66,7 @@ export class PongEngine {
       difficulty: 'normal',
       playerScore: 0,
       aiScore: 0,
+      playerHits: 0,
       ball: { x: ARENA.width/2, y: ARENA.height/2, vx: 0, vy: 0, radius: BALL.radius, speed: BALL.initialSpeed, stuckToPlayer: false, stuckTime: 0 },
       player: { x: ARENA.width/2, y: ARENA.height - PADDLE.offset, w: PADDLE.width, h: PADDLE.height, vx: 0, maxV: 250, activePowerups: [] },
       ai: { x: ARENA.width/2, y: PADDLE.offset, w: PADDLE.width, h: PADDLE.height, vx: 0, maxV: 250, activePowerups: [] },
@@ -222,9 +224,10 @@ export class PongEngine {
     }
 
     const plW = player.w * (player.activePowerups.some(p => p.type === 'extension') ? 1.5 : 1)
-    if (ball.vy > 0 && ball.y + ball.radius >= player.y - player.h/2) {
+    if (!ball.stuckToPlayer && ball.vy > 0 && ball.y + ball.radius >= player.y - player.h/2) {
        if (Math.abs(ball.x - player.x) <= plW/2 + ball.radius) {
           ball.y = player.y - player.h/2 - ball.radius
+          s.playerHits++
           s.lastHitBy = 'player'
           if (s.playerMagnetActive) {
              s.ball.stuckToPlayer = true
@@ -289,11 +292,7 @@ export class PongEngine {
     const s = this.state
     if (s.playerScore >= s.mode || s.aiScore >= s.mode) {
        s.phase = 'over'
-       let scoreDiff = 0
-       if (s.playerScore > s.aiScore) {
-          scoreDiff = s.difficulty === 'easy' ? 1 : s.difficulty === 'normal' ? 2 : s.difficulty === 'hard' ? 3 : 4
-       }
-       this.deps.current.finishRun(scoreDiff)
+       this.deps.current.finishRun(s.playerHits)
     }
   }
 
@@ -332,18 +331,18 @@ export class PongEngine {
       status = 'over'
     }
     const tiles: GameStatTile[] = [
-      { label: 'Player', value: this.state.playerScore.toString(), note: '' },
+      { label: 'Player hits', value: this.state.playerHits.toString(), note: '' },
       { label: 'AI', value: this.state.aiScore.toString(), note: '' },
     ]
     this.store.update((s) => ({
       ...s,
       status,
-      score: this.deps.current.best || 0,
+      score: this.state.playerHits,
       best: this.deps.current.best,
       bonus: this.deps.current.bonus,
       tiles,
       run: status === 'over' ? {
-        score: this.deps.current.best || 0,
+        score: this.state.playerHits,
         bonus: this.deps.current.bonus,
         seconds: 0,
         note: this.state.playerScore > this.state.aiScore ? 'You Won!' : 'You Lost!',

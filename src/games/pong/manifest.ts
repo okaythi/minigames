@@ -45,10 +45,10 @@ export const pongManifest: GameManifest = {
 
   // --- copy for the shared chrome -------------------------------------------
   aspect: 3 / 4,
-  scoreLabel: 'Max Difficulty Cleared',
+  scoreLabel: 'Max Hits',
   bonusLabel: 'Candy',
   primaryLabel: 'Play',
-  scoringNote: 'Clear difficulties to advance your progression index.',
+  scoringNote: 'Each paddle hit counts. Keep the rally alive to set a new record.',
   startLine: 'Click, tap or hit Enter to start.',
   intro: 'Choose your loadout and difficulty. Move the paddle at the bottom to beat the AI at the top.',
   pauseNote: 'Use 1-5 to trigger your equipped powerups.',
