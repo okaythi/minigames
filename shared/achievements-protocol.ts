@@ -106,7 +106,6 @@ export type AchievementId =
   | 'tron_clean_sweep'
   | 'tron_immortal_cycle'
   // FL Tron 3.0 – Precision Cornering & Buffering
-  | 'tron_buffered_90'
   | 'tron_hairpin_double'
   | 'tron_razor_corridor'
   // FL Tron 3.0 – Time Trials & Blitz Clears

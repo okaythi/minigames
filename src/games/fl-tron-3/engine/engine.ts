@@ -380,7 +380,6 @@ export class TronEngine {
           cycle.dir = nextDir
 
           if (cycle.id === 'p1') {
-            this.achievements?.onBuffered90()
             if (this.lastP1TurnTime > 0 && now - this.lastP1TurnTime <= 0.2) {
               this.achievements?.onHairpinDouble()
             }

@@ -49,7 +49,7 @@ const VALID_ACHIEVEMENT_IDS = new Set<string>([
   'tron_nitro_ignition', 'tron_turbo_cut', 'tron_triple_burner', 'tron_pure_kinetic',
   'tron_closed_grid', 'tron_iron_coil', 'tron_claustrophobia',
   'tron_dominant_round', 'tron_clean_sweep', 'tron_immortal_cycle',
-  'tron_buffered_90', 'tron_hairpin_double', 'tron_razor_corridor',
+  'tron_hairpin_double', 'tron_razor_corridor',
   'tron_five_second_blitz', 'tron_three_second_flash', 'tron_master_speedrunner',
 ])
 

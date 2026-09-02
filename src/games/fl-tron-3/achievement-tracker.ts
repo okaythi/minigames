@@ -206,15 +206,9 @@ export class TronAchievementTracker {
     }
   }
 
-  /** Call when a successful buffered 90° turn is executed. */
-  onBuffered90(): void {
-    this.bus.unlock('tron_buffered_90')
-  }
-
   /** Call when two consecutive 90° turns happen within 150ms. */
   onHairpinDouble(): void {
     this.bus.unlock('tron_hairpin_double')
-    this.bus.unlock('tron_buffered_90') // subsumes it
   }
 
   /** Call when the player navigates through a 1-tile-wide corridor. */

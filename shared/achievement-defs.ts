@@ -728,15 +728,6 @@ export const ACHIEVEMENT_DEFS: readonly AchievementDef[] = [
 
   // Track: Precision Cornering & Buffering
   {
-    id: 'tron_buffered_90',
-    pillar: 'fl-tron-3',
-    track: 'Precision Cornering & Buffering',
-    name: '🕹️ Buffered 90',
-    description: 'Execute a queued 90° turn using input buffering in FL Tron 3.0.',
-    icon: '🕹️',
-    maxProgress: null,
-  },
-  {
     id: 'tron_hairpin_double',
     pillar: 'fl-tron-3',
     track: 'Precision Cornering & Buffering',
