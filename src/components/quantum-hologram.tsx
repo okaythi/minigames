@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { loadEncryptedAsset, subscribeDevTools } from '../lib/quantum-decryptor'
 
 interface QuantumHologramProps {
@@ -35,41 +35,10 @@ export function QuantumHologram({ stateName }: QuantumHologramProps) {
     }
 
     if (isGlitching) {
-      // Active Glitch Matrix when DevTools is opened
-      let frame = 0
-      const renderGlitch = () => {
-        if (!active) return
-        frame++
-        const w = canvas.width
-        const h = canvas.height
-        ctx.clearRect(0, 0, w, h)
-
-        // Draw animated noise and glitch scanlines
-        ctx.fillStyle = 'rgba(255, 60, 0, 0.15)'
-        ctx.fillRect(0, 0, w, h)
-
-        ctx.fillStyle = 'rgba(255, 120, 0, 0.4)'
-        for (let y = 0; y < h; y += 8) {
-          if (Math.random() > 0.4) {
-            ctx.fillRect(0, y, w, 3)
-          }
-        }
-
-        ctx.fillStyle = '#ff3c00'
-        ctx.font = 'bold 12px monospace'
-        ctx.textAlign = 'center'
-        ctx.fillText('⚠ DEVTOOLS DETECTED', w / 2, h / 2 - 15)
-        ctx.fillStyle = '#ffaa00'
-        ctx.font = '10px monospace'
-        ctx.fillText('[QUANTUM SHIELD ACTIVE]', w / 2, h / 2 + 5)
-        ctx.fillText('[ASSET VAULT LOCKED]', w / 2, h / 2 + 22)
-
-        animFrameRef.current = requestAnimationFrame(renderGlitch)
-      }
-      renderGlitch()
+      // Silently wipe the character image completely when DevTools is opened
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       return () => {
         active = false
-        if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current)
       }
     }
 

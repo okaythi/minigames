@@ -1,4 +1,4 @@
-﻿/**
+/**
  * State-of-the-art client-side media and image protection suite.
  *
  * Implements multi-layered protection against image extraction, right-click copying,
@@ -135,16 +135,6 @@ export function initImageProtection(): () => void {
   window.addEventListener('selectstart', handleSelectStart, { capture: true })
   window.addEventListener('keydown', handleKeyDown, { capture: true })
   window.addEventListener('copy', handleCopy, { capture: true })
-
-  // Security Console Notice
-  try {
-    const style1 = 'color: #ff5722; font-size: 20px; font-weight: bold;'
-    const style2 = 'color: #888; font-size: 13px;'
-    console.log('%c⚠ PROTECTED MEDIA ASSETS', style1)
-    console.log('%cAll media and visual assets on this domain are dynamically protected and monitored.', style2)
-  } catch {
-    // Ignore console errors
-  }
 
   return () => {
     window.removeEventListener('contextmenu', handleContextMenu, { capture: true })
