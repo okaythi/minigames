@@ -21,6 +21,8 @@ export class TronEngine {
   private achievements: TronAchievementTracker | null
   private roundElapsedSeconds = 0
   private lastP1TurnTime = 0
+  private lastP1TurboTime = 0
+  private aiCrashedIntoP1Trail = false
 
   public constructor(
     public readonly deps: { readonly current: GameRuntimeDeps },
@@ -172,6 +174,7 @@ export class TronEngine {
       } else if (key === ' ') {
         const boosted = triggerCycleTurbo(this.state.p1, false)
         if (boosted) {
+          this.lastP1TurboTime = performance.now() / 1000
           this.audio.play('turbo')
           this.achievements?.onTurboActivated()
           this.publish()
@@ -202,6 +205,8 @@ export class TronEngine {
 
   private setupRound(): void {
     this.roundElapsedSeconds = 0
+    this.lastP1TurboTime = 0
+    this.aiCrashedIntoP1Trail = false
     this.achievements?.onRoundStart(this.state.level)
     this.grid.reset()
     const p1Col = 20
@@ -335,6 +340,12 @@ export class TronEngine {
         if (!this.grid.isFree(targetCol, targetRow)) {
           cycle.col = targetCol
           cycle.row = targetRow
+          if (cycle.id === 'ai') {
+            const hitCell = this.grid.get(targetCol, targetRow)
+            if (hitCell === OCCUPANCY.p1Trail) {
+              this.aiCrashedIntoP1Trail = true
+            }
+          }
           return true // Collided with boundary, enemy trail, or own trail!
         }
 
@@ -343,16 +354,10 @@ export class TronEngine {
         cycle.col = targetCol
         cycle.row = targetRow
 
-        // Check P1 perimeter touch and Turbo Cut
+        // Check P1 perimeter touch
         if (cycle.id === 'p1') {
           if (cycle.col <= 1 || cycle.col >= this.grid.cols - 2 || cycle.row <= 1 || cycle.row >= this.grid.rows - 2) {
             this.achievements?.onPerimeterTouch()
-          }
-          if (cycle.isTurbo) {
-            const distToAi = Math.abs(cycle.col - this.state.ai.col) + Math.abs(cycle.row - this.state.ai.row)
-            if (distToAi <= 6) {
-              this.achievements?.onTurboCut()
-            }
           }
         }
 
@@ -429,7 +434,9 @@ export class TronEngine {
       this.state.p1RoundWins += 1
       this.state.bannerText = 'PLAYER 1 WINS ROUND'
       this.audio.play('round_win')
-      if (this.state.p1.isTurbo) {
+      const now = performance.now() / 1000
+      const p1Boosted = this.state.p1.isTurbo || (this.lastP1TurboTime > 0 && now - this.lastP1TurboTime <= 2.5)
+      if (this.aiCrashedIntoP1Trail && p1Boosted) {
         this.achievements?.onTurboCut()
       }
       this.achievements?.onRoundWon(this.roundElapsedSeconds)
