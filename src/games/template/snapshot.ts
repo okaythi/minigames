@@ -37,6 +37,7 @@ export interface GameSnapshot {
   /** Small state tags under the readout: difficulty, hazards, grabs. */
   readonly badges: readonly string[]
   readonly run: GameRunSummary | null
+  readonly customState?: any
   readonly muted: boolean
 }
 

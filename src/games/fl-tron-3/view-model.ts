@@ -135,6 +135,7 @@ export function toGameSnapshot(
     tiles,
     badges,
     run: runSummary,
+    customState: { level: state.level, phase: state.phase },
     muted: isMuted,
   }
 }

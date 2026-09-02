@@ -318,6 +318,10 @@
 }
 
 @media (max-width: 900px) {
+  .nx-play-left-decorator {
+    display: none;
+  }
+
   .nx-play {
     grid-template-columns: minmax(0, 1fr);
   }
