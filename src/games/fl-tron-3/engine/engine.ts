@@ -42,18 +42,12 @@ export class TronEngine {
   }
 
   public start(): void {
-    if (!this.isStarted) {
-      this.isStarted = true
-      this.state.phase = 'menu'
-      this.audio.unlock()
-      this.audio.play('ui')
-      this.publish()
+    if (!this.isStarted || this.state.phase === 'menu') {
+      this.startCampaign()
       return
     }
 
-    if (this.state.phase === 'menu') {
-      this.startCampaign()
-    } else if (this.state.phase === 'intermission') {
+    if (this.state.phase === 'intermission') {
       this.advanceFromIntermission()
     } else if (this.state.phase === 'game_over' || this.state.phase === 'victory') {
       this.restart()
@@ -61,6 +55,7 @@ export class TronEngine {
   }
 
   public startCampaign(): void {
+    this.isStarted = true
     this.audio.unlock()
     this.audio.play('ui')
     this.deps.current.beginRun()
@@ -126,6 +121,13 @@ export class TronEngine {
   public handleInput(key: string, isDown: boolean): void {
     if (!isDown) return
 
+    if (!this.isStarted) {
+      if (key === 'Enter' || key === ' ') {
+        this.startCampaign()
+      }
+      return
+    }
+
     if (key === 'p' || key === 'P' || key === 'Escape') {
       if (this.isPaused) this.resume()
       else this.pause()
@@ -189,6 +191,12 @@ export class TronEngine {
     const effectiveDt = Math.min(Math.max(rawDt, 0), 0.05)
 
     this.updateParticles(effectiveDt)
+
+    if (!this.isStarted) {
+      this.publish()
+      return
+    }
+
     updateCycleTimers(this.state.p1, effectiveDt)
     updateCycleTimers(this.state.ai, effectiveDt)
 

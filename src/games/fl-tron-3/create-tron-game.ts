@@ -61,6 +61,11 @@ export function attachTronGame(host: GameHost, engine: TronEngine): DisposableBa
   }
 
   const handlePointerAction = (clientX: number, clientY: number) => {
+    if (!engine.isStarted) {
+      engine.startCampaign()
+      return
+    }
+
     const { x, y } = pointerPositionInArena(clientX, clientY)
 
     if (engine.state.phase === 'menu') {
