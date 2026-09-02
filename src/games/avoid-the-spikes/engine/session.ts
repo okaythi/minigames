@@ -214,7 +214,6 @@ export class AvoidSession {
     this.elapsed += dt
     advance(this.player, dt, this.score)
     advanceTrail(this.player, dt)
-    this.deps.onFrame?.(this.player.pos.y)
     this.walls.update(dt)
     this.movers.sync(this.score, this.player.pos, this.deps.random)
     this.movers.update(dt)
@@ -234,6 +233,8 @@ export class AvoidSession {
       this.die('mover')
       return
     }
+
+    this.deps.onFrame?.(this.player.pos.y)
 
     const contact = contactWith(this.player)
     if (contact === null) {

@@ -19,10 +19,12 @@ interface PerRunStats {
   moversSpawned: boolean
   /** Graze count this run (near-miss spike contacts that didn't kill). */
   grazeCount: number
-  /** True once the pod is within 10px of ceiling teeth. */
-  nearCeiling: boolean
-  /** True once the pod is within 10px of floor teeth. */
-  nearFloor: boolean
+  /** Pending survival state for entering 10px ceiling danger zone. */
+  pendingCeilingSkim: boolean
+  /** Pending survival state for entering 10px floor danger zone. */
+  pendingFloorSweep: boolean
+  /** Pending survival state for hazard-band graze. */
+  pendingEdgeOfOblivion: boolean
   startedAt: number
   /** How many flaps were used on the last wall-to-wall crossing. */
   flapsCurrentCrossing: number
@@ -37,9 +39,17 @@ interface LifetimeStats {
 
 const MOVERS_SPAWN_SCORE = 10
 const QUICK_TURNAROUND_SECONDS = 1.8
-const NEAR_BOUNDARY_THRESHOLD = 10 // px
 const CEILING_DEPTH = 20 // matches config.ts ARENA.ceilingDepth
 const FLOOR_DEPTH = 24  // matches config.ts ARENA.floorDepth
+// Player half height is 11.
+// Ceiling danger zone: playerY <= 20 + 11 + 10 = 41px.
+// Safe recovery height below ceiling: playerY >= 65px.
+const CEILING_DANGER_Y = 41
+const CEILING_SAFE_RECOVERY_Y = 65
+// Floor danger zone: playerY >= 480 - 24 - 11 - 10 = 435px.
+// Safe recovery height above floor: playerY <= 410px.
+const FLOOR_DANGER_Y = 435
+const FLOOR_SAFE_RECOVERY_Y = 410
 
 export class AvoidAchievementTracker {
   private run: PerRunStats = this.freshRun()
@@ -55,8 +65,9 @@ export class AvoidAchievementTracker {
       bouncesWithMoversActive: 0,
       moversSpawned: false,
       grazeCount: 0,
-      nearCeiling: false,
-      nearFloor: false,
+      pendingCeilingSkim: false,
+      pendingFloorSweep: false,
+      pendingEdgeOfOblivion: false,
       startedAt: performance.now() / 1000,
       flapsCurrentCrossing: 0,
       prevCrossingOneFlap: false,
@@ -76,6 +87,20 @@ export class AvoidAchievementTracker {
    */
   onBounce(score: number, moversLive: number, now: number): void {
     this.run.bounces = score
+
+    // If the player successfully bounced while a ceiling skim or floor sweep was pending, they survived!
+    if (this.run.pendingCeilingSkim) {
+      this.bus.unlock('avoid_edge_ceiling_skimmer')
+      this.run.pendingCeilingSkim = false
+    }
+    if (this.run.pendingFloorSweep) {
+      this.bus.unlock('avoid_edge_floor_sweeper')
+      this.run.pendingFloorSweep = false
+    }
+    if (this.run.pendingEdgeOfOblivion) {
+      this.bus.unlock('avoid_edge_oblivion')
+      this.run.pendingEdgeOfOblivion = false
+    }
 
     // Wall Bounce Milestones
     if (score >= 10) this.bus.unlock('avoid_wall_tapper', score)
@@ -137,11 +162,11 @@ export class AvoidAchievementTracker {
       this.bus.unlock('avoid_graze_needle_threader', this.run.grazeCount)
     }
 
-    // Edge of Oblivion: graze near ceiling or floor hazard band
+    // Edge of Oblivion: graze near ceiling or floor hazard band, confirmed on survival/bounce
     const nearTop = playerY < CEILING_DEPTH + 25
     const nearBottom = playerY > ARENA.height - FLOOR_DEPTH - 25
     if (nearTop || nearBottom) {
-      this.bus.unlock('avoid_edge_oblivion')
+      this.run.pendingEdgeOfOblivion = true
     }
 
     // Veteran Grazer: 25 lifetime grazes
@@ -153,22 +178,26 @@ export class AvoidAchievementTracker {
   }
 
   /**
-   * Call this every frame to check boundary proximity.
+   * Call this every frame the player remains alive to check boundary proximity and recovery.
    * @param playerY - player center Y in world coordinates
    */
   onFrame(playerY: number): void {
-    // Ceiling Skimmer: player within 10px of ceiling teeth (bottom edge)
-    const ceilingBound = CEILING_DEPTH + NEAR_BOUNDARY_THRESHOLD
-    if (!this.run.nearCeiling && playerY <= ceilingBound) {
-      this.run.nearCeiling = true
+    // 1. Check Ceiling Skimmer Danger Entry & Recovery
+    if (playerY <= CEILING_DANGER_Y) {
+      this.run.pendingCeilingSkim = true
+    } else if (this.run.pendingCeilingSkim && playerY >= CEILING_SAFE_RECOVERY_Y) {
+      // Player was within 10px of ceiling teeth, then descended safely back to altitude without dying
       this.bus.unlock('avoid_edge_ceiling_skimmer')
+      this.run.pendingCeilingSkim = false
     }
 
-    // Floor Sweeper: player within 10px of floor teeth (top edge)
-    const floorBound = ARENA.height - FLOOR_DEPTH - NEAR_BOUNDARY_THRESHOLD
-    if (!this.run.nearFloor && playerY >= floorBound) {
-      this.run.nearFloor = true
+    // 2. Check Floor Sweeper Danger Entry & Recovery
+    if (playerY >= FLOOR_DANGER_Y) {
+      this.run.pendingFloorSweep = true
+    } else if (this.run.pendingFloorSweep && playerY <= FLOOR_SAFE_RECOVERY_Y) {
+      // Player was within 10px of floor teeth, then rose safely back to altitude without dying
       this.bus.unlock('avoid_edge_floor_sweeper')
+      this.run.pendingFloorSweep = false
     }
   }
 
@@ -205,7 +234,9 @@ export class AvoidAchievementTracker {
 
   /** Call this when the run ends (death). */
   onRunFinished(_result: AvoidRunResult): void {
-    // Nothing to do here presently; the per-event hooks above cover everything.
-    // Future: could report aggregate progress to server here.
+    // Clear any pending danger states immediately so that crashing into teeth never awards proximity badges
+    this.run.pendingCeilingSkim = false
+    this.run.pendingFloorSweep = false
+    this.run.pendingEdgeOfOblivion = false
   }
 }
