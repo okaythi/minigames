@@ -291,9 +291,12 @@ export function statsDevPlugin(): Plugin {
           }
 
           const targetUser = user
-          await withStore(async (_store, memory) => {
-            const playerRecord = memory.players.get(targetUser.playerId) || null
-            const totalCandy = playerRecord?.candy ?? 119
+          await withStore(async (store, memory) => {
+            const identity = await identitySignals(req, store)
+            const effectivePlayerId = targetUser.playerId === 'dev-thy-id' && identity.id ? identity.id : targetUser.playerId
+            const playerRecord = memory.players.get(effectivePlayerId) || memory.players.get(targetUser.playerId) || null
+            const sumGamesCandy = Object.values(playerRecord?.games ?? {}).reduce((s, g) => s + (g.candy || 0), 0)
+            const totalCandy = Math.max(playerRecord?.candy ?? 0, sumGamesCandy)
             const totalPlays = 244
 
             const games = {
@@ -301,10 +304,10 @@ export function statsDevPlugin(): Plugin {
                 slug: 'avoid-the-spikes',
                 title: 'Avoid the Spikes!',
                 plays: 189,
-                highscore: 30,
-                candy: 85,
-                globalHighscore: 30,
-                isRecordHolder: true,
+                highscore: playerRecord?.games['avoid-the-spikes']?.highscore ?? 30,
+                candy: playerRecord?.games['avoid-the-spikes']?.candy ?? 85,
+                globalHighscore: memory.games.get('avoid-the-spikes')?.highscore ?? 30,
+                isRecordHolder: (playerRecord?.games['avoid-the-spikes']?.highscore ?? 30) >= (memory.games.get('avoid-the-spikes')?.highscore ?? 30),
                 percentile: 'Top 1%',
                 updatedAt: Date.now(),
               },
@@ -312,9 +315,9 @@ export function statsDevPlugin(): Plugin {
                 slug: 'pong',
                 title: 'Pong',
                 plays: 14,
-                highscore: 79,
-                candy: 20,
-                globalHighscore: 94,
+                highscore: playerRecord?.games['pong']?.highscore ?? 79,
+                candy: playerRecord?.games['pong']?.candy ?? 20,
+                globalHighscore: memory.games.get('pong')?.highscore ?? 94,
                 isRecordHolder: false,
                 percentile: 'Top 12%',
                 updatedAt: Date.now(),
@@ -323,9 +326,9 @@ export function statsDevPlugin(): Plugin {
                 slug: 'fl-tron-3',
                 title: 'FL Tron 3.0',
                 plays: 41,
-                highscore: 4,
-                candy: 14,
-                globalHighscore: 6,
+                highscore: playerRecord?.games['fl-tron-3']?.highscore ?? 4,
+                candy: playerRecord?.games['fl-tron-3']?.candy ?? 14,
+                globalHighscore: memory.games.get('fl-tron-3')?.highscore ?? 6,
                 isRecordHolder: false,
                 percentile: 'Top 25%',
                 updatedAt: Date.now(),

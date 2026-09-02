@@ -36,8 +36,8 @@ export function applyPlayerEvent(
     const perGame = perGameFor(record, game)
     return {
       ...record,
-      candy: record.candy + amount,
-      games: { ...record.games, [game]: { ...perGame, candy: perGame.candy + amount } },
+      candy: Math.max(0, record.candy + amount),
+      games: { ...record.games, [game]: { ...perGame, candy: Math.max(0, perGame.candy + amount) } },
     }
   }
 

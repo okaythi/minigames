@@ -71,7 +71,11 @@ export default function FLTron3Game() {
   const handleToggle = (enabled: boolean) => {
     setLevelSelectEnabled(enabled)
     if (typeof window !== 'undefined') {
-      const win = window as unknown as { __tronSelectedStartingLevel?: DifficultyLevel | undefined }
+      const win = window as unknown as {
+        __tronSelectedStartingLevel?: DifficultyLevel | undefined
+        __tronLevelSelectEnabled?: boolean | undefined
+      }
+      win.__tronLevelSelectEnabled = enabled
       win.__tronSelectedStartingLevel = enabled ? selectedLevel : undefined
     }
   }
@@ -79,7 +83,11 @@ export default function FLTron3Game() {
   const handleSelectLevel = (lvl: DifficultyLevel) => {
     setSelectedLevel(lvl)
     if (typeof window !== 'undefined') {
-      const win = window as unknown as { __tronSelectedStartingLevel?: DifficultyLevel | undefined }
+      const win = window as unknown as {
+        __tronSelectedStartingLevel?: DifficultyLevel | undefined
+        __tronLevelSelectEnabled?: boolean | undefined
+      }
+      win.__tronLevelSelectEnabled = true
       win.__tronSelectedStartingLevel = lvl
       window.dispatchEvent(new CustomEvent('tron:start-level', { detail: { level: lvl } }))
     }

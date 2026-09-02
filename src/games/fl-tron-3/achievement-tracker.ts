@@ -49,6 +49,16 @@ export class TronAchievementTracker {
 
   constructor(private readonly bus: AchievementBus) {}
 
+  public isBlocked(): boolean {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { __tronLevelSelectEnabled?: boolean }
+      if (win.__tronLevelSelectEnabled) {
+        return true
+      }
+    }
+    return false
+  }
+
   private freshCampaign(): CampaignStats {
     return {
       highestLevelDefeated: 0,
@@ -73,12 +83,14 @@ export class TronAchievementTracker {
   }
 
   onCampaignStart(): void {
+    if (this.isBlocked()) return
     this.campaign = this.freshCampaign()
     this.round = this.freshRound(1)
     this.level = this.freshLevel(1)
   }
 
   onRoundStart(level: DifficultyLevel): void {
+    if (this.isBlocked()) return
     this.round = this.freshRound(level)
     if (this.level.level !== level) {
       this.level = this.freshLevel(level)
@@ -87,6 +99,7 @@ export class TronAchievementTracker {
 
   /** Call when the player activates turbo (Spacebar). */
   onTurboActivated(): void {
+    if (this.isBlocked()) return
     this.campaign.anyTurboUsed = true
     this.campaign.totalTurboActivations += 1
     this.round.turbosUsed += 1
@@ -102,6 +115,7 @@ export class TronAchievementTracker {
    * the AI just vacated).
    */
   onTurboCut(): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_turbo_cut')
   }
 
@@ -112,6 +126,7 @@ export class TronAchievementTracker {
 
   /** Call when the player touches or grazes a perimeter boundary. */
   onPerimeterTouch(): void {
+    if (this.isBlocked()) return
     this.round.playerTouchedPerimeter = true
   }
 
@@ -120,6 +135,7 @@ export class TronAchievementTracker {
    * @param elapsedSeconds seconds since the round started
    */
   onRoundWon(elapsedSeconds: number): void {
+    if (this.isBlocked()) return
     this.level.playerRoundWins += 1
 
     // Dominant Round: won without touching perimeter
@@ -148,6 +164,7 @@ export class TronAchievementTracker {
 
   /** Call when the AI wins a round. */
   onRoundLost(): void {
+    if (this.isBlocked()) return
     this.level.aiRoundWins += 1
     this.campaign.livesLost += 1
     this.campaign.deathlessRun = false
@@ -155,6 +172,7 @@ export class TronAchievementTracker {
 
   /** Call when a level (3-round match) is defeated by the player. */
   onLevelDefeated(level: DifficultyLevel): void {
+    if (this.isBlocked()) return
     this.campaign.highestLevelDefeated = Math.max(this.campaign.highestLevelDefeated, level)
 
     // Campaign stage achievements
@@ -168,6 +186,7 @@ export class TronAchievementTracker {
    * @param totalSeconds total elapsed campaign time in seconds
    */
   onCampaignComplete(totalSeconds: number): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_master_core_overload')
 
     // Pure Kinetic: completed without using turbo
@@ -188,11 +207,13 @@ export class TronAchievementTracker {
 
   /** Call when the player forms a closed light box (4-wall enclosure). */
   onClosedGrid(): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_closed_grid')
   }
 
   /** Call when the player spirals around the AI and forces a trail crash. */
   onIronCoil(): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_iron_coil')
   }
 
@@ -201,6 +222,7 @@ export class TronAchievementTracker {
    * @param aiOccupancyPercent 0..100
    */
   onAiTrapped(aiOccupancyPercent: number): void {
+    if (this.isBlocked()) return
     if (aiOccupancyPercent <= 15) {
       this.bus.unlock('tron_claustrophobia')
     }
@@ -208,11 +230,13 @@ export class TronAchievementTracker {
 
   /** Call when two consecutive 90° turns happen within 150ms. */
   onHairpinDouble(): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_hairpin_double')
   }
 
   /** Call when the player navigates through a 1-tile-wide corridor. */
   onRazorCorridor(): void {
+    if (this.isBlocked()) return
     this.bus.unlock('tron_razor_corridor')
   }
 }

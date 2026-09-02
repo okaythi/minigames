@@ -159,14 +159,14 @@ export async function bumpPlayer(
     await db
       .prepare(
         `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
-         VALUES (?1, ?2, NULL, ?3, ?4, 0)
+         VALUES (?1, ?2, NULL, MAX(0, ?3), ?4, 0)
          ON CONFLICT(player_id, slug) DO UPDATE
-           SET candy = player_games.candy + excluded.candy, updated_at = excluded.updated_at`,
+           SET candy = MAX(0, player_games.candy + excluded.candy), updated_at = excluded.updated_at`,
       )
       .bind(playerId, game, event.amount, now)
       .run()
     await db
-      .prepare('UPDATE players SET candy = players.candy + ?2, last_seen = ?3 WHERE id = ?1')
+      .prepare('UPDATE players SET candy = MAX(0, players.candy + ?2), last_seen = ?3 WHERE id = ?1')
       .bind(playerId, event.amount, now)
       .run()
   }

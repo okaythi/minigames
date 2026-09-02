@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
+import { ALLOWED_SLUGS } from '../../../shared/game-slugs'
 import type {
   GameStatsRecord,
   PlayerRecord,
@@ -18,6 +19,7 @@ import { claimVisitAnnouncement } from './player-identity'
 import type { GameFinishDetails } from '../../games/template/types'
 import {
   bankCandy as bankCandyLocal,
+  patchLocalCounters,
   readLocalCounters,
   registerPlay,
   registerScore,
@@ -81,6 +83,23 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
       setPlayerRecord(payload.player)
       setUniquePlayers(payload.uniquePlayers)
       setSynced(true)
+
+      if (payload.player) {
+        for (const slug of ALLOWED_SLUGS) {
+          const local = readLocalCounters(slug)
+          const remoteGameCandy = payload.player.games[slug]?.candy ?? 0
+          if (remoteGameCandy > local.candy) {
+            patchLocalCounters(slug, { candy: remoteGameCandy })
+          } else if (local.candy > remoteGameCandy) {
+            const diff = local.candy - remoteGameCandy
+            void pushStatsEvent(slug, { type: 'candy', amount: diff }).then((res) => {
+              if (!cancelled && res?.player) {
+                setPlayerRecord(res.player)
+              }
+            })
+          }
+        }
+      }
     })
 
     // One visit per page load: counts a player without counting a run. The
@@ -109,12 +128,17 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
   const push = useCallback(
     (
       slug: string,
-      event: { type: 'play' } | ({ type: 'score'; score: number } & GameFinishDetails),
+      event:
+        | { type: 'play' }
+        | ({ type: 'score'; score: number } & GameFinishDetails)
+        | { type: 'candy'; amount: number },
     ): void => {
-      if (pending.current.has(slug + event.type)) {
-        return
+      if (event.type !== 'candy') {
+        if (pending.current.has(slug + event.type)) {
+          return
+        }
+        pending.current.add(slug + event.type)
       }
-      pending.current.add(slug + event.type)
       void pushStatsEvent(slug, event)
         .then((result) => {
           if (result !== null && result.stats !== null) {
@@ -124,7 +148,9 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
           }
         })
         .finally(() => {
-          pending.current.delete(slug + event.type)
+          if (event.type !== 'candy') {
+            pending.current.delete(slug + event.type)
+          }
         })
     },
     [mergeRemote],
@@ -148,10 +174,14 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
     [push],
   )
 
-  const bankCandy = useCallback((slug: string, amount: number): void => {
-    bankCandyLocal(slug, amount)
-    setRevision((value) => value + 1)
-  }, [])
+  const bankCandy = useCallback(
+    (slug: string, amount: number): void => {
+      bankCandyLocal(slug, amount)
+      setRevision((value) => value + 1)
+      push(slug, { type: 'candy', amount })
+    },
+    [push],
+  )
 
   const refresh = useCallback(async (): Promise<void> => {
     const payload = await fetchAllStats()
@@ -169,13 +199,15 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
       const local = readLocalCounters(slug)
       const remote: GameStatsRecord | undefined = edge?.[slug]
       const distributed = synced && remote !== undefined
+      const remoteCandy = playerRecord?.games[slug]?.candy
+      const candy = remoteCandy !== undefined ? Math.max(local.candy, remoteCandy) : local.candy
       return {
         // Trust the larger of the two until the edge confirms: a stale 0 is
         // worse than a number that only counts down when it must.
         plays: remote === undefined ? local.plays : Math.max(remote.plays, local.plays),
         personalBest: local.best,
         globalRecord: remote?.highscore ?? null,
-        candy: local.candy,
+        candy,
         completedDifficulties: playerRecord?.games[slug]?.completedDifficulties ?? [],
         distributed,
         synced,
