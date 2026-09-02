@@ -1,0 +1,441 @@
+/* Nixlabs Games - Settings Page & Settings Drawer Styles */
+
+.nx-settings-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px var(--nx-gutter) 80px;
+}
+
+.nx-settings-header {
+  margin-bottom: 28px;
+}
+
+.nx-settings-title {
+  font-family: var(--nx-font-sans);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  margin: 0 0 6px;
+}
+
+.nx-settings-subtitle {
+  font-size: 14px;
+  color: var(--nx-slate);
+  margin: 0;
+}
+
+.nx-settings-card {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  padding: 28px;
+  box-shadow: var(--nx-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.nx-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nx-settings-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nx-settings-section-title {
+  font-family: var(--nx-font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nx-settings-section-desc {
+  font-size: 13px;
+  color: var(--nx-slate);
+  margin: 0;
+}
+
+.nx-settings-divider {
+  border: 0;
+  border-top: var(--nx-hairline);
+  margin: 4px 0;
+}
+
+/* Avatar Upload Dropzone & Flow */
+.nx-avatar-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  background: var(--nx-paper);
+  border: 1.5px dashed var(--nx-line-strong);
+  border-radius: var(--nx-radius);
+  transition: border-color var(--nx-duration) var(--nx-ease), background-color var(--nx-duration) var(--nx-ease);
+}
+
+.nx-avatar-upload-area[data-drag='true'] {
+  border-color: var(--nx-orange);
+  background: var(--nx-orange-tint);
+}
+
+.nx-avatar-preview-wrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--nx-orange);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px var(--nx-card), 0 0 0 5px var(--nx-line);
+}
+
+.nx-avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-avatar-preview-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(35, 35, 36, 0.7);
+  color: #ffffff;
+  font-size: 9px;
+  font-family: var(--nx-font-mono);
+  font-weight: 600;
+  text-align: center;
+  padding: 2px 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.nx-avatar-upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nx-avatar-upload-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nx-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline-strong);
+  background: var(--nx-card);
+  color: var(--nx-ink);
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--nx-duration) var(--nx-ease);
+}
+
+.nx-file-btn:hover {
+  background: var(--nx-sand);
+  border-color: var(--nx-slate);
+}
+
+.nx-avatar-commit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--nx-radius-sm);
+  border: 1px solid var(--nx-orange-deep);
+  background: var(--nx-orange);
+  color: #ffffff;
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--nx-shadow-sm);
+  transition: all var(--nx-duration) var(--nx-ease);
+}
+
+.nx-avatar-commit-btn:hover:not(:disabled) {
+  background: var(--nx-orange-deep);
+}
+
+.nx-avatar-commit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nx-avatar-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--nx-radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--nx-slate);
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nx-avatar-cancel-btn:hover {
+  color: var(--nx-ink);
+  background: var(--nx-sand);
+}
+
+.nx-avatar-meta-hint {
+  font-size: 12px;
+  color: var(--nx-slate);
+  line-height: 1.35;
+}
+
+.nx-avatar-staged-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  color: var(--nx-orange-deep);
+  background: var(--nx-orange-tint);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--nx-orange-glow);
+}
+
+/* Nickname Section & Warning */
+.nx-subtext-warning {
+  color: var(--nx-red-deep);
+  background: var(--nx-red-tint);
+  border: 1px solid rgba(216, 67, 61, 0.25);
+  padding: 9px 12px;
+  border-radius: var(--nx-radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.nx-nickname-locked-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--nx-paper);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-nickname-locked-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nx-nickname-locked-label {
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--nx-tracking-wide);
+  color: var(--nx-slate);
+}
+
+.nx-nickname-locked-value {
+  font-family: var(--nx-font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--nx-ink);
+}
+
+.nx-nickname-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nx-slate);
+  background: var(--nx-sand);
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: var(--nx-hairline);
+}
+
+.nx-nickname-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nx-nickname-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.nx-nickname-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.nx-nickname-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline-strong);
+  background: var(--nx-paper);
+  color: var(--nx-ink);
+  font-family: var(--nx-font-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--nx-duration) var(--nx-ease), box-shadow var(--nx-duration) var(--nx-ease);
+}
+
+.nx-nickname-input:focus {
+  border-color: var(--nx-orange);
+  box-shadow: var(--nx-focus-ring);
+  background: var(--nx-card);
+}
+
+.nx-nickname-counter {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  color: var(--nx-slate);
+  pointer-events: none;
+}
+
+.nx-nickname-save-btn {
+  padding: 10px 18px;
+  border-radius: var(--nx-radius-sm);
+  border: 1px solid var(--nx-orange-deep);
+  background: var(--nx-orange);
+  color: #ffffff;
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--nx-shadow-sm);
+  transition: all var(--nx-duration) var(--nx-ease);
+  flex-shrink: 0;
+}
+
+.nx-nickname-save-btn:hover:not(:disabled) {
+  background: var(--nx-orange-deep);
+}
+
+.nx-nickname-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Feedback Toasts & Alerts */
+.nx-settings-alert {
+  padding: 10px 14px;
+  border-radius: var(--nx-radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: nx-alert-in 140ms var(--nx-ease);
+}
+
+.nx-settings-alert[data-type='error'] {
+  background: var(--nx-red-tint);
+  border: 1px solid rgba(216, 67, 61, 0.25);
+  color: var(--nx-red-deep);
+}
+
+.nx-settings-alert[data-type='success'] {
+  background: var(--nx-green-tint);
+  border: 1px solid rgba(31, 157, 91, 0.25);
+  color: var(--nx-green-deep);
+}
+
+@keyframes nx-alert-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal Confirmation for Irreversible Nickname */
+.nx-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(35, 35, 36, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.nx-confirm-dialog {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--nx-shadow-lift);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: nx-popover-in 140ms var(--nx-ease);
+}
+
+.nx-confirm-title {
+  font-family: var(--nx-font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nx-confirm-body {
+  font-size: 14px;
+  color: var(--nx-graphite);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.nx-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}

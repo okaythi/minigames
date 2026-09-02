@@ -3,6 +3,7 @@ import { login, register, logout, getMe } from '../services/auth-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
+import './auth-popover.css'
 
 export function AuthPopover() {
   const [isOpen, setIsOpen] = useState(false)
@@ -11,11 +12,12 @@ export function AuthPopover() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { navigate } = useRouter()
 
   useEffect(() => {
-    getMe().then(setUser)
+    void getMe().then(setUser)
   }, [])
 
   useEffect(() => {
@@ -24,25 +26,50 @@ export function AuthPopover() {
         setIsOpen(false)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+
+    const cleanUsername = username.trim().toLowerCase()
+    if (cleanUsername.length < 3) {
+      setError('Username must be at least 3 characters.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+
+    setSubmitting(true)
     try {
       if (mode === 'login') {
-        await login({ username, password })
+        await login({ username: cleanUsername, password })
       } else {
-        await register({ username, password })
+        await register({ username: cleanUsername, password })
       }
       const me = await getMe()
       setUser(me)
       setIsOpen(false)
+      setUsername('')
+      setPassword('')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An error occurred'
       setError(message)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -71,193 +98,178 @@ export function AuthPopover() {
           onClick={() => setIsOpen(!isOpen)}
           data-active={isOpen ? 'true' : undefined}
         >
-          Log in
+          Sign in
         </button>
       )}
 
       {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 'calc(100% + 8px)',
-            background: 'var(--nx-card)',
-            border: 'var(--nx-hairline)',
-            borderRadius: 'var(--nx-radius)',
-            padding: '16px',
-            width: '260px',
-            boxShadow: 'var(--nx-shadow-lift)',
-            zIndex: 100,
-          }}
-        >
+        <div className="nx-auth-popover" role="dialog" aria-modal="true">
           {user ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="nx-nav-avatar-circle" style={{ width: '36px', height: '36px', fontSize: '15px' }}>
+            <div>
+              <div className="nx-user-menu-header">
+                <div className="nx-user-menu-avatar">
                   {user.pfpUrl ? (
-                    <img src={user.pfpUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={user.pfpUrl} alt="" />
                   ) : (
                     user.username.charAt(0).toUpperCase()
                   )}
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--nx-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    @{user.username}
-                  </div>
-                  {user.nickname && (
-                    <div style={{ fontSize: '12px', color: 'var(--nx-slate)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {user.nickname}
-                    </div>
+                <div className="nx-user-menu-meta">
+                  <div className="nx-user-menu-username">@{user.username}</div>
+                  {user.nickname && <div className="nx-user-menu-nickname">{user.nickname}</div>}
+                  {user.legacyUser && (
+                    <span className="nx-user-menu-badge">
+                      <span>⚡</span> Pioneer
+                    </span>
                   )}
                 </div>
               </div>
-              <hr style={{ border: 0, borderTop: 'var(--nx-hairline)', margin: '4px 0' }} />
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false)
-                  navigate(ROUTES.settings)
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  color: 'var(--nx-ink)',
-                  fontSize: '13.5px',
-                  padding: '6px 8px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  font: 'inherit',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false)
-                  navigate(ROUTES.userProfile(user.username))
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  color: 'var(--nx-ink)',
-                  fontSize: '13.5px',
-                  padding: '6px 8px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  font: 'inherit',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Public Profile
-              </button>
-              <hr style={{ border: 0, borderTop: 'var(--nx-hairline)', margin: '4px 0' }} />
-              <button
-                type="button"
-                onClick={() => {
-                  void logout()
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  color: 'var(--nx-red)',
-                  fontSize: '13.5px',
-                  padding: '6px 8px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  font: 'inherit',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-              >
-                Log out
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--nx-ink)' }}>
-                {mode === 'login' ? 'Log in' : 'Create Account'}
-              </div>
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                style={{
-                  padding: '7px 10px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  border: 'var(--nx-hairline)',
-                  background: 'var(--nx-paper)',
-                  color: 'var(--nx-ink)',
-                  fontSize: '13px',
-                  outline: 'none',
-                }}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{
-                  padding: '7px 10px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  border: 'var(--nx-hairline)',
-                  background: 'var(--nx-paper)',
-                  color: 'var(--nx-ink)',
-                  fontSize: '13px',
-                  outline: 'none',
-                }}
-                required
-              />
-              {error && <div style={{ color: 'var(--nx-red)', fontSize: '12px' }}>{error}</div>}
-              <button
-                type="submit"
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: 'var(--nx-radius-sm)',
-                  border: 'none',
-                  background: 'var(--nx-orange)',
-                  color: 'var(--nx-card)',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'opacity var(--nx-duration) var(--nx-ease)',
-                }}
-              >
-                {mode === 'login' ? 'Log in' : 'Sign up'}
-              </button>
-              <div style={{ fontSize: '12px', textAlign: 'center', marginTop: '4px', color: 'var(--nx-slate)' }}>
-                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+
+              <div className="nx-user-menu-nav">
                 <button
                   type="button"
+                  className="nx-user-menu-item"
                   onClick={() => {
-                    setMode(mode === 'login' ? 'register' : 'login')
-                    setError('')
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--nx-orange)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    fontSize: '12px',
-                    fontWeight: 500,
+                    setIsOpen(false)
+                    navigate(ROUTES.userProfile(user.username))
                   }}
                 >
-                  {mode === 'login' ? 'Sign up' : 'Log in'}
+                  <span className="nx-user-menu-item-icon">👤</span>
+                  <span>My Profile</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="nx-user-menu-item"
+                  onClick={() => {
+                    setIsOpen(false)
+                    navigate(ROUTES.settings)
+                  }}
+                >
+                  <span className="nx-user-menu-item-icon">⚙️</span>
+                  <span>Settings & Avatar</span>
                 </button>
               </div>
-            </form>
+
+              <hr className="nx-user-menu-divider" />
+
+              <div style={{ paddingTop: '4px' }}>
+                <button
+                  type="button"
+                  className="nx-user-menu-item"
+                  data-danger="true"
+                  onClick={() => {
+                    void logout()
+                  }}
+                >
+                  <span className="nx-user-menu-item-icon">🚪</span>
+                  <span>Log out</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="nx-auth-tabs">
+                <button
+                  type="button"
+                  className="nx-auth-tab"
+                  data-active={mode === 'login' ? 'true' : undefined}
+                  onClick={() => {
+                    setMode('login')
+                    setError('')
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  className="nx-auth-tab"
+                  data-active={mode === 'register' ? 'true' : undefined}
+                  onClick={() => {
+                    setMode('register')
+                    setError('')
+                  }}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="nx-auth-form">
+                <div className="nx-auth-field">
+                  <label className="nx-auth-label" htmlFor="nx-auth-username">
+                    Username
+                  </label>
+                  <input
+                    id="nx-auth-username"
+                    className="nx-auth-input"
+                    type="text"
+                    placeholder="e.g. arcade_champ"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    autoComplete="username"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                  />
+                  {mode === 'register' && (
+                    <span className="nx-auth-hint">3-30 letters, numbers, underscores or dots.</span>
+                  )}
+                </div>
+
+                <div className="nx-auth-field">
+                  <label className="nx-auth-label" htmlFor="nx-auth-password">
+                    Password
+                  </label>
+                  <input
+                    id="nx-auth-password"
+                    className="nx-auth-input"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    required
+                    minLength={8}
+                    maxLength={100}
+                  />
+                  {mode === 'register' && (
+                    <span className="nx-auth-hint">Must be at least 8 characters.</span>
+                  )}
+                </div>
+
+                {error && <div className="nx-auth-error">{error}</div>}
+
+                <button
+                  type="submit"
+                  className="nx-auth-submit"
+                  disabled={submitting}
+                >
+                  {submitting
+                    ? 'Please wait...'
+                    : mode === 'login'
+                    ? 'Sign in to Arcade'
+                    : 'Create Account'}
+                </button>
+
+                <div className="nx-auth-switch">
+                  {mode === 'login' ? "Don't have an account? " : 'Already registered? '}
+                  <button
+                    type="button"
+                    className="nx-auth-switch-btn"
+                    onClick={() => {
+                      setMode(mode === 'login' ? 'register' : 'login')
+                      setError('')
+                    }}
+                  >
+                    {mode === 'login' ? 'Sign up' : 'Sign in'}
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
         </div>
       )}
     </div>
   )
 }
+

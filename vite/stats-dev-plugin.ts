@@ -115,8 +115,347 @@ export function statsDevPlugin(): Plugin {
         })
       }
 
+      // Dev in-memory user store
+      interface DevUser {
+        username: string
+        passwordHash: string
+        playerId: string
+        nickname: string | null
+        nicknameChangedCount: number
+        pfpUrl: string | null
+        createdOn: number
+        legacyUser: boolean
+      }
+
+      const devUsers = new Map<string, DevUser>()
+      const devPlayerToUsername = new Map<string, string>()
+
+      const handleAuth = async (req: IncomingMessage, res: ServerResponse, url: string): Promise<void> => {
+        if (url === '/api/auth/register' && req.method === 'POST') {
+          const body = parseJson(await readBody(req)) as any
+          if (!body || !body.username || !body.password) {
+            sendJson(res, 400, { ok: false, error: 'invalid payload' }, null)
+            return
+          }
+          const username = String(body.username).toLowerCase()
+          if (devUsers.has(username)) {
+            sendJson(res, 400, { ok: false, error: 'username taken' }, null)
+            return
+          }
+          await withStore(async (store) => {
+            const identity = await identitySignals(req, store)
+            const playerId = identity.id || crypto.randomUUID()
+            const newUser: DevUser = {
+              username,
+              passwordHash: body.password,
+              playerId,
+              nickname: null,
+              nicknameChangedCount: 0,
+              pfpUrl: null,
+              createdOn: Math.floor(Date.now() / 1000),
+              legacyUser: true,
+            }
+            devUsers.set(username, newUser)
+            devPlayerToUsername.set(playerId, username)
+            sendJson(res, 200, { ok: true, username }, serializePlayerCookie(playerId))
+          })
+          return
+        }
+
+        if (url === '/api/auth/login' && req.method === 'POST') {
+          const body = parseJson(await readBody(req)) as any
+          if (!body || !body.username || !body.password) {
+            sendJson(res, 400, { ok: false, error: 'invalid payload' }, null)
+            return
+          }
+          const username = String(body.username).toLowerCase()
+          const user = devUsers.get(username)
+          if (!user || user.passwordHash !== body.password) {
+            sendJson(res, 400, { ok: false, error: 'invalid username or password' }, null)
+            return
+          }
+          devPlayerToUsername.set(user.playerId, username)
+          sendJson(res, 200, { ok: true, username }, serializePlayerCookie(user.playerId))
+          return
+        }
+
+        if (url === '/api/auth/logout' && req.method === 'POST') {
+          sendJson(res, 200, { ok: true }, 'player_id=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict')
+          return
+        }
+
+        sendJson(res, 404, { ok: false, error: 'not found' }, null)
+      }
+
+      const handleUsers = async (req: IncomingMessage, res: ServerResponse, url: string): Promise<void> => {
+        if (url === '/api/users/me') {
+          await withStore(async (store) => {
+            const identity = await identitySignals(req, store)
+            if (!identity.id) {
+              sendJson(res, 400, { ok: false, error: 'unauthorized' }, null)
+              return
+            }
+            const username = devPlayerToUsername.get(identity.id)
+            let user = username ? devUsers.get(username) : null
+
+            if (!user) {
+              // Auto create default user for convenience in dev
+              user = {
+                username: 'thy',
+                passwordHash: 'password',
+                playerId: identity.id,
+                nickname: 'Lab Pioneer',
+                nicknameChangedCount: 0,
+                pfpUrl: null,
+                createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
+                legacyUser: true,
+              }
+              devUsers.set('thy', user)
+              devPlayerToUsername.set(identity.id, 'thy')
+            }
+
+            if (req.method === 'GET') {
+              sendJson(res, 200, {
+                ok: true,
+                profile: {
+                  username: user.username,
+                  nickname: user.nickname,
+                  pfpUrl: user.pfpUrl,
+                  legacyUser: user.legacyUser,
+                  nicknameChangedCount: user.nicknameChangedCount,
+                  createdOn: user.createdOn,
+                },
+              }, null)
+              return
+            }
+
+            if (req.method === 'PUT') {
+              const body = parseJson(await readBody(req)) as any
+              if (!body || !body.nickname) {
+                sendJson(res, 400, { ok: false, error: 'invalid payload' }, null)
+                return
+              }
+              if (user.nicknameChangedCount >= 1) {
+                sendJson(res, 400, { ok: false, error: 'nickname can only be changed once' }, null)
+                return
+              }
+              user.nickname = String(body.nickname).trim().slice(0, 30)
+              user.nicknameChangedCount += 1
+              sendJson(res, 200, { ok: true }, null)
+              return
+            }
+
+            if (req.method === 'POST') {
+              const chunks: Buffer[] = []
+              for await (const chunk of req) {
+                chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+              }
+              const buffer = Buffer.concat(chunks)
+              const mime = req.headers['content-type'] || 'image/png'
+              const base64 = `data:${mime};base64,${buffer.toString('base64')}`
+              user.pfpUrl = base64
+              sendJson(res, 200, { ok: true, pfpUrl: base64 }, null)
+              return
+            }
+
+            sendJson(res, 405, { ok: false, error: 'method not allowed' }, null)
+          })
+          return
+        }
+
+        if (url.startsWith('/api/users/')) {
+          const rawParam = url.slice('/api/users/'.length).split('?')[0] ?? ''
+          const targetUsername = rawParam.toLowerCase()
+          let user = devUsers.get(targetUsername)
+          if (!user && targetUsername === 'thy') {
+            user = {
+              username: 'thy',
+              passwordHash: 'password',
+              playerId: 'dev-thy-id',
+              nickname: 'Lab Pioneer',
+              nicknameChangedCount: 0,
+              pfpUrl: null,
+              createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
+              legacyUser: true,
+            }
+            devUsers.set('thy', user)
+          }
+
+          if (!user) {
+            sendJson(res, 404, { ok: false, error: 'user not found' }, null)
+            return
+          }
+
+          const targetUser = user
+          await withStore(async (_store, memory) => {
+            const playerRecord = memory.players.get(targetUser.playerId) || null
+            const totalCandy = playerRecord?.candy ?? 119
+            const totalPlays = 244
+
+            const games: Record<string, any> = {
+              'avoid-the-spikes': {
+                slug: 'avoid-the-spikes',
+                title: 'Avoid the Spikes!',
+                plays: 189,
+                highscore: 30,
+                candy: 85,
+                globalHighscore: 30,
+                isRecordHolder: true,
+                percentile: 'Top 1%',
+                updatedAt: Date.now(),
+              },
+              'pong': {
+                slug: 'pong',
+                title: 'Pong',
+                plays: 14,
+                highscore: 79,
+                candy: 20,
+                globalHighscore: 94,
+                isRecordHolder: false,
+                percentile: 'Top 12%',
+                updatedAt: Date.now(),
+              },
+              'fl-tron-3': {
+                slug: 'fl-tron-3',
+                title: 'FL Tron 3.0',
+                plays: 41,
+                highscore: 4,
+                candy: 14,
+                globalHighscore: 6,
+                isRecordHolder: false,
+                percentile: 'Top 25%',
+                updatedAt: Date.now(),
+              },
+            }
+
+            const badges = [
+              {
+                id: 'pioneer',
+                name: 'Lab Pioneer',
+                description: 'Joined Nixlabs in early access phase.',
+                icon: '⚡',
+                unlocked: user.legacyUser,
+              },
+              {
+                id: 'wall_bouncer',
+                name: 'Wall Bouncer',
+                description: 'Achieve a score of 25+ on Avoid the Spikes!',
+                icon: '🏆',
+                unlocked: true,
+                progress: { current: 30, max: 25 },
+              },
+              {
+                id: 'candy_hoarder',
+                name: 'Candy Hoarder',
+                description: 'Bank 100 or more candies across all games.',
+                icon: '🍬',
+                unlocked: totalCandy >= 100,
+                progress: { current: Math.min(totalCandy, 100), max: 100 },
+              },
+              {
+                id: 'paddle_ace',
+                name: 'Paddle Ace',
+                description: 'Score 25+ hits in a single rally on Pong.',
+                icon: '🏓',
+                unlocked: true,
+                progress: { current: 25, max: 25 },
+              },
+              {
+                id: 'tron_survivor',
+                name: 'Tron Survivor',
+                description: 'Complete matches on the FL Tron cyber grid.',
+                icon: '🏍️',
+                unlocked: true,
+                progress: { current: 3, max: 3 },
+              },
+              {
+                id: 'arcade_veteran',
+                name: 'Arcade Veteran',
+                description: 'Play at least 50 total runs in the Nixlabs catalogue.',
+                icon: '🕹️',
+                unlocked: true,
+                progress: { current: 50, max: 50 },
+              },
+            ]
+
+            const recentActivity = [
+              {
+                id: 'act-avoid',
+                text: 'Scored 30 on Avoid the Spikes! (World Record)',
+                timeAgo: '2h ago',
+                icon: '🎯',
+              },
+              {
+                id: 'act-candy',
+                text: 'Collected 14 Candy in Pong',
+                timeAgo: '1d ago',
+                icon: '🍬',
+              },
+              {
+                id: 'act-tron',
+                text: 'Cleared Stage 4 in FL Tron Campaign',
+                timeAgo: '2d ago',
+                icon: '🏍️',
+              },
+              {
+                id: 'act-join',
+                text: 'Joined Nixlabs Games arcade',
+                timeAgo: 'Aug 2026',
+                icon: '✨',
+              },
+            ]
+
+            sendJson(res, 200, {
+              ok: true,
+              profile: {
+                username: user.username,
+                nickname: user.nickname,
+                pfpUrl: user.pfpUrl,
+                legacyUser: user.legacyUser,
+                nicknameChangedCount: user.nicknameChangedCount,
+                createdOn: user.createdOn,
+                totalPlays,
+                totalCandy,
+                recordsHeld: 1,
+                recordsList: ['Avoid the Spikes!'],
+                arcadeRating: 'Top 4%',
+                title: user.legacyUser ? 'Lab Pioneer' : 'Arcade Champion',
+                activeStreak: 5,
+                streakDays: [true, true, true, true, true, false, false],
+                badges,
+                games,
+                recentActivity,
+              },
+            }, null)
+          })
+          return
+        }
+
+        sendJson(res, 404, { ok: false, error: 'not found' }, null)
+      }
+
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? ''
+        if (url.startsWith('/api/auth/')) {
+          try {
+            await handleAuth(req, res, url)
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'unknown error'
+            sendJson(res, 500, { ok: false, error: message }, null)
+          }
+          return
+        }
+
+        if (url.startsWith('/api/users/')) {
+          try {
+            await handleUsers(req, res, url)
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'unknown error'
+            sendJson(res, 500, { ok: false, error: message }, null)
+          }
+          return
+        }
+
         if (!url.startsWith(STATS_ENDPOINT)) {
           next()
           return
@@ -135,3 +474,4 @@ export function statsDevPlugin(): Plugin {
     },
   }
 }
+

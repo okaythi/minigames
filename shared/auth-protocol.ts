@@ -36,4 +36,55 @@ export interface UserProfileResponse {
   nickname: string | null
   pfpUrl: string | null
   legacyUser: boolean
+  nicknameChangedCount: number
+  createdOn: number
 }
+
+export interface UserGameStat {
+  slug: string
+  title: string
+  plays: number
+  highscore: number | null
+  candy: number
+  globalHighscore: number | null
+  isRecordHolder: boolean
+  percentile: string
+  updatedAt: number
+}
+
+export interface Badge {
+  id: string
+  name: string
+  description: string
+  icon: string
+  unlocked: boolean
+  progress?: { current: number; max: number }
+}
+
+export interface ActivityItem {
+  id: string
+  text: string
+  timeAgo: string
+  icon: string
+}
+
+export interface UserPublicProfileResponse {
+  username: string
+  nickname: string | null
+  pfpUrl: string | null
+  legacyUser: boolean
+  nicknameChangedCount: number
+  createdOn: number
+  totalPlays: number
+  totalCandy: number
+  recordsHeld: number
+  recordsList: string[]
+  arcadeRating: string
+  title: string
+  activeStreak: number
+  streakDays: boolean[]
+  badges: Badge[]
+  games: Record<string, UserGameStat>
+  recentActivity: ActivityItem[]
+}
+

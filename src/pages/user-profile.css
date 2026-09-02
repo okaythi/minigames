@@ -1,0 +1,612 @@
+/* Nixlabs Games - Arcade Player Passport & Profile Page Styles */
+
+.nx-profile-page {
+  padding: 32px var(--nx-gutter) 80px;
+  max-width: var(--nx-page-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ==========================================================================
+   1. HERO PLAYER PASSPORT
+   ========================================================================== */
+
+.nx-player-passport {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-sm);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.nx-passport-glow-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--nx-orange), var(--nx-orange-bright), var(--nx-blue));
+  width: 100%;
+}
+
+.nx-passport-body {
+  padding: 28px 32px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.nx-passport-identity {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  flex: 1;
+}
+
+.nx-passport-avatar-wrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--nx-orange);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px var(--nx-card), 0 0 0 6px var(--nx-orange-glow);
+}
+
+.nx-passport-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-passport-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nx-passport-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nx-passport-username {
+  font-family: var(--nx-font-sans);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  margin: 0;
+}
+
+.nx-passport-nickname {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--nx-slate);
+}
+
+.nx-passport-submeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--nx-slate);
+  margin-top: 2px;
+}
+
+.nx-passport-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--nx-orange-tint);
+  color: var(--nx-orange-deep);
+  border: 1px solid var(--nx-orange-glow);
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nx-passport-bullet {
+  color: var(--nx-line-strong);
+}
+
+.nx-passport-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.nx-passport-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--nx-radius);
+  border: var(--nx-hairline-strong);
+  background: var(--nx-card);
+  color: var(--nx-ink);
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--nx-duration) var(--nx-ease);
+  text-decoration: none;
+}
+
+.nx-passport-btn:hover {
+  background: var(--nx-sand);
+  border-color: var(--nx-slate);
+}
+
+.nx-passport-btn[data-primary='true'] {
+  background: var(--nx-orange);
+  border-color: var(--nx-orange-deep);
+  color: #ffffff;
+  box-shadow: var(--nx-shadow-sm);
+}
+
+.nx-passport-btn[data-primary='true']:hover {
+  background: var(--nx-orange-deep);
+}
+
+/* Stat Strip Bar */
+.nx-passport-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--nx-paper);
+  border-top: var(--nx-hairline);
+}
+
+.nx-passport-stat-cell {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: var(--nx-hairline);
+}
+
+.nx-passport-stat-cell:last-child {
+  border-right: none;
+}
+
+.nx-passport-stat-label {
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--nx-tracking-wide);
+  color: var(--nx-slate);
+}
+
+.nx-passport-stat-value {
+  font-family: var(--nx-font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.nx-passport-stat-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nx-slate);
+}
+
+/* ==========================================================================
+   2. TWO-COLUMN LAYOUT (Competitive Showcase vs Retention & Social)
+   ========================================================================== */
+
+.nx-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .nx-profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .nx-passport-stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .nx-passport-stat-cell:nth-child(2) {
+    border-right: none;
+  }
+  .nx-passport-stat-cell:nth-child(1),
+  .nx-passport-stat-cell:nth-child(2) {
+    border-bottom: var(--nx-hairline);
+  }
+}
+
+/* Section Header */
+.nx-profile-section-title {
+  font-family: var(--nx-font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nx-profile-section-badge {
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nx-sand);
+  color: var(--nx-slate);
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   3. COMPETITIVE SHOWCASE CARDS (Left 65%)
+   ========================================================================== */
+
+.nx-showcase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nx-game-showcase-card {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-sm);
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--nx-duration) var(--nx-ease), box-shadow var(--nx-duration) var(--nx-ease);
+}
+
+.nx-game-showcase-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--nx-shadow);
+}
+
+.nx-game-card-cover {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--nx-radius);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--nx-sand);
+  border: var(--nx-hairline);
+}
+
+.nx-game-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-game-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nx-game-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nx-game-card-title-group {
+  min-width: 0;
+}
+
+.nx-game-card-title {
+  font-family: var(--nx-font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  margin: 0 0 2px;
+}
+
+.nx-game-card-tagline {
+  font-size: 12.5px;
+  color: var(--nx-slate);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-record-holder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff7d6, #ffe699);
+  color: #8c6200;
+  border: 1px solid #ffd24d;
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 3px rgba(255, 210, 77, 0.35);
+  animation: nx-gold-shimmer 2.5s infinite alternate ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes nx-gold-shimmer {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.1); box-shadow: 0 2px 8px rgba(255, 210, 77, 0.6); }
+}
+
+.nx-game-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--nx-paper);
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline);
+  flex-wrap: wrap;
+}
+
+.nx-metric-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nx-metric-label {
+  font-family: var(--nx-font-mono);
+  font-size: 10px;
+  color: var(--nx-slate);
+  text-transform: uppercase;
+}
+
+.nx-metric-value {
+  font-family: var(--nx-font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--nx-ink);
+}
+
+.nx-metric-percentile {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--nx-green-deep);
+  background: var(--nx-green-tint);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(31, 157, 91, 0.2);
+}
+
+.nx-game-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nx-game-runs-count {
+  font-family: var(--nx-font-mono);
+  font-size: 12px;
+  color: var(--nx-slate);
+}
+
+.nx-game-challenge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--nx-radius-sm);
+  border: 1px solid var(--nx-orange-deep);
+  background: var(--nx-orange);
+  color: #ffffff;
+  font-family: var(--nx-font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--nx-duration) var(--nx-ease);
+}
+
+.nx-game-challenge-btn:hover {
+  background: var(--nx-orange-deep);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   4. RETENTION & SOCIAL SIDEBAR (Right 35%)
+   ========================================================================== */
+
+.nx-social-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nx-sidebar-card {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nx-sidebar-card-title {
+  font-family: var(--nx-font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Streak Punch-card */
+.nx-streak-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.nx-streak-count {
+  font-family: var(--nx-font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nx-orange-deep);
+}
+
+.nx-streak-matrix {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.nx-streak-dot {
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--nx-sand);
+  border: 1px solid var(--nx-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--nx-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--nx-slate);
+  transition: all var(--nx-duration) var(--nx-ease);
+}
+
+.nx-streak-dot[data-active='true'] {
+  background: var(--nx-orange);
+  border-color: var(--nx-orange-deep);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(246, 130, 31, 0.3);
+}
+
+/* Badges & Milestones List */
+.nx-badge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nx-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-paper);
+  border: var(--nx-hairline);
+  transition: background-color var(--nx-duration) var(--nx-ease);
+}
+
+.nx-badge-item[data-unlocked='false'] {
+  opacity: 0.6;
+  filter: grayscale(0.7);
+}
+
+.nx-badge-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.nx-badge-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nx-badge-name {
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nx-badge-desc {
+  font-size: 11.5px;
+  color: var(--nx-slate);
+  line-height: 1.3;
+}
+
+/* Activity Feed */
+.nx-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nx-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--nx-ink);
+  line-height: 1.35;
+}
+
+.nx-activity-icon {
+  font-size: 14px;
+  margin-top: 1px;
+}
+
+.nx-activity-meta {
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  color: var(--nx-slate);
+  margin-top: 2px;
+}

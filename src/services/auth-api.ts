@@ -1,4 +1,10 @@
-import type { UserLoginPayload, UserRegisterPayload, UserProfileUpdatePayload, UserProfileResponse } from '../../shared/auth-protocol'
+import type {
+  UserLoginPayload,
+  UserRegisterPayload,
+  UserProfileUpdatePayload,
+  UserProfileResponse,
+  UserPublicProfileResponse,
+} from '../../shared/auth-protocol'
 
 export async function login(payload: UserLoginPayload) {
   const res = await fetch('/api/auth/login', {
@@ -55,9 +61,10 @@ export async function updatePfp(file: File) {
   return res.json()
 }
 
-export async function getPublicProfile(username: string): Promise<UserProfileResponse | null> {
+export async function getPublicProfile(username: string): Promise<UserPublicProfileResponse | null> {
   const res = await fetch(`/api/users/${username}`)
   if (!res.ok) return null
   const data = await res.json()
   return data.profile
 }
+

@@ -1,0 +1,293 @@
+/* Nixlabs Games - Auth Popover & User Menu Dropdown */
+
+.nx-auth-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nx-auth-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius-lg);
+  padding: 16px;
+  width: 280px;
+  box-shadow: var(--nx-shadow-lift);
+  z-index: 1000;
+  font-family: var(--nx-font-sans);
+  animation: nx-popover-in 140ms var(--nx-ease) forwards;
+}
+
+@keyframes nx-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* User Menu Header */
+.nx-user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: var(--nx-hairline);
+}
+
+.nx-user-menu-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--nx-orange);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--nx-orange-glow);
+}
+
+.nx-user-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-user-menu-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.nx-user-menu-username {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-user-menu-nickname {
+  font-size: 12px;
+  color: var(--nx-slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.nx-user-menu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-family: var(--nx-font-mono);
+  font-size: 10px;
+  font-weight: 650;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--nx-orange-tint);
+  color: var(--nx-orange-deep);
+  border: 1px solid var(--nx-orange-glow);
+}
+
+/* Menu Actions List */
+.nx-user-menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+}
+
+.nx-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--nx-radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--nx-ink);
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--nx-duration) var(--nx-ease), color var(--nx-duration) var(--nx-ease);
+}
+
+.nx-user-menu-item:hover {
+  background: var(--nx-sand);
+}
+
+.nx-user-menu-item-icon {
+  font-size: 15px;
+  color: var(--nx-slate);
+  width: 18px;
+  text-align: center;
+}
+
+.nx-user-menu-item[data-danger='true'] {
+  color: var(--nx-red);
+}
+
+.nx-user-menu-item[data-danger='true']:hover {
+  background: var(--nx-red-tint);
+  color: var(--nx-red-deep);
+}
+
+.nx-user-menu-item[data-danger='true'] .nx-user-menu-item-icon {
+  color: var(--nx-red);
+}
+
+.nx-user-menu-divider {
+  border: 0;
+  border-top: var(--nx-hairline);
+  margin: 4px 0;
+}
+
+/* Auth Form (Login / Register Tabs & Fields) */
+.nx-auth-tabs {
+  display: flex;
+  border-bottom: var(--nx-hairline);
+  margin-bottom: 14px;
+  gap: 8px;
+}
+
+.nx-auth-tab {
+  flex: 1;
+  padding: 6px 0 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--nx-slate);
+  cursor: pointer;
+  text-align: center;
+  transition: color var(--nx-duration) var(--nx-ease), border-color var(--nx-duration) var(--nx-ease);
+}
+
+.nx-auth-tab[data-active='true'] {
+  color: var(--nx-orange-deep);
+  border-bottom-color: var(--nx-orange);
+}
+
+.nx-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nx-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nx-auth-label {
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--nx-tracking-wide);
+  color: var(--nx-slate);
+}
+
+.nx-auth-input {
+  padding: 8px 12px;
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline-strong);
+  background: var(--nx-paper);
+  color: var(--nx-ink);
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color var(--nx-duration) var(--nx-ease), box-shadow var(--nx-duration) var(--nx-ease);
+}
+
+.nx-auth-input:focus {
+  border-color: var(--nx-orange);
+  box-shadow: var(--nx-focus-ring);
+  background: var(--nx-card);
+}
+
+.nx-auth-hint {
+  font-size: 11px;
+  color: var(--nx-slate);
+  line-height: 1.35;
+}
+
+.nx-auth-error {
+  padding: 8px 10px;
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-red-tint);
+  border: 1px solid rgba(216, 67, 61, 0.2);
+  color: var(--nx-red-deep);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.nx-auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: var(--nx-radius-sm);
+  border: 1px solid var(--nx-orange-deep);
+  background: var(--nx-orange);
+  color: #ffffff;
+  font-family: var(--nx-font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--nx-shadow-sm);
+  transition: background-color var(--nx-duration) var(--nx-ease), transform var(--nx-duration) var(--nx-ease);
+}
+
+.nx-auth-submit:hover:not(:disabled) {
+  background: var(--nx-orange-deep);
+}
+
+.nx-auth-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.nx-auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nx-auth-switch {
+  font-size: 12px;
+  text-align: center;
+  color: var(--nx-slate);
+  margin-top: 4px;
+}
+
+.nx-auth-switch-btn {
+  background: none;
+  border: none;
+  color: var(--nx-orange-deep);
+  font-family: var(--nx-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 2px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
