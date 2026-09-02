@@ -36,8 +36,10 @@ export class SurvivalEngine {
    */
   public static evaluateVeto(
     ai: CycleState,
+    p1: CycleState,
     proposal: MoveProposal,
     grid: OccupancyGrid,
+    level: number = 1,
   ): VetoVerdict {
     const safeDirections = this.getSafeDirections(ai, grid)
 
@@ -64,10 +66,23 @@ export class SurvivalEngine {
       const propVec = DIRECTION_VECTORS[proposal.desiredDir]
       const futureCol = destCol + propVec.x
       const futureRow = destRow + propVec.y
-      proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 500)
-      // If the resulting volume is below a critical survival threshold (e.g. < 30 cells), veto!
-      if (proposedChamberArea < 30) {
-        isSafe = false
+      
+      if (level >= 5) {
+        proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 10000)
+        const p1Area = grid.floodFillArea(p1.col, p1.row, 10000)
+        const sameChamber = this.checkSameChamberAt(futureCol, futureRow, p1.col, p1.row, grid)
+        
+        if (!sameChamber && proposedChamberArea < p1Area) {
+           isSafe = false // Veto entering a smaller closed box than the player
+        }
+        if (proposedChamberArea < 30) {
+           isSafe = false
+        }
+      } else {
+        proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 500)
+        if (proposedChamberArea < 30) {
+          isSafe = false
+        }
       }
     }
 
@@ -76,7 +91,7 @@ export class SurvivalEngine {
 
     if (!isSafe) {
       // VETO TRIGGERED: Find the safest alternative turn with maximum open chamber volume
-      finalDir = this.findSafestDirection(ai, safeDirections, grid)
+      finalDir = this.findSafestDirection(ai, p1, safeDirections, grid, level)
       overrideReason = !isDirectionSafe ? 'immediate_lethal_hazard' : 'chamber_volume_too_small'
     }
 
@@ -138,8 +153,10 @@ export class SurvivalEngine {
 
   private static findSafestDirection(
     ai: CycleState,
+    p1: CycleState,
     safeDirs: readonly Direction[],
     grid: OccupancyGrid,
+    level: number,
   ): Direction {
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -1
@@ -148,11 +165,22 @@ export class SurvivalEngine {
     const destCol = ai.col + curVec.x
     const destRow = ai.row + curVec.y
 
+    const p1Area = level >= 5 ? grid.floodFillArea(p1.col, p1.row, 10000) : 0
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
-      const chamber = grid.floodFillArea(nextCol, nextRow, 600)
+      
+      let chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 10000 : 600)
+      
+      if (level >= 5) {
+        const sameChamber = this.checkSameChamberAt(nextCol, nextRow, p1.col, p1.row, grid)
+        if (!sameChamber && chamber < p1Area) {
+           chamber = -10000 + chamber // Heavily penalize partitioning into a losing chamber
+        }
+      }
+      
       const runway = this.getClearRunway(destCol, destRow, dir, grid)
       const score = chamber * 2 + runway * 10 + (dir === ai.dir ? 25 : 0)
 
@@ -166,18 +194,22 @@ export class SurvivalEngine {
   }
 
   private static checkSameChamber(p1: CycleState, ai: CycleState, grid: OccupancyGrid): boolean {
-    if (!grid.isFree(p1.col, p1.row) || !grid.isFree(ai.col, ai.row)) return false
+    return this.checkSameChamberAt(ai.col, ai.row, p1.col, p1.row, grid)
+  }
+
+  private static checkSameChamberAt(colA: number, rowA: number, colB: number, rowB: number, grid: OccupancyGrid): boolean {
+    if (!grid.isFree(colA, rowA) || !grid.isFree(colB, rowB)) return false
 
     const visited = new Uint8Array(grid.cols * grid.rows)
-    const queueCol = new Int16Array(800)
-    const queueRow = new Int16Array(800)
+    const queueCol = new Int16Array(8000)
+    const queueRow = new Int16Array(8000)
     let head = 0
     let tail = 0
 
-    const startIdx = p1.row * grid.cols + p1.col
+    const startIdx = rowA * grid.cols + colA
     visited[startIdx] = 1
-    queueCol[tail] = p1.col
-    queueRow[tail] = p1.row
+    queueCol[tail] = colA
+    queueRow[tail] = rowA
     tail += 1
 
     const dCols = [0, 0, -1, 1]
@@ -188,7 +220,7 @@ export class SurvivalEngine {
       const r = queueRow[head] ?? 0
       head += 1
 
-      if (c === ai.col && r === ai.row) {
+      if (c === colB && r === rowB) {
         return true
       }
 
@@ -199,7 +231,7 @@ export class SurvivalEngine {
           const idx = nr * grid.cols + nc
           if (visited[idx] === 0) {
             visited[idx] = 1
-            if (tail < 800) {
+            if (tail < 8000) {
               queueCol[tail] = nc
               queueRow[tail] = nr
               tail += 1

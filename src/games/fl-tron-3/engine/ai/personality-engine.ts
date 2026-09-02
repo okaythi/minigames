@@ -17,6 +17,9 @@ export class PersonalityEngine {
   /** Counts time since last turbo opportunity check for the Level 5 8s timer. */
   private level5TurboTimer = 0
   private level5TurboWantsTrigger = false
+  private elapsedTime = 0
+  private turboHistory: number[] = []
+  private wasTurboLastFrame = false
 
   public constructor(private readonly level: DifficultyLevel) {}
 
@@ -35,6 +38,15 @@ export class PersonalityEngine {
     dt: number,
   ): MoveProposal {
     const config = AI_CONFIGS[this.level]
+    this.elapsedTime += dt
+
+    if (ai.isTurbo && !this.wasTurboLastFrame) {
+      this.turboHistory.push(this.elapsedTime)
+    }
+    this.wasTurboLastFrame = ai.isTurbo
+
+    // Filter out turbos older than 7.2s
+    this.turboHistory = this.turboHistory.filter(t => this.elapsedTime - t <= 7.2)
 
     // 1. Periodically diagnose whether the player is doomed (Level 3 onwards)
     if (config.level >= 3) {
@@ -90,8 +102,6 @@ export class PersonalityEngine {
             this.mood = 'having_fun'
             const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false)
             if (dir === ai.dir && this.patternState.stairDirA === null) {
-              // Staircase aborted or no safe path, cooldown to exit region safely
-              this.funCooldownTimer = 1.2
               this.mood = 'aggressive'
             } else {
               return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
@@ -264,8 +274,6 @@ export class PersonalityEngine {
     const destRow = ai.row + curVec.y
 
     const p1Vec = DIRECTION_VECTORS[p1.dir]
-    const p1LeadCol = p1.col + p1Vec.x * 4
-    const p1LeadRow = p1.row + p1Vec.y * 4
 
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
@@ -275,20 +283,30 @@ export class PersonalityEngine {
       const chamber = grid.floodFillArea(nextCol, nextRow, 600)
       if (chamber < 30) continue
 
-      // Tailing distance to player's current tail/position
       const distToPlayer = Math.hypot(nextCol - p1.col, nextRow - p1.row)
-      // Cutoff distance to player's projected head
-      const distToLead = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
+      
+      const alignmentScore = (vec.x === p1Vec.x && vec.y === p1Vec.y) ? 20 : 0
+      
+      let behindScore = 0
+      if (p1Vec.x !== 0) {
+         if (nextRow === p1.row && Math.sign(p1.col - nextCol) === Math.sign(p1Vec.x)) {
+            behindScore = 30
+         }
+      } else {
+         if (nextCol === p1.col && Math.sign(p1.row - nextRow) === Math.sign(p1Vec.y)) {
+            behindScore = 30
+         }
+      }
 
       const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 400)
 
       // Assassin prime directive: tail and cut off player relentlessly
       const score =
-        territory.aiArea * 1.8 -
-        territory.p1Area * 0.8 -
-        distToPlayer * 4.0 -
-        distToLead * 3.0 +
-        (dir === ai.dir ? 12 : 0)
+        territory.aiArea * 1.5 -
+        distToPlayer * 5.0 +
+        alignmentScore +
+        behindScore +
+        (dir === ai.dir ? 10 : 0)
 
       if (score > bestScore) {
         bestScore = score
@@ -372,44 +390,36 @@ export class PersonalityEngine {
     if (!config.offensiveTurbo || ai.isTurbo || ai.turboCooldown > 0) return false
     if (!config.infiniteTurbos && ai.turbosLeft <= 0) return false
 
-    // Level 5 Assassin Turbo Directive (6 Turbos total):
-    // 1. React immediately when player boosts (counter-boost consuming 1 turbo)!
-    // 2. 40% chance every 8s specifically to close off the player
-    // 3. Pinch escape
+    if (this.turboHistory.length >= 3) return false // Rate limit
+
     if (config.level === 5) {
       if (p1.isTurbo) return true
 
       if (this.level5TurboWantsTrigger) {
-        this.level5TurboWantsTrigger = false
-        const runway = SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid)
-        if (runway >= 4) return true
+        if (this.isTacticalCutoff(ai, p1)) {
+          this.level5TurboWantsTrigger = false
+          return true
+        }
       }
 
       if (this.isEscapeNeeded(ai, grid)) return true
-
       return false
     }
 
     const dist = Math.hypot(ai.col - p1.col, ai.row - p1.row)
 
-    // Essential defensive/offensive moves (Level 4, 6)
-    if (this.isEscapeNeeded(ai, grid)) return true // Escape pinch
-    if (this.isOvertakePossible(ai, p1)) return true // Overtake cutoff
+    if (this.isEscapeNeeded(ai, grid)) return true 
+    if (this.isTacticalCutoff(ai, p1)) return true
 
-    // Level 6 Master Core tactics
     if (config.level >= 6) {
-      if (p1.isTurbo && dist < 35) return true // Counter-turbo
-      if (this.isCorridorClosing(p1, grid, dist)) return true // Box closure
-      if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true // Speedrun straightaway
+      if (p1.isTurbo && dist < 35) return true
+      if (this.isCorridorClosing(p1, grid, dist)) return true
+      if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true
     }
 
     return false
   }
 
-  /**
-   * Returns whichever of leftDir/rightDir takes a step closer to the target cycle.
-   * Used by Level 4 to steer staircase macro turns toward the player.
-   */
   private pickDirTowardTarget(
     ai: CycleState,
     target: CycleState,
@@ -423,13 +433,42 @@ export class PersonalityEngine {
     return distLeft <= distRight ? leftDir : rightDir
   }
 
-  private isOvertakePossible(ai: CycleState, p1: CycleState): boolean {
+  private isTacticalCutoff(ai: CycleState, p1: CycleState): boolean {
     const aiVec = DIRECTION_VECTORS[ai.dir]
     const p1Vec = DIRECTION_VECTORS[p1.dir]
+    
     const isPerp = Math.abs(aiVec.x * p1Vec.x + aiVec.y * p1Vec.y) === 0
+    const dx = p1.col - ai.col
+    const dy = p1.row - ai.row
+    
     if (isPerp) {
-      const dist = Math.hypot(p1.col - ai.col, p1.row - ai.row)
-      return dist > 6 && dist < 22
+      let aiDistToIntersect = 0
+      let p1DistToIntersect = 0
+      
+      if (aiVec.x !== 0) {
+        if (Math.sign(dx) === Math.sign(aiVec.x) && Math.sign(dy) === Math.sign(p1Vec.y)) {
+           aiDistToIntersect = Math.abs(dx)
+           p1DistToIntersect = Math.abs(dy)
+        }
+      } else {
+        if (Math.sign(dy) === Math.sign(aiVec.y) && Math.sign(dx) === Math.sign(p1Vec.x)) {
+           aiDistToIntersect = Math.abs(dy)
+           p1DistToIntersect = Math.abs(dx)
+        }
+      }
+      
+      if (aiDistToIntersect > 0 && p1DistToIntersect > 0) {
+         if (aiDistToIntersect > p1DistToIntersect && (aiDistToIntersect / 1.8) < p1DistToIntersect) return true
+         if (aiDistToIntersect <= p1DistToIntersect && aiDistToIntersect > 3 && p1DistToIntersect < 20) return true
+      }
+    } else {
+      const sameDir = aiVec.x === p1Vec.x && aiVec.y === p1Vec.y
+      if (sameDir) {
+         const isBehind = (aiVec.x !== 0 && Math.sign(dx) === Math.sign(aiVec.x)) || 
+                          (aiVec.y !== 0 && Math.sign(dy) === Math.sign(aiVec.y))
+         const dist = Math.abs(dx) + Math.abs(dy)
+         if (isBehind && dist > 5 && dist < 25) return true
+      }
     }
     return false
   }

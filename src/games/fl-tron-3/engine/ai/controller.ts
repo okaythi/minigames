@@ -59,7 +59,7 @@ export class AIController {
 
     // 2. Survival Engine ALWAYS runs every frame (The Veto System)
     // This ensures Level 1 & 2 AI don't randomly crash into walls between their slow reaction ticks!
-    const verdict = SurvivalEngine.evaluateVeto(aiCycle, proposal, grid)
+    const verdict = SurvivalEngine.evaluateVeto(aiCycle, playerCycle, proposal, grid, config.level)
 
     // If veto forced an override, clear active macro and accept safe direction
     if (!verdict.allowed) {
