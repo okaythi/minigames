@@ -6,6 +6,7 @@ import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { SettingsDrawer } from '../components/settings-drawer'
 import { AchievementsShowcase } from '../components/achievements/achievements-showcase'
+import { DeveloperBadge } from '../components/ui/developer-badge'
 import { getAchievementBus } from '../lib/achievement-bus'
 import { readGlobalCandy } from '../services/stats/local-counters'
 import './user-profile.css'
@@ -130,12 +131,18 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             <div className="nx-passport-meta">
               <div className="nx-passport-name-row">
                 <h1 className="nx-passport-username">@{profile.username}</h1>
+                {profile.developer && (
+                  <DeveloperBadge size={22} title="Develops games for our Lab." />
+                )}
                 {profile.nickname && (
                   <span className="nx-passport-nickname">{profile.nickname}</span>
                 )}
               </div>
 
               <div className="nx-passport-submeta">
+                {profile.developer && (
+                  <DeveloperBadge withTag title="Develops games for our Lab." />
+                )}
                 <span className="nx-passport-title-badge">
                   <span>✨</span> {profile.title}
                 </span>

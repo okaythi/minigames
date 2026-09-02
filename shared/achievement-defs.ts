@@ -152,6 +152,15 @@ export const ACHIEVEMENT_DEFS: readonly AchievementDef[] = [
     icon: '⚡',
     maxProgress: null,
   },
+  {
+    id: 'identity_developer',
+    pillar: 'platform',
+    track: 'Identity & Customization',
+    name: '🛠️ Lab Developer',
+    description: 'Develops games for our Lab.',
+    icon: '🛠️',
+    maxProgress: null,
+  },
 
   // Track: Social & Competition
   {

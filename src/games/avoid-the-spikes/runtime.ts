@@ -32,6 +32,7 @@ export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }):
     random,
     best: deps.current.best,
     candyBank: deps.current.bonus,
+    developer: deps.current.developer,
     publish: (snapshot) => {
       store.set(describe(snapshot))
     },

@@ -111,7 +111,9 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
 
   // Derive title
   let primaryTitle = 'Lab Recruit'
-  if (user.legacyUser === 1) {
+  if (user.developer === 1) {
+    primaryTitle = 'Lab Developer'
+  } else if (user.legacyUser === 1) {
     primaryTitle = 'Lab Pioneer'
   } else if (recordsHeld > 0) {
     primaryTitle = 'Record Holder'
@@ -136,7 +138,9 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     let currentProgress = row?.progress ?? 0
 
     // Auto-fallback checks for platform legacy & basic milestones if row missing
-    if (def.id === 'identity_lab_pioneer' && user.legacyUser === 1) {
+    if (def.id === 'identity_developer' && user.developer === 1) {
+      unlocked = true
+    } else if (def.id === 'identity_lab_pioneer' && user.legacyUser === 1) {
       unlocked = true
     } else if (def.id === 'candy_sweet_tooth' && totalCandy >= 10) {
       unlocked = true
@@ -235,6 +239,7 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     nickname: user.nickname,
     pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
     legacyUser: user.legacyUser === 1,
+    developer: user.developer === 1,
     nicknameChangedCount: user.nicknameChangedCount,
     createdOn: user.createdOn,
     totalPlays,

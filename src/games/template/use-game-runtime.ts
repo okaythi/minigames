@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { Store } from '../../lib/observable-store'
 import { useGameStats } from '../../services/stats/stats-provider'
+import { isCurrentDeveloper } from '../../services/auth-api'
 import type { GameRuntimeDeps, GameRuntimeFactory, GameRuntime } from './types'
 import type { GameSnapshot } from './snapshot'
 import type { GameManifest } from '../types'
@@ -13,6 +14,7 @@ const IDLE_DEPS: GameRuntimeDeps = {
   beginRun: () => undefined,
   finishRun: () => undefined,
   bankBonus: () => undefined,
+  developer: false,
 }
 
 /**
@@ -35,6 +37,7 @@ export function useGameRuntime(manifest: GameManifest, create: GameRuntimeFactor
     beginRun: () => stats.beginRun(manifest.slug),
     finishRun: (score, details) => stats.finishRun(manifest.slug, score, details),
     bankBonus: (amount) => stats.bankCandy(manifest.slug, amount),
+    developer: isCurrentDeveloper(),
   }
 
   const runtime = useMemo(() => create(deps), [create])

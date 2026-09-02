@@ -36,6 +36,7 @@ export interface GameRuntimeDeps {
   readonly beginRun: () => void
   readonly finishRun: (score: number, details?: GameFinishDetails) => void
   readonly bankBonus: (amount: number) => void
+  readonly developer: boolean
 }
 
 export interface GameRuntime {

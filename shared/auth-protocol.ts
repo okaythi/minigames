@@ -36,6 +36,7 @@ export interface UserProfileResponse {
   nickname: string | null
   pfpUrl: string | null
   legacyUser: boolean
+  developer: boolean
   nicknameChangedCount: number
   createdOn: number
 }
@@ -76,6 +77,7 @@ export interface UserPublicProfileResponse {
   nickname: string | null
   pfpUrl: string | null
   legacyUser: boolean
+  developer: boolean
   nicknameChangedCount: number
   createdOn: number
   totalPlays: number

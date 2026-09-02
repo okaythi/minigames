@@ -3,6 +3,7 @@ import { login, register, logout, getMe } from '../services/auth-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
+import { DeveloperBadge } from '../components/ui/developer-badge'
 import './auth-popover.css'
 
 export function AuthPopover() {
@@ -115,7 +116,10 @@ export function AuthPopover() {
                   )}
                 </div>
                 <div className="nx-user-menu-meta">
-                  <div className="nx-user-menu-username">@{user.username}</div>
+                  <div className="nx-user-menu-username" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>@{user.username}</span>
+                    {user.developer && <DeveloperBadge size={16} title="Develops games for our Lab." />}
+                  </div>
                   {user.nickname && <div className="nx-user-menu-nickname">{user.nickname}</div>}
                   {user.legacyUser && (
                     <span className="nx-user-menu-badge">

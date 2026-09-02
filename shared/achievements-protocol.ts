@@ -28,6 +28,7 @@ export type AchievementId =
   | 'identity_claimed'
   | 'identity_picture_perfect'
   | 'identity_lab_pioneer'
+  | 'identity_developer'
   // Platform – Social & Competition
   | 'social_passport_stamp'
   | 'social_gauntlet_thrown'

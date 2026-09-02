@@ -5,6 +5,7 @@ import type { Route } from './route-types'
 export const ROUTES = {
   home: '/',
   about: '/about',
+  updates: '/updates',
   settings: '/settings',
   game: (slug: string): string => `/games/${slug}`,
   userProfile: (username: string): string => `/users/${username}`,
@@ -22,6 +23,10 @@ export function parseRoute(pathname: string, search: string): Route {
 
   if (path === '/about') {
     return { name: 'about', query: readQuery(search) }
+  }
+
+  if (path === '/updates') {
+    return { name: 'updates', query: readQuery(search) }
   }
 
   if (path === '/settings') {

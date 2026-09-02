@@ -14,6 +14,8 @@ export function titleForRoute(route: Route): string {
       return SITE_TITLE
     case 'about':
       return `About · ${SITE_TITLE}`
+    case 'updates':
+      return `Update Notes · ${SITE_TITLE}`
     case 'game':
       return `${findManifest(route.slug)?.title ?? route.slug} · ${SITE_TITLE}`
     case 'not-found':

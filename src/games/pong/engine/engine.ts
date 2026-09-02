@@ -37,6 +37,10 @@ export class PongEngine {
     this.state = this.initialState()
   }
 
+  public get isDeveloper(): boolean {
+    return this.deps.current.developer
+  }
+
   public initialState(): PongState {
     return {
       phase: 'menu',

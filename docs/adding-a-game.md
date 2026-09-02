@@ -163,5 +163,6 @@ Rules that keep a game performant and reliable:
 - **Two-Layer Veto AI Architecture.** For intelligent NPCs, decouple the **Personality Engine** (what the AI *wants* to do) from the **Survival Engine** (what it is *mathematically allowed* to do via flood-fill safety checks). The Veto system runs every single frame to prevent accidental suicides even when decision timers are slow.
 - **No `Math.random()` in core simulation.** Use seeded `Random` from `src/lib/random.ts` for deterministic replays and simulation test suites (`npm run simulate:<game>`).
 - **Persistence through services.** Use `useGameStats(slug)` and `deps.current.finishRun(score)`. Never touch raw storage or fetch directly.
+- **Global Developer Flag (`deps.current.developer: boolean`).** Every engine receives `deps: { readonly current: GameRuntimeDeps }` at its main orchestrator. Games can query `deps.current.developer` (or an `isDeveloper` getter on the engine) to check if the active player is an authorized Lab Developer (`developer: true` in Cloudflare D1). The developer of the game may or may not use this flag (e.g. for debug telemetry, sandbox god-mode, hit-box visualizers, or custom playtest tools).
 - **Separation of Render Layers.** Compose visual systems into isolated modules: arena background, light trails, vehicles/sprites, particles, HUD, and phase menus.
 

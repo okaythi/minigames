@@ -33,6 +33,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       nickname: user.nickname,
       pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
       legacyUser: user.legacyUser === 1,
+      developer: user.developer === 1,
       nicknameChangedCount: user.nicknameChangedCount,
       createdOn: user.createdOn,
     },

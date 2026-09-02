@@ -1,0 +1,88 @@
+﻿.nx-top-banner {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-family: var(--nx-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border-bottom: var(--nx-hairline);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nx-top-banner[data-kind=\"migration\"] {
+  background: var(--nx-orange-tint);
+  color: var(--nx-orange-deep);
+  border-bottom-color: rgba(246, 130, 31, 0.25);
+}
+
+.nx-top-banner[data-kind=\"update\"] {
+  background: var(--nx-graphite-tint);
+  color: var(--nx-graphite);
+  border-bottom-color: var(--nx-rule);
+}
+
+.nx-top-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.nx-top-banner-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.nx-top-banner-cta:hover {
+  opacity: 0.8;
+}
+
+.nx-top-banner-action-btn {
+  padding: 3px 10px;
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-orange);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.nx-top-banner-action-btn:hover {
+  opacity: 0.9;
+}
+
+.nx-top-banner-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  border-radius: var(--nx-radius-sm);
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.nx-top-banner-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}

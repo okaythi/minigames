@@ -15,6 +15,7 @@ export interface PlayerStatSnapshot {
   readonly totalPlays: number
   readonly streakDays: number
   readonly legacyUser: boolean
+  readonly developer: boolean
   readonly hasPfp: boolean
   readonly hasNickname: boolean
   readonly arcadeRatingPercent: number // e.g. 3 means "Top 3%"
@@ -93,6 +94,12 @@ export function evaluatePlatformAchievements(
     const prev = existingMap.get('identity_lab_pioneer')
     if (!prev?.unlockedAt) {
       updates.push({ id: 'identity_lab_pioneer', progress: 1, shouldUnlock: true })
+    }
+  }
+  if (stats.developer) {
+    const prev = existingMap.get('identity_developer')
+    if (!prev?.unlockedAt) {
+      updates.push({ id: 'identity_developer', progress: 1, shouldUnlock: true })
     }
   }
 

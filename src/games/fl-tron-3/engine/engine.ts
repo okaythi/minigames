@@ -40,6 +40,10 @@ export class TronEngine {
     this.publish()
   }
 
+  public get isDeveloper(): boolean {
+    return this.deps.current.developer
+  }
+
   private handleLevelSelectEvent = (e: Event): void => {
     const customEvent = e as CustomEvent<{ level: DifficultyLevel }>
     if (customEvent.detail?.level) {

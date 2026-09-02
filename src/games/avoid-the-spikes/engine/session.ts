@@ -34,6 +34,7 @@ export interface AvoidSessionDeps {
   readonly random: Random
   readonly best: number | null
   readonly candyBank: number
+  readonly developer?: boolean
   readonly publish: (snapshot: AvoidSnapshot) => void
   readonly onRunStarted: () => void
   readonly onRunFinished: (result: AvoidRunResult) => void
@@ -57,6 +58,7 @@ export class AvoidSession {
   public readonly pickups = new PickupField()
   public readonly feedback: Feedback
 
+  public readonly isDeveloper: boolean
   public status: RunStatus = 'ready'
   public score = 0
   public elapsed = 0
@@ -72,6 +74,7 @@ export class AvoidSession {
   private snapshot: AvoidSnapshot
 
   public constructor(private readonly deps: AvoidSessionDeps) {
+    this.isDeveloper = Boolean(deps.developer)
     this.best = deps.best
     this.candyBank = deps.candyBank
     this.feedback = new Feedback(() => deps.random.next())

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Badge } from '../../../shared/auth-protocol'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
+import { DeveloperBadge } from '../ui/developer-badge'
 import './achievements-showcase.css'
 
 interface AchievementsShowcaseProps {
@@ -214,7 +215,11 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
                     data-unlocked={badge.unlocked ? 'true' : 'false'}
                   >
                     <div className="nx-achievement-card-icon" aria-hidden="true">
-                      {badge.icon}
+                      {badge.id === 'identity_developer' ? (
+                        <DeveloperBadge size={30} title="Develops games for our Lab." />
+                      ) : (
+                        badge.icon
+                      )}
                     </div>
 
                     <div className="nx-achievement-card-content">

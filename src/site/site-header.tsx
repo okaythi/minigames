@@ -5,7 +5,7 @@ import type { GameManifest } from '../games/types'
 import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
 import { AuthPopover } from './auth-popover'
-import { MigrationBanner } from './migration-banner'
+import { TopBanner } from './top-banner'
 import './site-header.css'
 
 interface SiteHeaderProps {
@@ -15,10 +15,12 @@ interface SiteHeaderProps {
 export function SiteHeader({ manifests }: SiteHeaderProps) {
   const { route } = useRouter()
   const isAbout = route.name === 'about'
+  const isUpdates = route.name === 'updates'
+  const isGames = route.name === 'home'
 
   return (
     <>
-      <MigrationBanner />
+      <TopBanner />
       <header className="nx-header">
         <div className="nx-header-inner nx-page">
           <Link to={ROUTES.home} className="nx-header-brand" aria-label="Nixlabs Games - home">
@@ -30,8 +32,11 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
           </div>
 
           <nav className="nx-nav" aria-label="Primary">
-            <Link to={ROUTES.home} className="nx-nav-link" data-active={route.name !== 'about' ? 'true' : undefined}>
+            <Link to={ROUTES.home} className="nx-nav-link" data-active={isGames ? 'true' : undefined}>
               Games
+            </Link>
+            <Link to={ROUTES.updates} className="nx-nav-link" data-active={isUpdates ? 'true' : undefined}>
+              Updates
             </Link>
             <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
               About

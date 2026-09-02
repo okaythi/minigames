@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { HomePage } from '../pages/home-page'
 import { GamePage } from '../pages/game-page'
 import { AboutPage } from '../pages/about-page'
+import { UpdatesPage } from '../pages/updates-page'
 import { NotFoundPage } from '../pages/not-found-page'
 import { UserProfilePage } from '../pages/user-profile'
 import { SettingsPage } from '../pages/settings'
@@ -26,6 +27,8 @@ export function AppRoutes() {
       return <HomePage />
     case 'about':
       return <AboutPage />
+    case 'updates':
+      return <UpdatesPage />
     case 'settings':
       return <SettingsPage />
     case 'user-profile':

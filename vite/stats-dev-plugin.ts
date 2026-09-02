@@ -126,6 +126,7 @@ export function statsDevPlugin(): Plugin {
         pfpUrl: string | null
         createdOn: number
         legacyUser: boolean
+        developer: boolean
       }
 
       const devUsers = new Map<string, DevUser>()
@@ -155,6 +156,7 @@ export function statsDevPlugin(): Plugin {
               pfpUrl: null,
               createdOn: Math.floor(Date.now() / 1000),
               legacyUser: true,
+              developer: username === 'thy',
             }
             devUsers.set(username, newUser)
             devPlayerToUsername.set(playerId, username)
@@ -212,6 +214,7 @@ export function statsDevPlugin(): Plugin {
                 pfpUrl: null,
                 createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
                 legacyUser: true,
+                developer: true,
               }
               devUsers.set('thy', user)
               devPlayerToUsername.set(identity.id, 'thy')
@@ -225,6 +228,7 @@ export function statsDevPlugin(): Plugin {
                   nickname: user.nickname,
                   pfpUrl: user.pfpUrl,
                   legacyUser: user.legacyUser,
+                  developer: user.developer,
                   nicknameChangedCount: user.nicknameChangedCount,
                   createdOn: user.createdOn,
                 },
@@ -281,6 +285,7 @@ export function statsDevPlugin(): Plugin {
               pfpUrl: null,
               createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
               legacyUser: true,
+              developer: true,
             }
             devUsers.set('thy', user)
           }
@@ -348,7 +353,7 @@ export function statsDevPlugin(): Plugin {
                 name: def.name,
                 description: def.description,
                 icon: def.icon,
-                unlocked: unlocked || (def.id === 'identity_lab_pioneer' && user.legacyUser) || def.id === 'identity_claimed' || def.id === 'identity_picture_perfect',
+                unlocked: unlocked || (def.id === 'identity_developer' && user.developer) || (def.id === 'identity_lab_pioneer' && user.legacyUser) || def.id === 'identity_claimed' || def.id === 'identity_picture_perfect',
                 unlockedAt: state?.unlockedAt ?? null,
                 progress: def.maxProgress !== null ? { current: progress, max: def.maxProgress } : undefined,
               }
@@ -388,6 +393,7 @@ export function statsDevPlugin(): Plugin {
                 nickname: user.nickname,
                 pfpUrl: user.pfpUrl,
                 legacyUser: user.legacyUser,
+                developer: user.developer,
                 nicknameChangedCount: user.nicknameChangedCount,
                 createdOn: user.createdOn,
                 totalPlays,
@@ -395,7 +401,7 @@ export function statsDevPlugin(): Plugin {
                 recordsHeld: 1,
                 recordsList: ['Avoid the Spikes!'],
                 arcadeRating: 'Top 4%',
-                title: user.legacyUser ? 'Lab Pioneer' : 'Arcade Champion',
+                title: user.developer ? 'Lab Developer' : user.legacyUser ? 'Lab Pioneer' : 'Arcade Champion',
                 activeStreak: 5,
                 streakDays: [true, true, true, true, true, false, false],
                 badges,
