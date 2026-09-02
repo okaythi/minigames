@@ -99,6 +99,7 @@ export function attachPongGame(host: GameHost, engine: PongEngine): DisposableBa
           if (emptyIdx !== -1 && engine.deps.current.bonus >= COSTS[item.type]) {
             engine.deps.current.bankBonus(-COSTS[item.type])
             engine.state.slots[emptyIdx] = item.type
+            engine.notifyPowerupPurchased()
           }
         }
       }

@@ -1,20 +1,22 @@
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from 'react'
 import { useRouter } from './router'
 
-interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'onClick'> {
+interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
   readonly to: string
   readonly children: ReactNode
   readonly onNavigate?: (() => void) | undefined
+  readonly onClick?: ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined
 }
 
 /**
  * Real anchor (so cmd/middle-click still opens a new tab) that upgrades to
  * client-side navigation on plain left clicks.
  */
-export function Link({ to, children, onNavigate, ...rest }: LinkProps) {
+export function Link({ to, children, onNavigate, onClick, ...rest }: LinkProps) {
   const { navigate } = useRouter()
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>): void => {
+    onClick?.(event)
     if (
       event.defaultPrevented ||
       event.button !== 0 ||

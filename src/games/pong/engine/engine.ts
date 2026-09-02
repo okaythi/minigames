@@ -11,6 +11,7 @@ import { snapshotFor } from './snapshot'
 import type { IAudioEngine } from '../../../lib/audio-engine'
 import type { SfxName } from './audio/sfx'
 import type { Difficulty, Mode, PowerupType, AIPowerupType, PongState } from './types'
+import type { PongAchievementTracker } from '../achievement-tracker'
 
 export type { Difficulty, Mode, PowerupType, AIPowerupType, PongState }
 
@@ -21,15 +22,18 @@ export class PongEngine {
   public audio: IAudioEngine<SfxName>
   public pointerX = ARENA.width / 2
   public pointerDown = false
+  private achievements: PongAchievementTracker | null
 
   public constructor(
     deps: { readonly current: GameRuntimeDeps },
     store: Store<GameSnapshot>,
     audio: IAudioEngine<SfxName>,
+    achievements: PongAchievementTracker | null = null,
   ) {
     this.deps = deps
     this.store = store
     this.audio = audio
+    this.achievements = achievements
     this.state = this.initialState()
   }
 
@@ -117,6 +121,7 @@ export class PongEngine {
     this.audio.unlock()
     this.state.phase = 'playing'
     this.deps.current.beginRun()
+    this.achievements?.onMatchStart(this.state.difficulty)
     this.resetBall(1)
     this.audio.play('start')
   }
@@ -149,6 +154,10 @@ export class PongEngine {
     this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
     this.audio.play('flap')
     this.state.notifications.push({ text: 'BALL RELEASED', time: 1.2, y: this.state.player.y - 30 })
+  }
+
+  public notifyPowerupPurchased(): void {
+    this.achievements?.onPowerupPurchased()
   }
 
   public pause(): void {
@@ -185,9 +194,15 @@ export class PongEngine {
       checkCollisions(this.state, {
         onPaddleHit: () => {
           this.audio.play('flap')
+          this.achievements?.onPaddleHit(this.state.playerHits)
         },
         onScorePoint: (scorer) => {
           this.audio.play('bounce')
+          if (scorer === 'player') {
+            this.achievements?.onPlayerScores(performance.now() / 1000)
+          } else {
+            this.achievements?.onAiScores()
+          }
           this.checkWin()
           if (this.state.phase === 'playing') {
             this.resetBall(scorer === 'player' ? -1 : 1)
@@ -226,6 +241,10 @@ export class PongEngine {
         if (idx < this.state.slots.length && this.state.slots[idx]) {
           if (activatePowerupState(this.state, idx, true)) {
             this.audio.play('powerup')
+            const type = this.state.slots[idx]
+            if (type) {
+              this.achievements?.onPowerupActivated(type, performance.now() / 1000)
+            }
           }
         }
       }
@@ -236,10 +255,12 @@ export class PongEngine {
     const s = this.state
     if (s.playerScore >= s.mode || s.aiScore >= s.mode) {
       s.phase = 'over'
+      const playerWon = s.playerScore >= s.mode
       this.deps.current.finishRun(s.playerHits, {
         difficulty: s.difficulty,
-        won: s.playerScore >= s.mode,
+        won: playerWon,
       })
+      this.achievements?.onMatchEnd(playerWon, s.difficulty, s.playerScore, s.aiScore)
     }
   }
 

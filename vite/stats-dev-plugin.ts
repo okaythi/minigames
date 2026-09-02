@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
 import { ALLOWED_SLUGS, isAllowedGameSlug } from '../shared/game-slugs'
+import { ACHIEVEMENT_DEFS } from '../shared/achievement-defs'
 import { statsStoreFrom } from '../shared/memory-store'
 import { parseSyncCode, serializePlayerCookie } from '../shared/player-cookie'
 import { parseStatsEventBody, readField, isRecordOfStats, STATS_ENDPOINT } from '../shared/stats-protocol'
@@ -187,6 +188,8 @@ export function statsDevPlugin(): Plugin {
         sendJson(res, 404, { ok: false, error: 'not found' }, null)
       }
 
+      const devAchievementsStore = new Map<string, Map<string, { progress: number; unlockedAt: number | null }>>()
+
       const handleUsers = async (req: IncomingMessage, res: ServerResponse, url: string): Promise<void> => {
         if (url === '/api/users/me') {
           await withStore(async (store) => {
@@ -195,7 +198,7 @@ export function statsDevPlugin(): Plugin {
               sendJson(res, 400, { ok: false, error: 'unauthorized' }, null)
               return
             }
-            const username = devPlayerToUsername.get(identity.id)
+            let username = devPlayerToUsername.get(identity.id)
             let user = username ? devUsers.get(username) : null
 
             if (!user) {
@@ -230,8 +233,9 @@ export function statsDevPlugin(): Plugin {
             }
 
             if (req.method === 'PUT') {
-              const body = parseJson(await readBody(req)) as any
-              if (!body || !body.nickname) {
+              const body = parseJson(await readBody(req)) as Record<string, unknown> | null
+              const nickname = body ? body['nickname'] : undefined
+              if (!nickname || typeof nickname !== 'string') {
                 sendJson(res, 400, { ok: false, error: 'invalid payload' }, null)
                 return
               }
@@ -239,7 +243,7 @@ export function statsDevPlugin(): Plugin {
                 sendJson(res, 400, { ok: false, error: 'nickname can only be changed once' }, null)
                 return
               }
-              user.nickname = String(body.nickname).trim().slice(0, 30)
+              user.nickname = nickname.trim().slice(0, 30)
               user.nicknameChangedCount += 1
               sendJson(res, 200, { ok: true }, null)
               return
@@ -292,7 +296,7 @@ export function statsDevPlugin(): Plugin {
             const totalCandy = playerRecord?.candy ?? 119
             const totalPlays = 244
 
-            const games: Record<string, any> = {
+            const games = {
               'avoid-the-spikes': {
                 slug: 'avoid-the-spikes',
                 title: 'Avoid the Spikes!',
@@ -328,55 +332,24 @@ export function statsDevPlugin(): Plugin {
               },
             }
 
-            const badges = [
-              {
-                id: 'pioneer',
-                name: 'Lab Pioneer',
-                description: 'Joined Nixlabs in early access phase.',
-                icon: '⚡',
-                unlocked: user.legacyUser,
-              },
-              {
-                id: 'wall_bouncer',
-                name: 'Wall Bouncer',
-                description: 'Achieve a score of 25+ on Avoid the Spikes!',
-                icon: '🏆',
-                unlocked: true,
-                progress: { current: 30, max: 25 },
-              },
-              {
-                id: 'candy_hoarder',
-                name: 'Candy Hoarder',
-                description: 'Bank 100 or more candies across all games.',
-                icon: '🍬',
-                unlocked: totalCandy >= 100,
-                progress: { current: Math.min(totalCandy, 100), max: 100 },
-              },
-              {
-                id: 'paddle_ace',
-                name: 'Paddle Ace',
-                description: 'Score 25+ hits in a single rally on Pong.',
-                icon: '🏓',
-                unlocked: true,
-                progress: { current: 25, max: 25 },
-              },
-              {
-                id: 'tron_survivor',
-                name: 'Tron Survivor',
-                description: 'Complete matches on the FL Tron cyber grid.',
-                icon: '🏍️',
-                unlocked: true,
-                progress: { current: 3, max: 3 },
-              },
-              {
-                id: 'arcade_veteran',
-                name: 'Arcade Veteran',
-                description: 'Play at least 50 total runs in the Nixlabs catalogue.',
-                icon: '🕹️',
-                unlocked: true,
-                progress: { current: 50, max: 50 },
-              },
-            ]
+            const devAchievements = devAchievementsStore.get(user.username) || new Map<string, { progress: number; unlockedAt: number | null }>()
+
+            const badges = ACHIEVEMENT_DEFS.map((def) => {
+              const state = devAchievements.get(def.id)
+              const unlocked = state?.unlockedAt !== null && state?.unlockedAt !== undefined
+              const progress = state?.progress ?? 0
+              return {
+                id: def.id,
+                pillar: def.pillar,
+                track: def.track,
+                name: def.name,
+                description: def.description,
+                icon: def.icon,
+                unlocked: unlocked || (def.id === 'identity_lab_pioneer' && user.legacyUser),
+                unlockedAt: state?.unlockedAt ?? null,
+                progress: def.maxProgress !== null ? { current: progress, max: def.maxProgress } : undefined,
+              }
+            })
 
             const recentActivity = [
               {
@@ -434,6 +407,50 @@ export function statsDevPlugin(): Plugin {
         sendJson(res, 404, { ok: false, error: 'not found' }, null)
       }
 
+      const handleAchievements = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+        await withStore(async (store) => {
+          const identity = await identitySignals(req, store)
+          const key = identity.id || 'anonymous'
+          let playerMap = devAchievementsStore.get(key)
+          if (!playerMap) {
+            playerMap = new Map()
+            devAchievementsStore.set(key, playerMap)
+          }
+
+          if (req.method === 'GET') {
+            const list = Array.from(playerMap.entries()).map(([id, val]) => ({ id, ...val }))
+            sendJson(res, 200, { ok: true, achievements: list }, null)
+            return
+          }
+
+          if (req.method === 'POST') {
+            const body = parseJson(await readBody(req)) as Record<string, unknown> | null
+            const rawId = body ? body['id'] : undefined
+            const id = typeof rawId === 'string' ? rawId : null
+            const rawProgress = body ? body['progress'] : undefined
+            const progress = typeof rawProgress === 'number' ? rawProgress : 0
+            if (!id) {
+              sendJson(res, 400, { ok: false, error: 'missing id' }, null)
+              return
+            }
+
+            const existing = playerMap.get(id)
+            const alreadyUnlocked = existing?.unlockedAt != null
+            const now = Math.floor(Date.now() / 1000)
+            const updated = {
+              progress: Math.max(existing?.progress ?? 0, progress),
+              unlockedAt: alreadyUnlocked ? existing!.unlockedAt : now,
+            }
+            playerMap.set(id, updated)
+
+            sendJson(res, 200, { ok: true, unlockedAt: updated.unlockedAt, alreadyUnlocked }, null)
+            return
+          }
+
+          sendJson(res, 405, { ok: false, error: 'method not allowed' }, null)
+        })
+      }
+
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? ''
         if (url.startsWith('/api/auth/')) {
@@ -449,6 +466,16 @@ export function statsDevPlugin(): Plugin {
         if (url.startsWith('/api/users/')) {
           try {
             await handleUsers(req, res, url)
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'unknown error'
+            sendJson(res, 500, { ok: false, error: message }, null)
+          }
+          return
+        }
+
+        if (url.startsWith('/api/achievements')) {
+          try {
+            await handleAchievements(req, res)
           } catch (err) {
             const message = err instanceof Error ? err.message : 'unknown error'
             sendJson(res, 500, { ok: false, error: message }, null)

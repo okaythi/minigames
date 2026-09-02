@@ -64,3 +64,31 @@ export const systemConfig = sqliteTable('system_config', {
   key: text('key').primaryKey(),
   value: integer('value').notNull(),
 })
+
+export const playerAchievements = sqliteTable(
+  'player_achievements',
+  {
+    playerId: text('player_id').notNull(),
+    id: text('id').notNull(),
+    progress: integer('progress').notNull().default(0),
+    /** Unix epoch seconds; null means locked. */
+    unlockedAt: integer('unlocked_at'),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.playerId, table.id] }),
+  }),
+)
+
+export const playerDailyActivity = sqliteTable(
+  'player_daily_activity',
+  {
+    playerId: text('player_id').notNull(),
+    /** ISO-8601 date string e.g. '2026-09-02'. */
+    utcDay: text('utc_day').notNull(),
+    runCount: integer('run_count').notNull().default(1),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.playerId, table.utcDay] }),
+  }),
+)
+

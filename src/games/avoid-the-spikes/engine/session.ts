@@ -39,6 +39,13 @@ export interface AvoidSessionDeps {
   readonly onRunFinished: (result: AvoidRunResult) => void
   /** Delta, not a total: the shell banks each piece as it is grabbed. */
   readonly onCandy: (amount: number) => void
+  /** Optional achievement hooks — called for live per-run tracking. */
+  readonly onBounce?: (score: number, moversLive: number, now: number) => void
+  readonly onFlap?: () => void
+  readonly onGraze?: (playerY: number) => void
+  readonly onFrame?: (playerY: number) => void
+  readonly onCandyCollected?: (runTotal: number, lifetimeTotal: number) => void
+  readonly onMoverDodge?: (dodgesThisRun: number) => void
 }
 
 export class AvoidSession {
@@ -114,6 +121,7 @@ export class AvoidSession {
     // are enough. Only *contacts* get particles.
     if (flap(this.player)) {
       this.deps.audio.play('flap')
+      this.deps.onFlap?.()
     }
   }
 
@@ -206,6 +214,7 @@ export class AvoidSession {
     this.elapsed += dt
     advance(this.player, dt, this.score)
     advanceTrail(this.player, dt)
+    this.deps.onFrame?.(this.player.pos.y)
     this.walls.update(dt)
     this.movers.sync(this.score, this.player.pos, this.deps.random)
     this.movers.update(dt)
@@ -245,6 +254,7 @@ export class AvoidSession {
 
     this.feedback.bounce(point, spikeNormal(side), side, () => this.deps.random.next())
     this.deps.audio.play('bounce')
+    this.deps.onBounce?.(this.score, this.movers.list().length, this.elapsed)
     this.publish()
   }
 
@@ -271,6 +281,7 @@ export class AvoidSession {
     this.feedback.collect(at, () => this.deps.random.next())
     this.deps.audio.play('candy')
     this.deps.onCandy(1)
+    this.deps.onCandyCollected?.(this.candyRun, this.candyBank)
     this.publish()
   }
 

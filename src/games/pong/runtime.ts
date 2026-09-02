@@ -3,11 +3,14 @@ import type { GameSnapshot } from '../template/snapshot'
 import type { GameRuntime, GameRuntimeDeps } from '../template/types'
 import { emptyGameSnapshot } from '../template/snapshot'
 import { PongEngine } from './engine/engine'
+import { PongAchievementTracker } from './achievement-tracker'
+import { getAchievementBus } from '../../lib/achievement-bus'
 import { attachPongGame } from './create-pong-game'
 import { AudioEngine } from './engine/audio/audio-engine'
 
 export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): GameRuntime {
   const store = createStore<GameSnapshot>(emptyGameSnapshot())
+  const achievementTracker = new PongAchievementTracker(getAchievementBus())
 
   const audio = new AudioEngine({
     onMutedChange: () => {
@@ -15,7 +18,7 @@ export function createPongRuntime(deps: { readonly current: GameRuntimeDeps }): 
     },
   })
 
-  const engine = new PongEngine(deps, store, audio)
+  const engine = new PongEngine(deps, store, audio, achievementTracker)
 
   return {
     store,

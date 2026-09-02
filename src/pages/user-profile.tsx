@@ -5,6 +5,8 @@ import { MANIFESTS } from '../games/registry'
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { SettingsDrawer } from '../components/settings-drawer'
+import { AchievementsShowcase } from '../components/achievements/achievements-showcase'
+import { getAchievementBus } from '../lib/achievement-bus'
 import './user-profile.css'
 
 interface UserProfilePageProps {
@@ -48,6 +50,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
     const url = window.location.href
     void navigator.clipboard.writeText(url)
     setCopied(true)
+    getAchievementBus().unlock('social_passport_stamp')
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -166,6 +169,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                   to={ROUTES.game(bestGame.slug)}
                   className="nx-passport-btn"
                   data-primary="true"
+                  onClick={() => getAchievementBus().unlock('social_gauntlet_thrown')}
                 >
                   <span>⚔️</span>
                   <span>Challenge Record</span>
@@ -321,33 +325,50 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             </div>
           </div>
 
-          {/* B. Milestones & Badges */}
+          {/* B. Milestones & Badges Summary */}
           <div className="nx-sidebar-card">
             <div className="nx-sidebar-card-title">
-              <span>Milestones & Unlocks</span>
+              <span>Milestones & Badges</span>
               <span className="nx-profile-section-badge">
                 {profile.badges.filter((b) => b.unlocked).length} / {profile.badges.length}
               </span>
             </div>
 
             <div className="nx-badge-list">
-              {profile.badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className="nx-badge-item"
-                  data-unlocked={badge.unlocked ? 'true' : 'false'}
-                >
-                  <div className="nx-badge-icon">{badge.icon}</div>
-                  <div className="nx-badge-info">
-                    <div className="nx-badge-name">
-                      <span>{badge.name}</span>
-                      {badge.unlocked && <span style={{ color: 'var(--nx-orange)' }}>✓</span>}
+              {profile.badges
+                .filter((b) => b.unlocked)
+                .slice(0, 6)
+                .map((badge) => (
+                  <div
+                    key={badge.id}
+                    className="nx-badge-item"
+                    data-unlocked="true"
+                  >
+                    <div className="nx-badge-icon">{badge.icon}</div>
+                    <div className="nx-badge-info">
+                      <div className="nx-badge-name">
+                        <span>{badge.name}</span>
+                        <span style={{ color: 'var(--nx-orange)' }}>✓</span>
+                      </div>
+                      <div className="nx-badge-desc">{badge.description}</div>
                     </div>
-                    <div className="nx-badge-desc">{badge.description}</div>
                   </div>
+                ))}
+              {profile.badges.filter((b) => b.unlocked).length === 0 && (
+                <div style={{ padding: '12px 0', color: 'var(--nx-slate)', fontSize: '13px', textAlign: 'center', fontFamily: 'var(--nx-font-mono)' }}>
+                  No badges unlocked yet. Start playing!
                 </div>
-              ))}
+              )}
             </div>
+
+            <a
+              href="#achievements-showcase"
+              className="nx-passport-btn"
+              style={{ width: '100%', justifyContent: 'center', marginTop: '12px', fontSize: '12.5px', textDecoration: 'none' }}
+            >
+              <span>View All 80 Achievements</span>
+              <span>↓</span>
+            </a>
           </div>
 
           {/* C. Recent Run Ledger */}
@@ -371,6 +392,11 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
           </div>
         </aside>
       </div>
+
+      {/* Full 80 Achievements & Badges Showcase Section */}
+      <section id="achievements-showcase" style={{ marginTop: '40px', scrollMarginTop: '80px' }}>
+        <AchievementsShowcase badges={profile.badges} />
+      </section>
 
       {/* Settings Slide-over Drawer for Logged-In Owner */}
       {isOwner && currentUser && (

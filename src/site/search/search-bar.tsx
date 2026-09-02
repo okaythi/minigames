@@ -5,6 +5,7 @@ import { ROUTES } from '../../app/parse-route'
 import type { GameManifest } from '../../games/types'
 import { SearchResults } from './search-results'
 import { useGameSearch } from './use-game-search'
+import { getAchievementBus } from '../../lib/achievement-bus'
 import './search-bar.css'
 
 interface SearchBarProps {
@@ -67,6 +68,7 @@ export function SearchBar({ manifests }: SearchBarProps) {
       event.preventDefault()
       inputRef.current?.focus()
       setOpen(true)
+      getAchievementBus().unlock('explore_terminal_velocity')
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

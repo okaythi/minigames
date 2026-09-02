@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
 import { UserRegisterSchema } from '../../../shared/auth-protocol'
 import { hashPassword } from '../../../shared/crypto'
-import { users, players } from '../../../src/db/schema'
+import { users, players, playerAchievements } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -75,6 +75,18 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     lastLoginIpIsVpn: isVpn,
     registeredIp: ip,
   })
+
+  // Auto-award Claimed Identity achievement on account creation
+  try {
+    await db.insert(playerAchievements).values({
+      playerId,
+      id: 'identity_claimed',
+      progress: 1,
+      unlockedAt: now,
+    })
+  } catch {
+    // Ignore if already present
+  }
 
   // We set a new HttpOnly session cookie, but since the playerId cookie is already HttpOnly
   // and acts as the unique session identifier for D1, we might just reuse the same cookie.

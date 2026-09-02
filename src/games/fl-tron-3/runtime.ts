@@ -4,10 +4,13 @@ import type { GameRuntime, GameRuntimeDeps } from '../template/types'
 import { emptyGameSnapshot } from '../template/snapshot'
 import { TronEngine } from './engine/engine'
 import { TronAudioEngine } from './engine/audio/audio-engine'
+import { TronAchievementTracker } from './achievement-tracker'
+import { getAchievementBus } from '../../lib/achievement-bus'
 import { attachTronGame } from './create-tron-game'
 
 export function createTronRuntime(deps: { readonly current: GameRuntimeDeps }): GameRuntime {
   const store = createStore<GameSnapshot>(emptyGameSnapshot())
+  const achievementTracker = new TronAchievementTracker(getAchievementBus())
 
   const audio = new TronAudioEngine({
     onMutedChange: () => {
@@ -15,7 +18,7 @@ export function createTronRuntime(deps: { readonly current: GameRuntimeDeps }): 
     },
   })
 
-  const engine = new TronEngine(deps, store, audio)
+  const engine = new TronEngine(deps, store, audio, achievementTracker)
 
   return {
     store,

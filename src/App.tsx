@@ -4,6 +4,7 @@ import { SiteFooter } from './site/site-footer'
 import { SiteHeader } from './site/site-header'
 import { StatsProvider } from './services/stats/stats-provider'
 import { MANIFESTS } from './games/registry'
+import { AchievementToast } from './components/achievements/achievement-toast'
 import './site/app-shell.css'
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
             <AppRoutes />
           </main>
           <SiteFooter />
+          <AchievementToast />
         </div>
       </StatsProvider>
     </RouterProvider>

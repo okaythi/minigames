@@ -1,7 +1,9 @@
 import { createRandom, entropySeed } from '../../lib/random'
 import { createStore } from '../../lib/observable-store'
+import { getAchievementBus } from '../../lib/achievement-bus'
 import { AudioEngine } from './engine/audio/audio-engine'
 import { AvoidSession } from './engine/session'
+import { AvoidAchievementTracker } from './achievement-tracker'
 import { attachAvoidGame } from './create-avoid-game'
 import { createSnapshot } from './state'
 import { describe } from './view-model'
@@ -23,6 +25,7 @@ export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }):
     },
   })
   const random = createRandom(entropySeed())
+  const achievementTracker = new AvoidAchievementTracker(getAchievementBus())
 
   const session = new AvoidSession({
     audio,
@@ -33,13 +36,33 @@ export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }):
       store.set(describe(snapshot))
     },
     onRunStarted: () => {
+      achievementTracker.onRunStarted()
       deps.current.beginRun()
     },
     onRunFinished: (result) => {
+      achievementTracker.onRunFinished(result)
       deps.current.finishRun(result.score)
     },
     onCandy: (delta) => {
       deps.current.bankBonus(delta)
+    },
+    onBounce: (score, moversLive, now) => {
+      achievementTracker.onBounce(score, moversLive, now)
+    },
+    onFlap: () => {
+      achievementTracker.onFlap()
+    },
+    onGraze: (playerY) => {
+      achievementTracker.onGraze(playerY)
+    },
+    onFrame: (playerY) => {
+      achievementTracker.onFrame(playerY)
+    },
+    onCandyCollected: (runTotal, lifetimeTotal) => {
+      achievementTracker.onCandy(runTotal, lifetimeTotal)
+    },
+    onMoverDodge: (count) => {
+      achievementTracker.onMoverDodge(count)
     },
   })
 
@@ -61,3 +84,4 @@ export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }):
     },
   }
 }
+

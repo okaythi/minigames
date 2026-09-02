@@ -1,0 +1,290 @@
+/* Achievements Showcase Component */
+
+.nx-achievements-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Header & Progress Bar */
+.nx-achievements-header {
+  background: var(--nx-card, #fffdf9);
+  border: 1px solid var(--nx-sand, #f2ece2);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+.nx-achievements-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nx-achievements-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nx-achievements-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--nx-ink, #232324);
+  letter-spacing: var(--nx-tracking-tight, -0.022em);
+  margin: 0;
+}
+
+.nx-achievements-stats {
+  font-family: var(--nx-font-mono);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nx-orange-deep, #d96c12);
+  background: var(--nx-orange-tint, #fdeadd);
+  padding: 4px 12px;
+  border-radius: 9999px;
+}
+
+.nx-achievements-progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: var(--nx-sand, #f2ece2);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.nx-achievements-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--nx-orange, #f6821f), var(--nx-orange-deep, #d96c12));
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Controls Bar (Tabs & Search) */
+.nx-achievements-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.nx-achievements-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nx-achievements-tab {
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: var(--nx-paper, #faf7f2);
+  color: var(--nx-slate, #6f6d6a);
+  border: 1px solid var(--nx-sand, #f2ece2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.nx-achievements-tab:hover {
+  background: var(--nx-sand, #f2ece2);
+  color: var(--nx-ink, #232324);
+}
+
+.nx-achievements-tab[data-active="true"] {
+  background: var(--nx-ink, #232324);
+  color: #ffffff;
+  border-color: var(--nx-ink, #232324);
+}
+
+.nx-achievements-search-input {
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid var(--nx-sand, #f2ece2);
+  color: var(--nx-ink, #232324);
+  outline: none;
+  min-width: 180px;
+  transition: border-color 0.15s ease;
+}
+
+.nx-achievements-search-input:focus {
+  border-color: var(--nx-orange, #f6821f);
+}
+
+/* Track Groups & Grid */
+.nx-achievements-track-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nx-achievements-track-title {
+  font-family: var(--nx-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nx-slate, #6f6d6a);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nx-achievements-track-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--nx-sand, #f2ece2);
+}
+
+.nx-achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+/* Individual Achievement Card */
+.nx-achievement-card {
+  background: var(--nx-card, #fffdf9);
+  border: 1px solid var(--nx-sand, #f2ece2);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  gap: 14px;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nx-achievement-card[data-unlocked="true"] {
+  border-color: rgba(246, 130, 31, 0.4);
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(246, 130, 31, 0.06);
+}
+
+.nx-achievement-card[data-unlocked="true"]:hover {
+  transform: translateY(-2px);
+  border-color: var(--nx-orange, #f6821f);
+  box-shadow: 0 8px 20px rgba(246, 130, 31, 0.12);
+}
+
+.nx-achievement-card[data-unlocked="false"] {
+  opacity: 0.65;
+  background: var(--nx-paper, #faf7f2);
+}
+
+.nx-achievement-card[data-unlocked="false"]:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.nx-achievement-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--nx-paper, #faf7f2);
+  border: 1px solid var(--nx-sand, #f2ece2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.nx-achievement-card[data-unlocked="true"] .nx-achievement-card-icon {
+  background: var(--nx-orange-tint, #fdeadd);
+  border-color: rgba(246, 130, 31, 0.3);
+}
+
+.nx-achievement-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nx-achievement-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.nx-achievement-card-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--nx-ink, #232324);
+  letter-spacing: var(--nx-tracking-tight, -0.022em);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-achievement-card-check {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--nx-orange, #f6821f);
+  flex-shrink: 0;
+}
+
+.nx-achievement-card-lock {
+  font-size: 12px;
+  color: var(--nx-slate, #6f6d6a);
+  flex-shrink: 0;
+}
+
+.nx-achievement-card-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--nx-slate, #6f6d6a);
+  margin-bottom: 4px;
+}
+
+.nx-achievement-card-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.nx-achievement-card-progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--nx-font-mono);
+  font-size: 10.5px;
+  color: var(--nx-slate, #6f6d6a);
+  font-weight: 600;
+}
+
+.nx-achievement-card-progress-bar {
+  width: 100%;
+  height: 5px;
+  background: var(--nx-sand, #f2ece2);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.nx-achievement-card-progress-fill {
+  height: 100%;
+  background: var(--nx-orange, #f6821f);
+  border-radius: 9999px;
+}
+
+.nx-achievements-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--nx-slate, #6f6d6a);
+  font-size: 14px;
+  font-family: var(--nx-font-mono);
+}

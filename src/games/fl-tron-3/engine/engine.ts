@@ -9,6 +9,7 @@ import type { TronAudioEngine } from './audio/audio-engine'
 import type { CycleState, DifficultyLevel, Particle, TronState } from './types'
 import { createInitialTronState } from '../state'
 import { toGameSnapshot } from '../view-model'
+import type { TronAchievementTracker } from '../achievement-tracker'
 
 export class TronEngine {
   public state: TronState
@@ -17,12 +18,15 @@ export class TronEngine {
   private accumulator = 0
   private isPaused = false
   public isStarted = false
+  private achievements: TronAchievementTracker | null
 
   public constructor(
     public readonly deps: { readonly current: GameRuntimeDeps },
     private readonly store: Store<GameSnapshot>,
     private readonly audio: TronAudioEngine,
+    achievements: TronAchievementTracker | null = null,
   ) {
+    this.achievements = achievements
     this.state = createInitialTronState(1, 'campaign')
     this.grid = new OccupancyGrid()
     this.aiController = new AIController(1)
@@ -56,6 +60,7 @@ export class TronEngine {
     this.audio.unlock()
     this.audio.play('ui')
     this.deps.current.beginRun()
+    this.achievements?.onCampaignStart()
     this.state.level = 1
     this.state.p1RoundWins = 0
     this.state.aiRoundWins = 0
@@ -79,6 +84,7 @@ export class TronEngine {
       this.state.phase = 'victory'
       const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
       this.deps.current.finishRun(finalScore)
+      this.achievements?.onCampaignComplete(this.state.elapsedRunSeconds)
       this.publish()
     }
   }
@@ -165,6 +171,7 @@ export class TronEngine {
         const boosted = triggerCycleTurbo(this.state.p1, false)
         if (boosted) {
           this.audio.play('turbo')
+          this.achievements?.onTurboActivated()
           this.publish()
         }
       }

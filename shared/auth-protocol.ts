@@ -54,11 +54,14 @@ export interface UserGameStat {
 
 export interface Badge {
   id: string
+  pillar?: string | undefined
+  track?: string | undefined
   name: string
   description: string
   icon: string
   unlocked: boolean
-  progress?: { current: number; max: number }
+  unlockedAt?: number | null | undefined
+  progress?: { current: number; max: number } | undefined
 }
 
 export interface ActivityItem {
