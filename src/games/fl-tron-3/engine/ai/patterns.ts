@@ -69,16 +69,19 @@ export class AIPatterns {
   /**
    * Generates next move in a Staircase macro.
    * Alternates directions [Turn 90°, step, Turn -90°, step]
+   * Optional preferredTurnDir picks which orthogonal side turnA uses (e.g. toward a target).
    */
   public static generateStaircaseStep(
     ai: CycleState,
     pattern: PatternState,
     isThick = false,
+    preferredTurnDir?: Direction,
   ): Direction {
     if (pattern.macroQueue.length === 0 || pattern.macroIndex >= pattern.macroQueue.length) {
       // Build new staircase macro sequence
       const { leftDir, rightDir } = this.getOrthogonalDirections(ai.dir)
-      const turnA = Math.random() < 0.5 ? leftDir : rightDir
+      // Use the preferred direction if provided, otherwise pick at random
+      const turnA = preferredTurnDir ?? (Math.random() < 0.5 ? leftDir : rightDir)
       const turnB = ai.dir
 
       const stepsPerLeg = isThick ? 2 : 1
@@ -102,7 +105,7 @@ export class AIPatterns {
     return nextDir
   }
 
-  private static getOrthogonalDirections(dir: Direction): { leftDir: Direction; rightDir: Direction } {
+  public static getOrthogonalDirections(dir: Direction): { leftDir: Direction; rightDir: Direction } {
     switch (dir) {
       case 'up':
         return { leftDir: 'left', rightDir: 'right' }

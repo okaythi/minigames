@@ -63,20 +63,48 @@ export class PersonalityEngine {
       }
     }
 
-    // 3. Check THE "HAVING FUN" STATE: Trigger staircase when space is massive (> 40% grid) and player is far
-    if (config.enjoysStairs && this.funCooldownTimer <= 0 && distToPlayer > 26) {
-      const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
-      const isMassiveSpace = aiChamber > 900 // huge open space
-
-      if (isMassiveSpace && Math.random() < config.stairProbability) {
-        this.mood = 'having_fun'
-        const isThick = Math.random() < 0.4
-        const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, isThick)
-        const wantsTurbo = config.level >= 5 && Math.random() < 0.25 // capable of stair-stepping at turbo speed!
-        return {
-          desiredDir: dir,
-          wantsTurbo,
-          intent: isThick ? 'thick_stairs' : 'staircase',
+    // 3. "HAVING FUN" STATE: Level-specific staircase / lawnmower patterns
+    if (config.enjoysStairs && this.funCooldownTimer <= 0) {
+      if (config.level === 3) {
+        // Level 3 LOVES stairs: activates readily, always perfect 1-cell step, occasionally lawnmows mid-stair
+        if (distToPlayer > 6) {
+          const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
+          if (aiChamber > 150 && Math.random() < config.stairProbability) {
+            this.mood = 'having_fun'
+            // 20% chance: lawnmower step woven into the staircase for a corridor-hugging touch
+            if (Math.random() < 0.20) {
+              const dir = AIPatterns.generateLawnmowerMove(ai, grid, this.patternState)
+              return { desiredDir: dir, wantsTurbo: false, intent: 'lawnmower' }
+            }
+            // Always 1-cell step — never thick
+            const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false)
+            return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
+          }
+        }
+      } else if (config.level === 4) {
+        // Level 4: Stairs aimed toward the player as an approach shortcut. Can boost during stairs.
+        if (distToPlayer > 18) {
+          const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
+          if (aiChamber > 500 && Math.random() < config.stairProbability) {
+            this.mood = 'having_fun'
+            // Pick the orthogonal step that brings the AI closer to the player
+            const { leftDir, rightDir } = AIPatterns.getOrthogonalDirections(ai.dir)
+            const preferredDir = this.pickDirTowardTarget(ai, p1, leftDir, rightDir)
+            const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false, preferredDir)
+            // Tactician can fire turbo mid-staircase if available
+            const wantsTurbo = !ai.isTurbo && ai.turboCooldown === 0 && ai.turbosLeft > 0 && Math.random() < 0.40
+            return { desiredDir: dir, wantsTurbo, intent: 'staircase' }
+          }
+        }
+      } else if (distToPlayer > 26) {
+        // Levels 1, 2, 5, 6: original broad-space staircase logic
+        const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
+        if (aiChamber > 900 && Math.random() < config.stairProbability) {
+          this.mood = 'having_fun'
+          const isThick = Math.random() < 0.4
+          const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, isThick)
+          const wantsTurbo = config.level >= 5 && Math.random() < 0.25
+          return { desiredDir: dir, wantsTurbo, intent: isThick ? 'thick_stairs' : 'staircase' }
         }
       }
     }
@@ -271,6 +299,12 @@ export class PersonalityEngine {
     if (this.isEscapeNeeded(ai, grid)) return true // Escape pinch
     if (this.isOvertakePossible(ai, p1)) return true // Overtake cutoff
 
+    // Level 5: Aggressive gap-closing turbo when player is NOT doomed and is far away
+    if (config.level === 5 && !this.playerDoomed && dist > 35) {
+      const runway = SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid)
+      if (runway > 6) return true
+    }
+
     // Aggressive advanced tactics (Level 5 & 6 only, since they have enough turbos)
     if (config.level >= 5) {
       if (p1.isTurbo && dist < 35) return true // Counter-turbo
@@ -279,6 +313,23 @@ export class PersonalityEngine {
     }
 
     return false
+  }
+
+  /**
+   * Returns whichever of leftDir/rightDir takes a step closer to the target cycle.
+   * Used by Level 4 to steer staircase macro turns toward the player.
+   */
+  private pickDirTowardTarget(
+    ai: CycleState,
+    target: CycleState,
+    leftDir: Direction,
+    rightDir: Direction,
+  ): Direction {
+    const leftVec = DIRECTION_VECTORS[leftDir]
+    const rightVec = DIRECTION_VECTORS[rightDir]
+    const distLeft = Math.hypot(ai.col + leftVec.x - target.col, ai.row + leftVec.y - target.row)
+    const distRight = Math.hypot(ai.col + rightVec.x - target.col, ai.row + rightVec.y - target.row)
+    return distLeft <= distRight ? leftDir : rightDir
   }
 
   private isOvertakePossible(ai: CycleState, p1: CycleState): boolean {
