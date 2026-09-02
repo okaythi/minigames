@@ -8,6 +8,9 @@ export interface PatternState {
   lawnmowerTurnDirection: 'left' | 'right'
   lawnmowerStep: number
   stairStepCounter: number
+  /** Tracks which relative side (left/right of heading) the last staircase macro used.
+   *  The next macro always uses the opposite side, creating adjacent "glued" staircases. */
+  lastStairSide: 'left' | 'right' | null
 }
 
 export function createInitialPatternState(): PatternState {
@@ -17,6 +20,7 @@ export function createInitialPatternState(): PatternState {
     lawnmowerTurnDirection: 'right',
     lawnmowerStep: 0,
     stairStepCounter: 0,
+    lastStairSide: null,
   }
 }
 
@@ -80,10 +84,23 @@ export class AIPatterns {
     if (pattern.macroQueue.length === 0 || pattern.macroIndex >= pattern.macroQueue.length) {
       // Build new staircase macro sequence
       const { leftDir, rightDir } = this.getOrthogonalDirections(ai.dir)
-      // Use the preferred direction if provided, otherwise pick at random
-      const turnA = preferredTurnDir ?? (Math.random() < 0.5 ? leftDir : rightDir)
-      const turnB = ai.dir
 
+      let turnA: Direction
+      if (preferredTurnDir) {
+        // Level 4: steer toward a target — caller decides the side
+        turnA = preferredTurnDir
+        pattern.lastStairSide = preferredTurnDir === leftDir ? 'left' : 'right'
+      } else {
+        // Glued-staircase technique: each new macro uses the OPPOSITE side from the last.
+        // This makes successive staircases touch edge-to-edge, filling space efficiently.
+        const nextSide = pattern.lastStairSide === 'left' ? 'right'
+          : pattern.lastStairSide === 'right' ? 'left'
+          : Math.random() < 0.5 ? 'left' : 'right' // first run: random
+        turnA = nextSide === 'left' ? leftDir : rightDir
+        pattern.lastStairSide = nextSide
+      }
+
+      const turnB = ai.dir
       const stepsPerLeg = isThick ? 2 : 1
       const queue: Direction[] = []
 

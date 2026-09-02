@@ -66,33 +66,34 @@ export class PersonalityEngine {
     // 3. "HAVING FUN" STATE: Level-specific staircase / lawnmower patterns
     if (config.enjoysStairs && this.funCooldownTimer <= 0) {
       if (config.level === 3) {
-        // Level 3 LOVES stairs: activates readily, always perfect 1-cell step, occasionally lawnmows mid-stair
+        // Level 3 LOVES stairs: activates readily, always perfect 1-cell step.
+        // "Lawnmowing on stairs" = each successive macro glues to the previous one (see AIPatterns).
         if (distToPlayer > 6) {
           const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
           if (aiChamber > 150 && Math.random() < config.stairProbability) {
             this.mood = 'having_fun'
-            // 20% chance: lawnmower step woven into the staircase for a corridor-hugging touch
-            if (Math.random() < 0.20) {
-              const dir = AIPatterns.generateLawnmowerMove(ai, grid, this.patternState)
-              return { desiredDir: dir, wantsTurbo: false, intent: 'lawnmower' }
-            }
-            // Always 1-cell step — never thick
             const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false)
             return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
           }
         }
       } else if (config.level === 4) {
-        // Level 4: Stairs aimed toward the player as an approach shortcut. Can boost during stairs.
+        // Level 4: Stairs aimed toward the player as an approach shortcut.
+        // Turbo fires only when mid-range (18–38 cells) and at least 1 spare turbo remains.
         if (distToPlayer > 18) {
           const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
           if (aiChamber > 500 && Math.random() < config.stairProbability) {
             this.mood = 'having_fun'
-            // Pick the orthogonal step that brings the AI closer to the player
             const { leftDir, rightDir } = AIPatterns.getOrthogonalDirections(ai.dir)
             const preferredDir = this.pickDirTowardTarget(ai, p1, leftDir, rightDir)
             const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false, preferredDir)
-            // Tactician can fire turbo mid-staircase if available
-            const wantsTurbo = !ai.isTurbo && ai.turboCooldown === 0 && ai.turbosLeft > 0 && Math.random() < 0.40
+            // Turbo only when actually closing in on the player AND a spare turbo is kept in reserve
+            const isApproach = distToPlayer < 38
+            const wantsTurbo =
+              isApproach &&
+              !ai.isTurbo &&
+              ai.turboCooldown === 0 &&
+              ai.turbosLeft > 1 &&
+              Math.random() < 0.12
             return { desiredDir: dir, wantsTurbo, intent: 'staircase' }
           }
         }
