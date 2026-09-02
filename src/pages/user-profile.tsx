@@ -325,7 +325,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             </div>
           </div>
 
-          {/* B. Milestones & Badges Summary */}
+          {/* B. Milestones & Badges Summary (Latest 6) */}
           <div className="nx-sidebar-card">
             <div className="nx-sidebar-card-title">
               <span>Milestones & Badges</span>
@@ -337,6 +337,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             <div className="nx-badge-list">
               {profile.badges
                 .filter((b) => b.unlocked)
+                .sort((a, b) => (b.unlockedAt ?? 0) - (a.unlockedAt ?? 0))
                 .slice(0, 6)
                 .map((badge) => (
                   <div
