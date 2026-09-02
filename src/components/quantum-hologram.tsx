@@ -49,18 +49,16 @@ export function QuantumHologram({ stateName }: QuantumHologramProps) {
         if (!active || !canvasRef.current) return
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2)
-        const displayWidth = 220
-        const displayHeight = (displayWidth * bitmap.height) / bitmap.width
 
-        canvas.width = displayWidth * dpr
-        canvas.height = displayHeight * dpr
-        canvas.style.width = '100%'
-        canvas.style.height = 'auto'
+        canvas.width = bitmap.width * dpr
+        canvas.height = bitmap.height * dpr
+        canvas.style.width = 'auto'
+        canvas.style.height = '100%'
 
         ctx.save()
         ctx.scale(dpr, dpr)
-        ctx.clearRect(0, 0, displayWidth, displayHeight)
-        ctx.drawImage(bitmap, 0, 0, displayWidth, displayHeight)
+        ctx.clearRect(0, 0, bitmap.width, bitmap.height)
+        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height)
         ctx.restore()
       })
       .catch((err) => {
@@ -80,12 +78,10 @@ export function QuantumHologram({ stateName }: QuantumHologramProps) {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        width: '100%',
-        maxHeight: '60%',
+        height: '60%',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'flex-end',
-        overflow: 'hidden',
         pointerEvents: 'none',
       }}
     >
@@ -94,9 +90,9 @@ export function QuantumHologram({ stateName }: QuantumHologramProps) {
         data-quantum-shield="active"
         style={{
           display: 'block',
-          width: '100%',
-          height: 'auto',
-          maxHeight: '100%',
+          height: '100%',
+          width: 'auto',
+          maxWidth: '100%',
           objectFit: 'contain',
           objectPosition: 'bottom right',
           userSelect: 'none',
