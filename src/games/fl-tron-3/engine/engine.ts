@@ -42,15 +42,7 @@ export class TronEngine {
   }
 
   public start(): void {
-    if (!this.isStarted) {
-      this.isStarted = true
-      this.state.phase = 'menu'
-      this.audio.unlock()
-      this.audio.play('ui')
-      this.publish()
-      return
-    }
-
+    this.isStarted = true
     if (this.state.phase === 'menu') {
       this.startCampaign()
     } else if (this.state.phase === 'intermission') {
@@ -143,9 +135,8 @@ export class TronEngine {
       return
     }
 
-    // In the in-canvas menu, do not start with Spacebar, only explicit Enter or clicking menu buttons
     if (this.state.phase === 'menu') {
-      if (key === 'Enter') {
+      if (key === 'Enter' || key === ' ') {
         this.startCampaign()
       }
       return

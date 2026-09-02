@@ -61,46 +61,31 @@ export function attachTronGame(host: GameHost, engine: TronEngine): DisposableBa
   }
 
   const handlePointerAction = (clientX: number, clientY: number) => {
-    if (!engine.isStarted) {
-      return
-    }
-
-    const { x, y } = pointerPositionInArena(clientX, clientY)
-
     if (engine.state.phase === 'menu') {
-      // Check if clicking inside Campaign card or Start Campaign button
-      const isCardClick = x >= 50 && x <= 430 && y >= 135 && y <= 225
-      const isBtnClick = x >= 100 && x <= 380 && y >= 470 && y <= 540
-      if (isCardClick || isBtnClick) {
-        engine.startCampaign()
-      }
+      engine.startCampaign()
       return
     }
 
     if (engine.state.phase === 'intermission') {
+      const { x, y } = pointerPositionInArena(clientX, clientY)
       if (x >= 40 && x <= ARENA.width - 40 && y >= ARENA.height - 120 && y <= ARENA.height - 40) {
+        engine.advanceFromIntermission()
+      } else {
         engine.advanceFromIntermission()
       }
       return
     }
 
     if (engine.state.phase === 'victory' || engine.state.phase === 'game_over') {
-      if (x >= 40 && x <= ARENA.width - 40 && y >= ARENA.height - 120 && y <= ARENA.height - 40) {
-        engine.restart()
-      }
+      engine.restart()
       return
     }
   }
 
-  const onMouseDown = (e: MouseEvent) => {
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    canvas.focus()
     handlePointerAction(e.clientX, e.clientY)
-  }
-
-  const onTouchStart = (e: TouchEvent) => {
-    const touch = e.touches[0]
-    if (!touch) return
-    if (e.cancelable) e.preventDefault()
-    handlePointerAction(touch.clientX, touch.clientY)
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -111,11 +96,8 @@ export function attachTronGame(host: GameHost, engine: TronEngine): DisposableBa
     engine.handleInput(e.key, true)
   }
 
-  canvas.addEventListener('mousedown', onMouseDown)
-  bag.add(() => canvas.removeEventListener('mousedown', onMouseDown))
-
-  canvas.addEventListener('touchstart', onTouchStart, { passive: false })
-  bag.add(() => canvas.removeEventListener('touchstart', onTouchStart))
+  canvas.addEventListener('pointerdown', onPointerDown)
+  bag.add(() => canvas.removeEventListener('pointerdown', onPointerDown))
 
   window.addEventListener('keydown', onKeyDown)
   bag.add(() => window.removeEventListener('keydown', onKeyDown))
