@@ -104,20 +104,32 @@ export class SurvivalEngine {
 
       if (level >= 6) {
         // Level 6 Master Core: Mathematical Zero-Self-Trap Guarantee
-        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 1200)
+        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 2500)
         let maxAvailableChamber = proposedChamber
         for (const d of safeDirections) {
           const dVec = DIRECTION_VECTORS[d]
           const c = destCol + dVec.x
           const r = destRow + dVec.y
-          const ch = grid.floodFillArea(c, r, 1200)
+          const ch = grid.floodFillArea(c, r, 2500)
           if (ch > maxAvailableChamber) {
             maxAvailableChamber = ch
           }
         }
 
-        // Veto if proposed turn enters a dead-end or a chamber significantly smaller than the maximum open space
-        if (proposedChamber < 60 || proposedChamber < maxAvailableChamber * 0.75) {
+        // Secondary exit check: verify candidate cell has at least 1 legal turn out
+        let secondaryExits = 0
+        for (const d2 of ALL_DIRECTIONS) {
+          if (d2 === OPPOSITE_DIRECTIONS[proposal.desiredDir]) continue
+          const d2Vec = DIRECTION_VECTORS[d2]
+          if (grid.isFree(futureCol + d2Vec.x, futureRow + d2Vec.y)) {
+            secondaryExits += 1
+          }
+        }
+
+        // Strictly veto blind dead ends (0 secondary exits) and moves that enter a partitioned sub-chamber
+        if (secondaryExits === 0 || proposedChamber < 50) {
+          isSafe = false
+        } else if (maxAvailableChamber > 100 && proposedChamber < maxAvailableChamber * 0.85) {
           isSafe = false
         }
       } else if (level === 5) {
@@ -217,11 +229,24 @@ export class SurvivalEngine {
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 1200 : 600)
+      const chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 2500 : 600)
       const runway = this.getClearRunway(destCol, destRow, dir, grid)
 
-      // Score strictly maximizes topological chamber volume and forward escape runway
-      const score = chamber * 2.5 + runway * 12 + (dir === ai.dir ? 25 : 0)
+      let secondaryExits = 0
+      for (const d2 of ALL_DIRECTIONS) {
+        if (d2 === OPPOSITE_DIRECTIONS[dir]) continue
+        const d2Vec = DIRECTION_VECTORS[d2]
+        if (grid.isFree(nextCol + d2Vec.x, nextRow + d2Vec.y)) {
+          secondaryExits += 1
+        }
+      }
+
+      // Strictly prioritize open chamber, secondary exits, and clear escape runway
+      const score =
+        chamber * 3.0 +
+        secondaryExits * 60.0 +
+        runway * 12.0 +
+        (dir === ai.dir ? 25 : 0)
 
       if (score > bestScore) {
         bestScore = score

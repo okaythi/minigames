@@ -69,7 +69,9 @@ export class TurboBrain {
 
     // 4. Expected Value (EV) Decision Engine
     const cutoffScore = computeGeometricCutoffScore(ai, player, grid)
-    const territoryScore = computeTerritoryGainScore(ai, player, grid, this.config.lookaheadSteps)
+    const distToPlayer = Math.hypot(ai.col - player.col, ai.row - player.row)
+    const territoryScore =
+      distToPlayer < 40 ? computeTerritoryGainScore(ai, player, grid, this.config.lookaheadSteps) : 0
 
     const maxT = Math.max(1, this.config.maxTurbos)
     const scarcityPenalty = this.config.infiniteTurbos
