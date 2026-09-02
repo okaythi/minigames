@@ -3,6 +3,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
   Permissions-Policy: geolocation=(), microphone=(), camera=()
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.pages.dev https://*.r2.cloudflarestorage.com; connect-src 'self' https://*.pages.dev; font-src 'self' data:; media-src 'self' data: blob:;
 
 /assets/*
