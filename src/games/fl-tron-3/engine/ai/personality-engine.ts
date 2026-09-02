@@ -266,24 +266,18 @@ export class PersonalityEngine {
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const chamber = grid.floodFillArea(nextCol, nextRow, 1000)
-      if (chamber < 80) continue
-
-      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 30)
-      const runway = SurvivalEngine.getClearRunway(destCol, destRow, dir, grid)
+      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 35)
       const distToFlank = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
 
-      // Flank cutoff bonus only when open runway and high-volume chamber guarantee non-suicide
-      const flankScore = (distToFlank < 18 && runway >= 8 && chamber > 150) ? 40 : 0
+      const flankScore = distToFlank < 16 ? 50 : 0
 
-      // Master Core: supreme territory dominance + guaranteed survival runway
+      // Master Core: pure unhinged aggression. Maximize territory dominance, cut off the player.
+      // SurvivalEngine already handles 100% of the safety, so we DO NOT score chamber volume here.
       const score =
-        chamber * 2.0 +
-        territory.aiArea * 3.2 -
-        territory.p1Area * 1.5 +
+        territory.aiArea * 3.5 -
+        territory.p1Area * 2.0 +
         flankScore +
-        runway * 4.0 +
-        (dir === ai.dir ? 30 : 0)
+        (dir === ai.dir ? 15 : 0)
 
       if (score > bestScore) {
         bestScore = score
@@ -316,21 +310,31 @@ export class PersonalityEngine {
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const chamber = grid.floodFillArea(nextCol, nextRow, 800)
-      if (chamber < 60) continue
-
       const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 500)
       const distToIntercept = Math.hypot(nextCol - p1FutureCol, nextRow - p1FutureRow)
-      const runway = SurvivalEngine.getClearRunway(destCol, destRow, dir, grid)
+      
+      const alignmentScore = (vec.x === p1Vec.x && vec.y === p1Vec.y) ? 20 : 0
+      
+      let behindScore = 0
+      if (p1Vec.x !== 0) {
+         if (nextRow === p1.row && Math.sign(p1.col - nextCol) === Math.sign(p1Vec.x)) {
+            behindScore = 40
+         }
+      } else {
+         if (nextCol === p1.col && Math.sign(p1.row - nextRow) === Math.sign(p1Vec.y)) {
+            behindScore = 40
+         }
+      }
 
-      // Assassin: aggressive tailing and territory cutoff with high-capacity chamber lookahead
+      // Assassin: Relentless tailing and future-intercept.
+      // Again, zero chamber scoring because SurvivalEngine already vetoed suicidal moves.
       const score =
-        chamber * 1.5 +
         territory.aiArea * 2.5 -
-        territory.p1Area * 1.2 -
-        distToIntercept * 1.8 +
-        runway * 3.0 +
-        (dir === ai.dir ? 25 : 0)
+        territory.p1Area * 1.5 -
+        distToIntercept * 3.0 +
+        alignmentScore +
+        behindScore +
+        (dir === ai.dir ? 15 : 0)
 
       if (score > bestScore) {
         bestScore = score
