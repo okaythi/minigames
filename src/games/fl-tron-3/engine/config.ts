@@ -14,6 +14,8 @@ export const ARENA = {
   cellSize: 6,
   paddingX: 0,
   paddingY: 2,
+  /** Cells excluded from each edge. Prevents cycles from walking on the border line. */
+  borderInset: 1,
 } as const
 
 /** Match victory conditions. */
@@ -98,18 +100,18 @@ export const AI_CONFIGS: Readonly<Record<DifficultyLevel, AILevelConfig>> = {
   5: {
     level: 5,
     name: 'Assassin',
-    tagline: '6-Turbo blitz, multi-heuristic trap calculator',
-    description: 'Level 5: The Assassin commands 6 turbos and evaluates 10 tactical criteria to pinch and box you against walls.',
+    tagline: 'Obsessive tailing, counter-boosts & 8s cutoff turbos',
+    description: 'Level 5: The Assassin is obsessed with tailing the player, counter-boosting on player turbos, and closing off escape routes with timed boosts.',
     reactionTime: 0.035,
     lookaheadSteps: 16,
-    stairProbability: 0.18,
-    enjoysStairs: true,
+    stairProbability: 0,
+    enjoysStairs: false,
     fillQuality: 'perfect',
     maxTurbos: 6,
     infiniteTurbos: false,
     offensiveTurbo: true,
     useVoronoi: true,
-    interceptAggression: 0.95,
+    interceptAggression: 0.98,
   },
   6: {
     level: 6,

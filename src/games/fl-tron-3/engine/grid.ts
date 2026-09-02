@@ -39,7 +39,8 @@ export class OccupancyGrid {
   }
 
   public isFree(col: number, row: number): boolean {
-    if (!this.isInBounds(col, row)) return false
+    const b = ARENA.borderInset
+    if (col < b || col >= this.cols - b || row < b || row >= this.rows - b) return false
     return this.data[row * this.cols + col] === OCCUPANCY.empty
   }
 
@@ -60,9 +61,10 @@ export class OccupancyGrid {
   public static worldToGrid(x: number, y: number): GridCoord {
     const col = Math.floor((x - ARENA.paddingX) / ARENA.cellSize)
     const row = Math.floor((y - ARENA.paddingY) / ARENA.cellSize)
+    const b = ARENA.borderInset
     return {
-      col: Math.max(0, Math.min(ARENA.cols - 1, col)),
-      row: Math.max(0, Math.min(ARENA.rows - 1, row)),
+      col: Math.max(b, Math.min(ARENA.cols - 1 - b, col)),
+      row: Math.max(b, Math.min(ARENA.rows - 1 - b, row)),
     }
   }
 

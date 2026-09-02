@@ -14,6 +14,9 @@ export class PersonalityEngine {
   private playerDoomed = false
   private diagnosisTimer = 0
   private funCooldownTimer = 0
+  /** Counts time since last turbo opportunity check for the Level 5 8s timer. */
+  private level5TurboTimer = 0
+  private level5TurboWantsTrigger = false
 
   public constructor(private readonly level: DifficultyLevel) {}
 
@@ -43,6 +46,17 @@ export class PersonalityEngine {
       }
     }
 
+    // Advance Level 5 8-second cutoff turbo interval
+    if (config.level === 5) {
+      this.level5TurboTimer += dt
+      if (this.level5TurboTimer >= 8.0) {
+        this.level5TurboTimer = 0
+        if (Math.random() < 0.40) {
+          this.level5TurboWantsTrigger = true
+        }
+      }
+    }
+
     if (this.funCooldownTimer > 0) {
       this.funCooldownTimer -= dt
     }
@@ -64,6 +78,7 @@ export class PersonalityEngine {
     }
 
     // 3. "HAVING FUN" STATE: Level-specific staircase / lawnmower patterns
+    // (Level 5 is excluded: prime directive is relentless tailing)
     if (config.enjoysStairs && this.funCooldownTimer <= 0) {
       if (config.level === 3) {
         // Level 3 LOVES stairs: activates readily, always perfect 1-cell step.
@@ -97,14 +112,14 @@ export class PersonalityEngine {
             return { desiredDir: dir, wantsTurbo, intent: 'staircase' }
           }
         }
-      } else if (distToPlayer > 26) {
-        // Levels 1, 2, 5, 6: original broad-space staircase logic
+      } else if (config.level !== 5 && distToPlayer > 26) {
+        // Levels 1, 2, 6: original broad-space staircase logic
         const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
         if (aiChamber > 900 && Math.random() < config.stairProbability) {
           this.mood = 'having_fun'
           const isThick = Math.random() < 0.4
           const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, isThick)
-          const wantsTurbo = config.level >= 5 && Math.random() < 0.25
+          const wantsTurbo = config.level >= 6 && Math.random() < 0.25
           return { desiredDir: dir, wantsTurbo, intent: isThick ? 'thick_stairs' : 'staircase' }
         }
       }
@@ -129,8 +144,12 @@ export class PersonalityEngine {
       // Level 4: Voronoi Territory Control
       chosenDir = this.evaluateVoronoiMove(ai, p1, grid, safeDirections)
       intent = 'voronoi'
-    } else if (config.level >= 5) {
-      // Level 5 & 6: Minimax & Predictive Corridor Constriction
+    } else if (config.level === 5) {
+      // Level 5: Assassin Obsessive Tailing & Cutoff
+      chosenDir = this.evaluateAssassinTailingMove(ai, p1, grid, safeDirections)
+      intent = 'chase'
+    } else if (config.level >= 6) {
+      // Level 6: Minimax & Predictive Corridor Constriction
       chosenDir = this.evaluateMinimaxMove(ai, p1, grid, safeDirections, config.lookaheadSteps)
       intent = 'chase'
     } else if (config.level === 3) {
@@ -224,6 +243,55 @@ export class PersonalityEngine {
     return bestDir
   }
 
+  private evaluateAssassinTailingMove(
+    ai: CycleState,
+    p1: CycleState,
+    grid: OccupancyGrid,
+    safeDirs: readonly Direction[],
+  ): Direction {
+    let bestDir = safeDirs[0] ?? ai.dir
+    let bestScore = -Infinity
+
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+
+    const p1Vec = DIRECTION_VECTORS[p1.dir]
+    const p1LeadCol = p1.col + p1Vec.x * 4
+    const p1LeadRow = p1.row + p1Vec.y * 4
+
+    for (const dir of safeDirs) {
+      const vec = DIRECTION_VECTORS[dir]
+      const nextCol = destCol + vec.x
+      const nextRow = destRow + vec.y
+
+      const chamber = grid.floodFillArea(nextCol, nextRow, 600)
+      if (chamber < 30) continue
+
+      // Tailing distance to player's current tail/position
+      const distToPlayer = Math.hypot(nextCol - p1.col, nextRow - p1.row)
+      // Cutoff distance to player's projected head
+      const distToLead = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
+
+      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 400)
+
+      // Assassin prime directive: tail and cut off player relentlessly
+      const score =
+        territory.aiArea * 1.8 -
+        territory.p1Area * 0.8 -
+        distToPlayer * 4.0 -
+        distToLead * 3.0 +
+        (dir === ai.dir ? 12 : 0)
+
+      if (score > bestScore) {
+        bestScore = score
+        bestDir = dir
+      }
+    }
+
+    return bestDir
+  }
+
   private evaluateHunterMove(
     ai: CycleState,
     p1: CycleState,
@@ -294,20 +362,32 @@ export class PersonalityEngine {
     if (!config.offensiveTurbo || ai.isTurbo || ai.turboCooldown > 0) return false
     if (!config.infiniteTurbos && ai.turbosLeft <= 0) return false
 
+    // Level 5 Assassin Turbo Directive (6 Turbos total):
+    // 1. React immediately when player boosts (counter-boost consuming 1 turbo)!
+    // 2. 40% chance every 8s specifically to close off the player
+    // 3. Pinch escape
+    if (config.level === 5) {
+      if (p1.isTurbo) return true
+
+      if (this.level5TurboWantsTrigger) {
+        this.level5TurboWantsTrigger = false
+        const runway = SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid)
+        if (runway >= 4) return true
+      }
+
+      if (this.isEscapeNeeded(ai, grid)) return true
+
+      return false
+    }
+
     const dist = Math.hypot(ai.col - p1.col, ai.row - p1.row)
 
-    // Essential defensive/offensive moves (Level 4, 5, 6)
+    // Essential defensive/offensive moves (Level 4, 6)
     if (this.isEscapeNeeded(ai, grid)) return true // Escape pinch
     if (this.isOvertakePossible(ai, p1)) return true // Overtake cutoff
 
-    // Level 5: Aggressive gap-closing turbo when player is NOT doomed and is far away
-    if (config.level === 5 && !this.playerDoomed && dist > 35) {
-      const runway = SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid)
-      if (runway > 6) return true
-    }
-
-    // Aggressive advanced tactics (Level 5 & 6 only, since they have enough turbos)
-    if (config.level >= 5) {
+    // Level 6 Master Core tactics
+    if (config.level >= 6) {
       if (p1.isTurbo && dist < 35) return true // Counter-turbo
       if (this.isCorridorClosing(p1, grid, dist)) return true // Box closure
       if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true // Speedrun straightaway

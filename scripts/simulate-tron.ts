@@ -5,7 +5,7 @@
 import { OccupancyGrid, OCCUPANCY } from '../src/games/fl-tron-3/engine/grid'
 import { createCycle, queueDirection, triggerCycleTurbo, updateCycleTimers, OPPOSITE_DIRECTIONS } from '../src/games/fl-tron-3/engine/cycle'
 import { AIController, SurvivalEngine, PersonalityEngine } from '../src/games/fl-tron-3/engine/ai'
-import { AI_CONFIGS, RULES } from '../src/games/fl-tron-3/engine/config'
+import { AI_CONFIGS, ARENA, RULES } from '../src/games/fl-tron-3/engine/config'
 import { TronEngine } from '../src/games/fl-tron-3/engine/engine'
 import type { DifficultyLevel } from '../src/games/fl-tron-3/engine/types'
 
@@ -19,14 +19,21 @@ const line = (label: string, value: string): void => {
 
 function gridInvariantProbe(): void {
   const grid = new OccupancyGrid()
-  let inBounds = true
-  for (let c = 0; c < grid.cols; c += 1) {
-    for (let r = 0; r < grid.rows; r += 1) {
+  let interiorFree = true
+  for (let c = ARENA.borderInset; c < grid.cols - ARENA.borderInset; c += 1) {
+    for (let r = ARENA.borderInset; r < grid.rows - ARENA.borderInset; r += 1) {
       if (!grid.isInBounds(c, r) || !grid.isFree(c, r)) {
-        inBounds = false
+        interiorFree = false
       }
     }
   }
+
+  // Border cells (edge lines) must be blocked by borderInset
+  const borderBlocked =
+    !grid.isFree(0, 50) &&
+    !grid.isFree(grid.cols - 1, 50) &&
+    !grid.isFree(40, 0) &&
+    !grid.isFree(40, grid.rows - 1)
 
   // Set boundary and verify
   grid.set(10, 10, OCCUPANCY.p1Trail)
@@ -37,8 +44,10 @@ function gridInvariantProbe(): void {
   const openArea = grid.floodFillArea(20, 20, 500)
 
   line('grid dimensions (cols x rows)', `${grid.cols} x ${grid.rows}`)
+  line('border inset excluded hazard margin', `${ARENA.borderInset} cell(s) per edge`)
   line('flood fill open chamber capacity', `${openArea} cells (expected >= 500)`)
-  check('grid initialization in-bounds and empty', inBounds)
+  check('playable grid interior in-bounds and empty', interiorFree)
+  check('border edge cells correctly blocked by borderInset', borderBlocked)
   check('grid occupancy read/write integrity', isOccupied)
   check('out of bounds guard holds', outOfBoundsCheck)
   check('flood fill calculates open chamber', openArea >= 500)
@@ -152,6 +161,25 @@ function aiCampaignScalingProbe(): void {
   // Level 5 6-turbos and Level 6 infinite turbos check
   check('Level 5 Assassin gets 6 turbos', AI_CONFIGS[5].maxTurbos === 6)
   check('Level 6 Master Core gets infinite turbos', AI_CONFIGS[6].infiniteTurbos)
+}
+
+function level5AssassinBehaviorProbe(): void {
+  const grid = new OccupancyGrid()
+  const p1 = createCycle('p1', 20, 75, 'up', 3)
+  const ai = createCycle('ai', 20, 45, 'down', 6)
+  const personality = new PersonalityEngine(5)
+
+  // 1. Normal state: Level 5 prime directive is tailing (intent 'chase', no stairs)
+  const normalMove = personality.proposeMove(ai, p1, grid, 0.1)
+  line('Level 5 prime directive intent', `intent: ${normalMove.intent}, mood: ${personality.currentMood}`)
+  check('Level 5 prime directive is tailing pursuit', normalMove.intent === 'chase')
+  check('Level 5 never enters having_fun staircase state', personality.currentMood !== 'having_fun')
+
+  // 2. Player activates turbo -> Level 5 immediately counter-boosts
+  p1.isTurbo = true
+  const counterTurboMove = personality.proposeMove(ai, p1, grid, 0.1)
+  line('Level 5 counter-boost reaction', `wantsTurbo: ${counterTurboMove.wantsTurbo}`)
+  check('Level 5 reacts to player turbo by triggering AI turbo', counterTurboMove.wantsTurbo)
 }
 
 function ghostCollisionAndInputQueueProbe(): void {
@@ -291,6 +319,7 @@ gridInvariantProbe()
 cycleMechanicsProbe()
 vetoArchitectureProbe()
 aiCampaignScalingProbe()
+level5AssassinBehaviorProbe()
 ghostCollisionAndInputQueueProbe()
 aiPerimeterNavigationProbe()
 
