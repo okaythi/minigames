@@ -175,11 +175,39 @@ function level5AssassinBehaviorProbe(): void {
   check('Level 5 prime directive is tailing pursuit', normalMove.intent === 'chase')
   check('Level 5 never enters having_fun staircase state', personality.currentMood !== 'having_fun')
 
-  // 2. Player activates turbo -> Level 5 immediately counter-boosts
+  // 2. Player activates turbo -> Level 5 immediately counter-boosts (by design)
   p1.isTurbo = true
   const counterTurboMove = personality.proposeMove(ai, p1, grid, 0.1)
   line('Level 5 counter-boost reaction', `wantsTurbo: ${counterTurboMove.wantsTurbo}`)
   check('Level 5 reacts to player turbo by triggering AI turbo', counterTurboMove.wantsTurbo)
+}
+
+function turboBrainTacticalIntelligenceProbe(): void {
+  const grid = new OccupancyGrid()
+
+  // 1. Level 3 has maxTurbos 2, but never uses turbos
+  const l3 = new PersonalityEngine(3)
+  const p1L3 = createCycle('p1', 40, 45, 'left', 3)
+  const aiL3 = createCycle('ai', 40, 50, 'up', 2)
+  const l3Move = l3.proposeMove(aiL3, p1L3, grid, 0.1)
+  check('Level 3 AI never triggers turbo despite having stock', !l3Move.wantsTurbo && AI_CONFIGS[3].turboConfig.enabled === false)
+
+  // 2. Level 4 evaluates genuine cutoff
+  const l4 = new PersonalityEngine(4)
+  const p1L4 = createCycle('p1', 50, 40, 'left', 3)
+  const aiL4 = createCycle('ai', 40, 50, 'up', 3)
+  const l4CutoffMove = l4.proposeMove(aiL4, p1L4, grid, 0.1)
+  check('Level 4 AI triggers turbo on high-payoff geometric cutoff', l4CutoffMove.wantsTurbo)
+
+  // 3. Level 4 does NOT turbo when distant or in empty space
+  const aiL4Far = createCycle('ai', 10, 10, 'down', 3)
+  const p1L4Far = createCycle('p1', 70, 90, 'up', 3)
+  const l4IdleMove = l4.proposeMove(aiL4Far, p1L4Far, grid, 0.1)
+  check('Level 4 AI conserves turbos when no tactical cutoff is available', !l4IdleMove.wantsTurbo)
+
+  // 4. Online tracker records telemetry
+  const metrics = l4.turboBrain.tracker.getMetrics()
+  check('OnlinePlayerTracker produces valid tactical metrics', typeof metrics.playerAggressionScore === 'number')
 }
 
 function staircase1CellMicroStepProbe(): void {
@@ -390,6 +418,7 @@ cycleMechanicsProbe()
 vetoArchitectureProbe()
 aiCampaignScalingProbe()
 level5AssassinBehaviorProbe()
+turboBrainTacticalIntelligenceProbe()
 staircase1CellMicroStepProbe()
 staircaseCommitmentAndMultiStepProbe()
 ghostCollisionAndInputQueueProbe()

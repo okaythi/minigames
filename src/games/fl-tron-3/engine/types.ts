@@ -36,6 +36,7 @@ export interface AILevelConfig {
   readonly offensiveTurbo: boolean
   readonly useVoronoi: boolean
   readonly interceptAggression: number
+  readonly turboConfig: import('./ai/turbo/types').TurboConfig
 }
 
 export interface SmokeParticle {

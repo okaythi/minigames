@@ -4,6 +4,7 @@ import type { OccupancyGrid } from '../grid'
 import type { AILevelConfig, CycleState, DifficultyLevel, Direction } from '../types'
 import { AIPatterns, createInitialPatternState, type PatternState } from './patterns'
 import { SurvivalEngine } from './survival-engine'
+import { TurboBrain } from './turbo'
 import type { AIIntent, MoveProposal } from './types'
 
 export type AIMood = 'aggressive' | 'having_fun' | 'passing_time'
@@ -14,14 +15,12 @@ export class PersonalityEngine {
   private playerDoomed = false
   private diagnosisTimer = 0
   private funCooldownTimer = 0
-  /** Counts time since last turbo opportunity check for the Level 5 8s timer. */
-  private level5TurboTimer = 0
-  private level5TurboWantsTrigger = false
   private elapsedTime = 0
-  private turboHistory: number[] = []
-  private wasTurboLastFrame = false
+  public readonly turboBrain: TurboBrain
 
-  public constructor(private readonly level: DifficultyLevel) {}
+  public constructor(private readonly level: DifficultyLevel) {
+    this.turboBrain = new TurboBrain(AI_CONFIGS[level].turboConfig)
+  }
 
   public get currentMood(): AIMood {
     return this.mood
@@ -46,14 +45,7 @@ export class PersonalityEngine {
   ): MoveProposal {
     const config = AI_CONFIGS[this.level]
     this.elapsedTime += dt
-
-    if (ai.isTurbo && !this.wasTurboLastFrame) {
-      this.turboHistory.push(this.elapsedTime)
-    }
-    this.wasTurboLastFrame = ai.isTurbo
-
-    // Filter out turbos older than 7.2s
-    this.turboHistory = this.turboHistory.filter(t => this.elapsedTime - t <= 7.2)
+    this.turboBrain.update(p1, ai, dt)
 
     // 1. Periodically diagnose whether the player is doomed (Level 3 onwards)
     if (config.level >= 3) {
@@ -62,17 +54,6 @@ export class PersonalityEngine {
         this.diagnosisTimer = 0
         const diagnosis = SurvivalEngine.diagnosePlayer(p1, ai, grid)
         this.playerDoomed = diagnosis.playerDoomed
-      }
-    }
-
-    // Advance Level 5 8-second cutoff turbo interval
-    if (config.level === 5) {
-      this.level5TurboTimer += dt
-      if (this.level5TurboTimer >= 8.0) {
-        this.level5TurboTimer = 0
-        if (Math.random() < 0.40) {
-          this.level5TurboWantsTrigger = true
-        }
       }
     }
 
@@ -116,13 +97,7 @@ export class PersonalityEngine {
       }
 
       this.mood = 'having_fun'
-      const isApproach = config.level === 4 && distToPlayer < 38 && distToPlayer > 8
-      const wantsTurbo =
-        isApproach &&
-        !ai.isTurbo &&
-        ai.turboCooldown === 0 &&
-        ai.turbosLeft > 1 &&
-        Math.random() < 0.2
+      const wantsTurbo = this.turboBrain.evaluateIntent(ai, p1, grid)
 
       return {
         desiredDir: dir,
@@ -227,7 +202,7 @@ export class PersonalityEngine {
       intent = 'wander'
     }
 
-    const wantsTurbo = this.evaluateTurboIntent(ai, p1, grid, config)
+    const wantsTurbo = this.turboBrain.evaluateIntent(ai, p1, grid)
 
     return {
       desiredDir: chosenDir,
@@ -429,45 +404,6 @@ export class PersonalityEngine {
     return bestDir
   }
 
-  private evaluateTurboIntent(
-    ai: CycleState,
-    p1: CycleState,
-    grid: OccupancyGrid,
-    config: AILevelConfig,
-  ): boolean {
-    if (!config.offensiveTurbo || ai.isTurbo || ai.turboCooldown > 0) return false
-    if (!config.infiniteTurbos && ai.turbosLeft <= 0) return false
-
-    if (this.turboHistory.length >= 3) return false // Rate limit
-
-    if (config.level === 5) {
-      if (p1.isTurbo) return true
-
-      if (this.level5TurboWantsTrigger) {
-        if (this.isTacticalCutoff(ai, p1)) {
-          this.level5TurboWantsTrigger = false
-          return true
-        }
-      }
-
-      if (this.isEscapeNeeded(ai, grid)) return true
-      return false
-    }
-
-    const dist = Math.hypot(ai.col - p1.col, ai.row - p1.row)
-
-    if (this.isEscapeNeeded(ai, grid)) return true 
-    if (this.isTacticalCutoff(ai, p1)) return true
-
-    if (config.level >= 6) {
-      if (p1.isTurbo && dist < 35) return true
-      if (this.isCorridorClosing(p1, grid, dist)) return true
-      if (dist > 20 && dist < 45 && SurvivalEngine.getClearRunway(ai.col, ai.row, ai.dir, grid) > 16) return true
-    }
-
-    return false
-  }
-
   private pickDirTowardTarget(
     ai: CycleState,
     target: CycleState,
@@ -479,55 +415,5 @@ export class PersonalityEngine {
     const distLeft = Math.hypot(ai.col + leftVec.x - target.col, ai.row + leftVec.y - target.row)
     const distRight = Math.hypot(ai.col + rightVec.x - target.col, ai.row + rightVec.y - target.row)
     return distLeft <= distRight ? leftDir : rightDir
-  }
-
-  private isTacticalCutoff(ai: CycleState, p1: CycleState): boolean {
-    const aiVec = DIRECTION_VECTORS[ai.dir]
-    const p1Vec = DIRECTION_VECTORS[p1.dir]
-    
-    const isPerp = Math.abs(aiVec.x * p1Vec.x + aiVec.y * p1Vec.y) === 0
-    const dx = p1.col - ai.col
-    const dy = p1.row - ai.row
-    
-    if (isPerp) {
-      let aiDistToIntersect = 0
-      let p1DistToIntersect = 0
-      
-      if (aiVec.x !== 0) {
-        if (Math.sign(dx) === Math.sign(aiVec.x) && Math.sign(dy) === Math.sign(p1Vec.y)) {
-           aiDistToIntersect = Math.abs(dx)
-           p1DistToIntersect = Math.abs(dy)
-        }
-      } else {
-        if (Math.sign(dy) === Math.sign(aiVec.y) && Math.sign(dx) === Math.sign(p1Vec.x)) {
-           aiDistToIntersect = Math.abs(dy)
-           p1DistToIntersect = Math.abs(dx)
-        }
-      }
-      
-      if (aiDistToIntersect > 0 && p1DistToIntersect > 0) {
-         if (aiDistToIntersect > p1DistToIntersect && (aiDistToIntersect / 1.8) < p1DistToIntersect) return true
-         if (aiDistToIntersect <= p1DistToIntersect && aiDistToIntersect > 3 && p1DistToIntersect < 20) return true
-      }
-    } else {
-      const sameDir = aiVec.x === p1Vec.x && aiVec.y === p1Vec.y
-      if (sameDir) {
-         const isBehind = (aiVec.x !== 0 && Math.sign(dx) === Math.sign(aiVec.x)) || 
-                          (aiVec.y !== 0 && Math.sign(dy) === Math.sign(aiVec.y))
-         const dist = Math.abs(dx) + Math.abs(dy)
-         if (isBehind && dist > 5 && dist < 25) return true
-      }
-    }
-    return false
-  }
-
-  private isCorridorClosing(p1: CycleState, grid: OccupancyGrid, dist: number): boolean {
-    const p1Chamber = grid.floodFillArea(p1.col, p1.row, 120)
-    return p1Chamber < 70 && dist < 18
-  }
-
-  private isEscapeNeeded(ai: CycleState, grid: OccupancyGrid): boolean {
-    const chamber = grid.floodFillArea(ai.col, ai.row, 90)
-    return chamber < 40
   }
 }
