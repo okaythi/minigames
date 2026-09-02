@@ -106,6 +106,23 @@ export class ParticleSystem {
     )
   }
 
+  public moverBurst(point: Vec2, random: () => number): void {
+    this.emit(
+      {
+        origin: point,
+        count: JUICE.moverSparks,
+        speed: 190,
+        spread: Math.PI * 2,
+        heading: 0,
+        colors: [PALETTE.red, PALETTE.redDeep, PALETTE.redTint, PALETTE.paper],
+        shapes: ['shard', 'spark', 'ring'],
+        ttl: 0.48,
+        gravity: 280,
+      },
+      random,
+    )
+  }
+
   public update(dt: number, random: () => number): void {
     for (let index = this.items.length - 1; index >= 0; index -= 1) {
       const particle = this.items[index]

@@ -4,7 +4,7 @@
  * assets and no decode step.
  */
 
-export type SfxName = 'flap' | 'bounce' | 'candy' | 'death' | 'start' | 'ui'
+export type SfxName = 'flap' | 'bounce' | 'candy' | 'death' | 'start' | 'ui' | 'dissolve'
 
 export interface Voice {
   readonly kind: OscillatorType
@@ -69,5 +69,11 @@ export const SFX: Readonly<Record<SfxName, SoundDesign>> = {
   },
   ui: {
     voices: [{ kind: 'sine', from: 620, to: 520, delay: 0, duration: 0.05, gain: 0.05 }],
+  },
+  dissolve: {
+    voices: [
+      { kind: 'sine', from: 320, to: 160, delay: 0, duration: 0.12, gain: 0.04, curve: 'exp' },
+    ],
+    noise: { delay: 0, duration: 0.08, gain: 0.03, filterFrom: 1800, filterTo: 400 },
   },
 }

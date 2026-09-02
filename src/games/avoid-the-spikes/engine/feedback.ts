@@ -48,6 +48,11 @@ export class Feedback {
     this.particles.candyBurst(point, random)
   }
 
+  /** A dissolved floating spike: shards and rings throw outward. */
+  public clearMover(point: Vec2, random: () => number): void {
+    this.particles.moverBurst(point, random)
+  }
+
   public update(dt: number, random: () => number): void {
     this.particles.update(dt, random)
     const decay = Math.min(1, dt * 6)

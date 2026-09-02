@@ -10,8 +10,6 @@ import type { Mover, MoverAxis, Rect, Triangle, Vec2 } from './types'
  * passes `MOVERS.unlockScore` you have to time the crossing, not just mash.
  */
 
-const AXES: readonly MoverAxis[] = ['vertical', 'horizontal']
-
 const boundsFor = (axis: MoverAxis): Readonly<{ min: number; max: number }> =>
   axis === 'vertical'
     ? {
@@ -49,6 +47,7 @@ export const desiredMoverCount = (score: number): number => {
 
 export class MoverField {
   private movers: Mover[] = []
+  private attractor = { u: 0.1, v: 0.1 }
 
   public list(): readonly Mover[] {
     return this.movers
@@ -70,19 +69,41 @@ export class MoverField {
   }
 
   private spawn(playerPos: Vec2, score: number, random: Random): Mover | null {
+    // Clifford strange attractor projection: deterministic non-linear orbits
+    const a = -1.4 + 0.05 * Math.sin(score * 0.31)
+    const b = 1.6 + 0.05 * Math.cos(score * 0.27)
+    const c = 1.0
+    const d = 0.7
+
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      const axis = random.pick(AXES)
+      this.attractor.u = Math.sin(a * this.attractor.v) + c * Math.cos(a * this.attractor.u)
+      this.attractor.v = Math.cos(b * this.attractor.u) + d * Math.sin(b * this.attractor.v)
+
+      // Normalize attractor phase [-2, 2] into [0, 1]
+      const nx = (this.attractor.u + 2) / 4
+      const ny = (this.attractor.v + 2) / 4
+
+      const axis = (attempt % 2 === 0 ? nx > 0.5 : random.chance(0.5)) ? 'vertical' : 'horizontal'
       const bounds = boundsFor(axis)
       const speed = moverSpeed(score, MOVERS.baseSpeed, MOVERS.speedPerScore, MOVERS.maxSpeed)
       const jitter = random.range(-speed * 0.18, speed * 0.18)
-      const along = random.range(bounds.min, bounds.max)
-      const across = axis === 'vertical' ? random.range(110, ARENA.width - 110) : random.range(120, ARENA.height - 120)
+
+      const along = bounds.min + (axis === 'vertical' ? ny : nx) * (bounds.max - bounds.min)
+      const across =
+        axis === 'vertical' ? 110 + nx * (ARENA.width - 220) : 120 + ny * (ARENA.height - 240)
       const pos: Vec2 = axis === 'vertical' ? { x: across, y: along } : { x: along, y: across }
-      const direction = random.chance(0.5) ? 1 : -1
+      const direction = (axis === 'vertical' ? ny > 0.5 : nx > 0.5) ? 1 : -1
 
       if (distance(pos, playerPos) < MOVERS.spawnDistance) {
         continue
       }
+
+      // Maintain minimum separation so trajectories never merge into an impenetrable wall
+      const tooClose = this.movers.some((m) => distance(m.pos, pos) < 54)
+      if (tooClose) {
+        continue
+      }
+
       const vel: Vec2 =
         axis === 'vertical'
           ? { x: 0, y: direction * (speed + jitter) }
@@ -103,6 +124,28 @@ export class MoverField {
   }
 
   public update(dt: number): void {
+    // Harmonic phase coupling: movers sharing an axis gently repel in phase,
+    // forming dynamic alternating gates rather than overlapping in clumps.
+    for (let i = 0; i < this.movers.length; i += 1) {
+      for (let j = i + 1; j < this.movers.length; j += 1) {
+        const m1 = this.movers[i]
+        const m2 = this.movers[j]
+        if (m1 && m2 && m1.axis === m2.axis) {
+          const delta = m1.axis === 'vertical' ? m1.pos.y - m2.pos.y : m1.pos.x - m2.pos.x
+          if (Math.abs(delta) < 58) {
+            const push = Math.sign(delta || 1) * 14 * dt
+            if (m1.axis === 'vertical') {
+              m1.pos.y += push
+              m2.pos.y -= push
+            } else {
+              m1.pos.x += push
+              m2.pos.x -= push
+            }
+          }
+        }
+      }
+    }
+
     for (const mover of this.movers) {
       mover.age += dt
       mover.pos.x += mover.vel.x * dt
@@ -141,5 +184,10 @@ export class MoverField {
 
   public reset(): void {
     this.movers = []
+    this.attractor = { u: 0.1, v: 0.1 }
+  }
+
+  public clear(): void {
+    this.reset()
   }
 }

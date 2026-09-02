@@ -46,6 +46,7 @@ export interface AvoidSessionDeps {
   readonly onFrame?: (playerY: number) => void
   readonly onCandyCollected?: (runTotal: number, lifetimeTotal: number) => void
   readonly onMoverDodge?: (dodgesThisRun: number) => void
+  readonly onMoversDestroyed?: (count: number) => void
 }
 
 export class AvoidSession {
@@ -67,6 +68,7 @@ export class AvoidSession {
 
   private accumulator = 0
   private restartLock = 0
+  private candyBufferRoundsRemaining = 0
   private snapshot: AvoidSnapshot
 
   public constructor(private readonly deps: AvoidSessionDeps) {
@@ -132,6 +134,7 @@ export class AvoidSession {
     this.candyRun = 0
     this.accumulator = 0
     this.restartLock = 0
+    this.candyBufferRoundsRemaining = 0
     this.walls.clear()
     this.movers.reset()
     this.pickups.reset()
@@ -215,7 +218,9 @@ export class AvoidSession {
     advance(this.player, dt, this.score)
     advanceTrail(this.player, dt)
     this.walls.update(dt)
-    this.movers.sync(this.score, this.player.pos, this.deps.random)
+    if (this.candyBufferRoundsRemaining === 0) {
+      this.movers.sync(this.score, this.player.pos, this.deps.random)
+    }
     this.movers.update(dt)
     this.pickups.update(dt, this.player.pos, this.deps.random, (pickup) => {
       this.collect(pickup.pos)
@@ -253,6 +258,13 @@ export class AvoidSession {
     this.walls.spend(side)
     this.armOpposite(side)
 
+    if (this.candyBufferRoundsRemaining > 0) {
+      this.candyBufferRoundsRemaining -= 1
+    }
+    if (this.candyBufferRoundsRemaining === 0) {
+      this.movers.sync(this.score, this.player.pos, this.deps.random)
+    }
+
     this.feedback.bounce(point, spikeNormal(side), side, () => this.deps.random.next())
     this.deps.audio.play('bounce')
     this.deps.onBounce?.(this.score, this.movers.list().length, this.elapsed)
@@ -281,6 +293,19 @@ export class AvoidSession {
     this.candyBank += 1
     this.feedback.collect(at, () => this.deps.random.next())
     this.deps.audio.play('candy')
+
+    const activeMovers = this.movers.list()
+    if (activeMovers.length > 0) {
+      for (const mover of activeMovers) {
+        this.feedback.clearMover(mover.pos, () => this.deps.random.next())
+      }
+      const count = activeMovers.length
+      this.movers.clear()
+      this.deps.audio.play('dissolve')
+      this.deps.onMoversDestroyed?.(count)
+    }
+    this.candyBufferRoundsRemaining = 2
+
     this.deps.onCandy(1)
     this.deps.onCandyCollected?.(this.candyRun, this.candyBank)
     this.publish()

@@ -133,6 +133,7 @@ export const JUICE = {
   bounceSparks: 14,
   deathSparks: 30,
   candySparks: 12,
+  moverSparks: 16,
   flashOnDeath: 0.5,
   /** Wall contact briefly widens the arena outline. */
   wallFlash: 0.22,
