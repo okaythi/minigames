@@ -40,7 +40,7 @@ function renderLeftImage(snapshot: GameSnapshot) {
   const src = `/images/ai/${imageName}.png`
 
   return (
-    <div style={{ flex: 1, position: 'relative', width: '200px' }}>
+    <div style={{ flex: 1, position: 'relative', width: '220px' }}>
       <img 
         src={src} 
         alt={`AI State: ${imageName}`} 
@@ -48,7 +48,7 @@ function renderLeftImage(snapshot: GameSnapshot) {
           position: 'absolute',
           bottom: 0,
           right: 0,
-          maxHeight: '50%',
+          maxHeight: '60%',
           objectFit: 'contain',
           objectPosition: 'bottom right',
           display: 'block',
