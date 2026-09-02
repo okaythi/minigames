@@ -19,6 +19,8 @@ export class TronEngine {
   private isPaused = false
   public isStarted = false
   private achievements: TronAchievementTracker | null
+  private roundElapsedSeconds = 0
+  private lastP1TurnTime = 0
 
   public constructor(
     public readonly deps: { readonly current: GameRuntimeDeps },
@@ -199,6 +201,8 @@ export class TronEngine {
   }
 
   private setupRound(): void {
+    this.roundElapsedSeconds = 0
+    this.achievements?.onRoundStart(this.state.level)
     this.grid.reset()
     const p1Col = 20
     const p1Row = 75
@@ -242,6 +246,7 @@ export class TronEngine {
 
   private updatePlaying(dt: number): void {
     this.state.elapsedRunSeconds += dt
+    this.roundElapsedSeconds += dt
 
     // Update bike hum modulation based on turbo states
     const anyTurbo = this.state.p1.isTurbo || this.state.ai.isTurbo
@@ -338,6 +343,19 @@ export class TronEngine {
         cycle.col = targetCol
         cycle.row = targetRow
 
+        // Check P1 perimeter touch and Turbo Cut
+        if (cycle.id === 'p1') {
+          if (cycle.col <= 1 || cycle.col >= this.grid.cols - 2 || cycle.row <= 1 || cycle.row >= this.grid.rows - 2) {
+            this.achievements?.onPerimeterTouch()
+          }
+          if (cycle.isTurbo) {
+            const distToAi = Math.abs(cycle.col - this.state.ai.col) + Math.abs(cycle.row - this.state.ai.row)
+            if (distToAi <= 6) {
+              this.achievements?.onTurboCut()
+            }
+          }
+        }
+
         // One Turn Per Cell Entry:
         // Filter expired inputs first (TTL 1.2s)
         const validInputs = cycle.inputBuffer.filter((entry) => entry.expiresAt > now)
@@ -360,6 +378,14 @@ export class TronEngine {
 
           // Valid 90° turn found!
           cycle.dir = nextDir
+
+          if (cycle.id === 'p1') {
+            this.achievements?.onBuffered90()
+            if (this.lastP1TurnTime > 0 && now - this.lastP1TurnTime <= 0.2) {
+              this.achievements?.onHairpinDouble()
+            }
+            this.lastP1TurnTime = now
+          }
 
           // Add a corner waypoint at exact grid cell center for seamless visual fill
           if (currentSeg) {
@@ -392,16 +418,22 @@ export class TronEngine {
     if (p1Crashed && aiCrashed) {
       this.state.roundWinner = 'tie'
       this.state.bannerText = 'DOUBLE CRASH · TIE'
+      this.achievements?.onRoundLost()
     } else if (p1Crashed) {
       this.state.roundWinner = 'ai'
       this.state.aiRoundWins += 1
       this.state.bannerText = `${AI_CONFIGS[this.state.level].name.toUpperCase()} WINS ROUND`
       this.audio.play('round_loss')
+      this.achievements?.onRoundLost()
     } else {
       this.state.roundWinner = 'p1'
       this.state.p1RoundWins += 1
       this.state.bannerText = 'PLAYER 1 WINS ROUND'
       this.audio.play('round_win')
+      if (this.state.p1.isTurbo) {
+        this.achievements?.onTurboCut()
+      }
+      this.achievements?.onRoundWon(this.roundElapsedSeconds)
     }
 
     this.state.phase = 'round_over'
@@ -414,11 +446,13 @@ export class TronEngine {
     if (this.state.phaseTimer <= 0) {
       if (this.state.p1RoundWins >= RULES.roundsToWinLevel) {
         // Player won the level!
+        this.achievements?.onLevelDefeated(this.state.level)
         if (this.state.level >= RULES.totalLevels) {
           this.state.phase = 'victory'
           this.audio.play('level_clear')
           const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
           this.deps.current.finishRun(finalScore)
+          this.achievements?.onCampaignComplete(this.state.elapsedRunSeconds)
         } else {
           this.state.phase = 'intermission'
           this.audio.play('level_clear')
