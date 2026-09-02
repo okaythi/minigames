@@ -88,6 +88,8 @@ export function GamePage({ slug }: GamePageProps) {
           src={manifest.banner}
           alt=""
           aria-hidden="true"
+          draggable={false}
+          data-protected-image="true"
           style={manifest.bannerAspectRatio ? { aspectRatio: manifest.bannerAspectRatio } : undefined}
         />
       )}

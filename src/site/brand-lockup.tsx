@@ -7,7 +7,7 @@ import './brand.css'
 export function BrandLockup({ compact = false }: { readonly compact?: boolean }) {
   return (
     <span className="nx-brand" data-compact={compact ? 'true' : undefined}>
-      <img className="nx-brand-mark" src="/nixlabs-mark.svg" alt="" width={72} height={48} />
+      <img className="nx-brand-mark" src="/nixlabs-mark.svg" alt="" width={72} height={48} draggable={false} data-protected-image="true" />
       <span className="nx-brand-word">
         <strong>Nixlabs</strong>
         {!compact && <span className="nx-brand-suffix">Games</span>}

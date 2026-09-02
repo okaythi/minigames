@@ -17,7 +17,7 @@ export function NotFoundPage({ path }: { readonly path: string }) {
         {MANIFESTS.map((manifest) => (
           <li key={manifest.slug}>
             <Link to={ROUTES.game(manifest.slug)}>
-              <img src={manifest.cover} alt="" />
+              <img src={manifest.cover} alt="" draggable={false} data-protected-image="true" />
               <span>
                 <strong>{manifest.title}</strong>
                 <em>{manifest.tagline}</em>

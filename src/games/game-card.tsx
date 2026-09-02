@@ -24,7 +24,7 @@ export function GameCard({ manifest }: { readonly manifest: GameManifest }) {
   return (
     <article className="nx-card" data-accent={manifest.accent}>
       <Link to={ROUTES.game(manifest.slug)} className="nx-card-media" tabIndex={-1} aria-hidden="true">
-        <img src={manifest.cover} alt="" loading="lazy" decoding="async" />
+        <img src={manifest.cover} alt="" loading="lazy" decoding="async" draggable={false} data-protected-image="true" />
         <span className="nx-card-cta">
           Play
           <svg viewBox="0 0 16 16" aria-hidden="true">

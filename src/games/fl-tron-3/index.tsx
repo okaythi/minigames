@@ -43,7 +43,9 @@ function renderLeftImage(snapshot: GameSnapshot) {
     <div style={{ flex: 1, position: 'relative', width: '220px' }}>
       <img 
         src={src} 
-        alt={`AI State: ${imageName}`} 
+        alt="" 
+        draggable={false}
+        data-protected-image="true"
         style={{ 
           position: 'absolute',
           bottom: 0,
@@ -52,8 +54,29 @@ function renderLeftImage(snapshot: GameSnapshot) {
           objectFit: 'contain',
           objectPosition: 'bottom right',
           display: 'block',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          userSelect: 'none',
         }} 
+      />
+      {/* Invisible shield to block inspect element and direct image interactions */}
+      <div 
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 5,
+          cursor: 'default',
+          background: 'transparent',
+          pointerEvents: 'auto'
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        onDragStart={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
       />
     </div>
   )

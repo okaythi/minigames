@@ -48,7 +48,7 @@ export function SearchResults({
                   onMouseEnter={() => onSelectIndex(index)}
                   onClick={() => onSelectGame(result.manifest.slug)}
                 >
-                  <img className="nx-search-thumb" src={result.manifest.cover} alt="" />
+                  <img className="nx-search-thumb" src={result.manifest.cover} alt="" draggable={false} data-protected-image="true" />
                   <span className="nx-search-copy">
                     <span className="nx-search-title">
                       <Highlighted text={result.manifest.title} match={result.titleMatch} />

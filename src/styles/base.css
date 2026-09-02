@@ -78,11 +78,39 @@ button {
 canvas {
   display: block;
   touch-action: manipulation;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
-img {
+img,
+svg,
+picture,
+[data-protected-image] {
   display: block;
   max-width: 100%;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+.nx-protected-layer {
+  position: relative;
+  overflow: hidden;
+}
+
+.nx-protected-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: auto;
+  background: transparent;
 }
 
 ul,
