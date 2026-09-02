@@ -345,7 +345,7 @@ export function statsDevPlugin(): Plugin {
                 name: def.name,
                 description: def.description,
                 icon: def.icon,
-                unlocked: unlocked || (def.id === 'identity_lab_pioneer' && user.legacyUser),
+                unlocked: unlocked || (def.id === 'identity_lab_pioneer' && user.legacyUser) || def.id === 'identity_claimed' || def.id === 'identity_picture_perfect',
                 unlockedAt: state?.unlockedAt ?? null,
                 progress: def.maxProgress !== null ? { current: progress, max: def.maxProgress } : undefined,
               }
