@@ -40,73 +40,163 @@ export function AuthPopover() {
       const me = await getMe()
       setUser(me)
       setIsOpen(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred'
+      setError(message)
     }
   }
 
   return (
-    <div className="auth-popover-container" ref={ref} style={{ position: 'relative' }}>
-      <button 
-        className="auth-toggle" 
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}
-      >
-        {user ? (
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', 
-            background: 'var(--nx-orange-deep)', color: 'white', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold'
-          }}>
-            {user.pfpUrl ? <img src={user.pfpUrl} alt="pfp" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : user.username.charAt(0).toUpperCase()}
+    <div className="nx-auth-container" ref={ref}>
+      {user ? (
+        <button
+          type="button"
+          className="nx-nav-link nx-nav-avatar-btn"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={`User menu for ${user.username}`}
+          data-active={isOpen ? 'true' : undefined}
+        >
+          <div className="nx-nav-avatar-circle">
+            {user.pfpUrl ? (
+              <img src={user.pfpUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              user.username.charAt(0).toUpperCase()
+            )}
           </div>
-        ) : (
-          <span style={{ color: 'var(--nx-ink)', fontWeight: 500 }}>Log in</span>
-        )}
-      </button>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="nx-nav-link"
+          onClick={() => setIsOpen(!isOpen)}
+          data-active={isOpen ? 'true' : undefined}
+        >
+          Log in
+        </button>
+      )}
 
       {isOpen && (
-        <div style={{
-          position: 'absolute', right: 0, top: '40px', background: 'var(--nx-card)', 
-          border: 'var(--nx-hairline)', borderRadius: 'var(--nx-radius)', padding: '16px', 
-          width: '240px', boxShadow: 'var(--nx-shadow-lift)', zIndex: 100
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 8px)',
+            background: 'var(--nx-card)',
+            border: 'var(--nx-hairline)',
+            borderRadius: 'var(--nx-radius)',
+            padding: '16px',
+            width: '260px',
+            boxShadow: 'var(--nx-shadow-lift)',
+            zIndex: 100,
+          }}
+        >
           {user ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--nx-ink)' }}>@{user.username}</div>
-              {user.nickname && <div style={{ fontSize: '14px', color: 'var(--nx-slate)' }}>{user.nickname}</div>}
-              <hr style={{ border: 0, borderTop: 'var(--nx-hairline)' }} />
-              <button onClick={() => { setIsOpen(false); navigate(ROUTES.settings) }} style={{
-                background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--nx-ink)'
-              }}>Settings</button>
-              <button onClick={() => { setIsOpen(false); navigate(ROUTES.userProfile(user.username)) }} style={{
-                background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--nx-ink)'
-              }}>Public Profile</button>
-              <button onClick={logout} style={{
-                background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--nx-red)'
-              }}>Log out</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="nx-nav-avatar-circle" style={{ width: '36px', height: '36px', fontSize: '15px' }}>
+                  {user.pfpUrl ? (
+                    <img src={user.pfpUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    user.username.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--nx-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    @{user.username}
+                  </div>
+                  {user.nickname && (
+                    <div style={{ fontSize: '12px', color: 'var(--nx-slate)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.nickname}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <hr style={{ border: 0, borderTop: 'var(--nx-hairline)', margin: '4px 0' }} />
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false)
+                  navigate(ROUTES.settings)
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: 'var(--nx-ink)',
+                  fontSize: '13.5px',
+                  padding: '6px 8px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  font: 'inherit',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Settings
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false)
+                  navigate(ROUTES.userProfile(user.username))
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: 'var(--nx-ink)',
+                  fontSize: '13.5px',
+                  padding: '6px 8px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  font: 'inherit',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Public Profile
+              </button>
+              <hr style={{ border: 0, borderTop: 'var(--nx-hairline)', margin: '4px 0' }} />
+              <button
+                type="button"
+                onClick={() => {
+                  void logout()
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: 'var(--nx-red)',
+                  fontSize: '13.5px',
+                  padding: '6px 8px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  font: 'inherit',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--nx-sand)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Log out
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--nx-ink)', marginBottom: '8px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--nx-ink)' }}>
                 {mode === 'login' ? 'Log in' : 'Create Account'}
               </div>
               <input
                 type="text"
                 placeholder="Username"
                 value={username}
-                onChange={e => setUsername(e.target.value.toLowerCase())}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                 style={{
-                  padding: '8px', borderRadius: 'var(--nx-radius-sm)', border: 'var(--nx-hairline)',
-                  background: 'var(--nx-paper)', color: 'var(--nx-ink)', outline: 'none'
+                  padding: '7px 10px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  border: 'var(--nx-hairline)',
+                  background: 'var(--nx-paper)',
+                  color: 'var(--nx-ink)',
+                  fontSize: '13px',
+                  outline: 'none',
                 }}
                 required
               />
@@ -114,25 +204,53 @@ export function AuthPopover() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 style={{
-                  padding: '8px', borderRadius: 'var(--nx-radius-sm)', border: 'var(--nx-hairline)',
-                  background: 'var(--nx-paper)', color: 'var(--nx-ink)', outline: 'none'
+                  padding: '7px 10px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  border: 'var(--nx-hairline)',
+                  background: 'var(--nx-paper)',
+                  color: 'var(--nx-ink)',
+                  fontSize: '13px',
+                  outline: 'none',
                 }}
                 required
               />
               {error && <div style={{ color: 'var(--nx-red)', fontSize: '12px' }}>{error}</div>}
-              <button type="submit" style={{
-                padding: '8px', borderRadius: 'var(--nx-radius-sm)', border: 'none',
-                background: 'var(--nx-orange)', color: 'var(--nx-card)', fontWeight: 600, cursor: 'pointer'
-              }}>
+              <button
+                type="submit"
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 'var(--nx-radius-sm)',
+                  border: 'none',
+                  background: 'var(--nx-orange)',
+                  color: 'var(--nx-card)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'opacity var(--nx-duration) var(--nx-ease)',
+                }}
+              >
                 {mode === 'login' ? 'Log in' : 'Sign up'}
               </button>
-              <div style={{ fontSize: '12px', textAlign: 'center', marginTop: '8px', color: 'var(--nx-slate)' }}>
-                {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
-                <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }} style={{
-                  background: 'none', border: 'none', color: 'var(--nx-orange)', cursor: 'pointer', padding: 0
-                }}>
+              <div style={{ fontSize: '12px', textAlign: 'center', marginTop: '4px', color: 'var(--nx-slate)' }}>
+                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(mode === 'login' ? 'register' : 'login')
+                    setError('')
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--nx-orange)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontSize: '12px',
+                    fontWeight: 500,
+                  }}
+                >
                   {mode === 'login' ? 'Sign up' : 'Log in'}
                 </button>
               </div>

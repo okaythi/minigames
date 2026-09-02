@@ -1,11 +1,9 @@
 import { Link } from '../app/link'
-import { useState, useRef } from 'react'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
 import type { GameManifest } from '../games/types'
 import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
-import { SyncModal } from './sync-modal'
 import { AuthPopover } from './auth-popover'
 import { MigrationBanner } from './migration-banner'
 import './site-header.css'
@@ -17,8 +15,6 @@ interface SiteHeaderProps {
 export function SiteHeader({ manifests }: SiteHeaderProps) {
   const { route } = useRouter()
   const isAbout = route.name === 'about'
-  const [syncOpen, setSyncOpen] = useState(false)
-  const syncBtnRef = useRef<HTMLButtonElement>(null)
 
   return (
     <>
@@ -40,12 +36,6 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
             <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
               About
             </Link>
-            <div className="nx-sync-container">
-              <button ref={syncBtnRef} className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
-                Sync
-              </button>
-              <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} triggerRef={syncBtnRef} />
-            </div>
             <AuthPopover />
           </nav>
         </div>
