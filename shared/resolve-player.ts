@@ -1,4 +1,4 @@
-import { randomUuid } from './player-cookie'
+
 
 /**
  * The identity waterfall, in one place, with no storage of its own.
@@ -24,7 +24,7 @@ export interface PlayerIdentityLookups {
 }
 
 export interface ResolvedPlayer {
-  readonly id: string
+  readonly id: string | null
   /** Nothing matched: the caller has to insert the row this visit creates. */
   readonly minted: boolean
   /** The browser has no usable cookie: the caller has to send one again. */
@@ -48,5 +48,6 @@ export async function resolvePlayer(
       return { id: recovered, minted: false, reanchor: true }
     }
   }
-  return { id: randomUuid(), minted: true, reanchor: true }
+  // NEW RULE: Do not mint new anonymous IDs. Return null for new users.
+  return { id: null, minted: false, reanchor: false }
 }

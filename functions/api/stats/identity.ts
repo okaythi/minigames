@@ -10,19 +10,9 @@ import {
 import { resolvePlayer } from '../../../shared/resolve-player'
 import type { StatsStore } from '../../../shared/stats-store'
 
-/**
- * Reads the three identity signals off a request and turns them into one
- * player id, in the order the site trusts them: cookie, then the id this
- * browser kept for itself, then the device hash. The rules live in
- * `shared/resolve-player.ts`; this file only speaks HTTP.
- */
-
 export interface IdentifiedPlayer {
-  /** `null` only when the visitor is anonymous *and* the store is not bound. */
   readonly playerId: string | null
-  /** Set this on the response when the browser could not be anchored. */
   readonly cookie: string | null
-  /** The validated device hash, to store against the player for next time. */
   readonly fingerprint: string | null
 }
 
@@ -47,7 +37,7 @@ export async function identifyPlayer(
   )
   return {
     playerId: resolved.id,
-    cookie: resolved.reanchor ? serializePlayerCookie(resolved.id) : null,
+    cookie: resolved.reanchor && resolved.id !== null ? serializePlayerCookie(resolved.id) : null,
     fingerprint,
   }
 }

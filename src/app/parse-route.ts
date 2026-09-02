@@ -5,10 +5,13 @@ import type { Route } from './route-types'
 export const ROUTES = {
   home: '/',
   about: '/about',
+  settings: '/settings',
   game: (slug: string): string => `/games/${slug}`,
+  userProfile: (username: string): string => `/users/${username}`,
 } as const
 
 export const GAME_SEGMENT = '/games/' as const
+export const USER_SEGMENT = '/users/' as const
 
 export function parseRoute(pathname: string, search: string): Route {
   const path = normalizePathname(pathname)
@@ -21,10 +24,21 @@ export function parseRoute(pathname: string, search: string): Route {
     return { name: 'about', query: readQuery(search) }
   }
 
+  if (path === '/settings') {
+    return { name: 'settings', query: readQuery(search) }
+  }
+
   if (path.startsWith(GAME_SEGMENT)) {
     const slug = path.slice(GAME_SEGMENT.length).replace(/\/+$/, '')
     if (slug.length > 0) {
       return { name: 'game', slug, query: readQuery(search) }
+    }
+  }
+
+  if (path.startsWith(USER_SEGMENT)) {
+    const username = path.slice(USER_SEGMENT.length).replace(/\/+$/, '')
+    if (username.length > 0) {
+      return { name: 'user-profile', username, query: readQuery(search) }
     }
   }
 

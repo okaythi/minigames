@@ -53,7 +53,7 @@ export function statsDevPlugin(): Plugin {
                 player: snapshot.player,
                 distributed: store.distributed,
               },
-              identity.reanchor ? serializePlayerCookie(identity.id) : null,
+              identity.reanchor && identity.id !== null ? serializePlayerCookie(identity.id) : null,
             )
           })
           return
@@ -84,7 +84,7 @@ export function statsDevPlugin(): Plugin {
             res,
             200,
             { ok: true, stats: result.stats, uniquePlayers: result.uniquePlayers, player: result.player },
-            identity.reanchor ? serializePlayerCookie(identity.id) : null,
+            identity.reanchor && identity.id !== null ? serializePlayerCookie(identity.id) : null,
           )
         })
       }

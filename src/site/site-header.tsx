@@ -6,6 +6,8 @@ import type { GameManifest } from '../games/types'
 import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
 import { SyncModal } from './sync-modal'
+import { AuthPopover } from './auth-popover'
+import { MigrationBanner } from './migration-banner'
 import './site-header.css'
 
 interface SiteHeaderProps {
@@ -19,31 +21,35 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
   const syncBtnRef = useRef<HTMLButtonElement>(null)
 
   return (
-    <header className="nx-header">
-      <div className="nx-header-inner nx-page">
-        <Link to={ROUTES.home} className="nx-header-brand" aria-label="Nixlabs Games - home">
-          <BrandLockup />
-        </Link>
-
-        <div className="nx-header-search">
-          <SearchBar manifests={manifests} />
-        </div>
-
-        <nav className="nx-nav" aria-label="Primary">
-          <Link to={ROUTES.home} className="nx-nav-link" data-active={route.name !== 'about' ? 'true' : undefined}>
-            Games
+    <>
+      <MigrationBanner />
+      <header className="nx-header">
+        <div className="nx-header-inner nx-page">
+          <Link to={ROUTES.home} className="nx-header-brand" aria-label="Nixlabs Games - home">
+            <BrandLockup />
           </Link>
-          <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
-            About
-          </Link>
-          <div className="nx-sync-container">
-            <button ref={syncBtnRef} className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
-              Sync
-            </button>
-            <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} triggerRef={syncBtnRef} />
+
+          <div className="nx-header-search">
+            <SearchBar manifests={manifests} />
           </div>
-        </nav>
-      </div>
-    </header>
+
+          <nav className="nx-nav" aria-label="Primary">
+            <Link to={ROUTES.home} className="nx-nav-link" data-active={route.name !== 'about' ? 'true' : undefined}>
+              Games
+            </Link>
+            <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
+              About
+            </Link>
+            <div className="nx-sync-container">
+              <button ref={syncBtnRef} className="nx-nav-link" onClick={() => setSyncOpen((o) => !o)}>
+                Sync
+              </button>
+              <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} triggerRef={syncBtnRef} />
+            </div>
+            <AuthPopover />
+          </nav>
+        </div>
+      </header>
+    </>
   )
 }

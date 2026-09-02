@@ -29,7 +29,8 @@ export interface CountRow {
 
 export async function countPlayers(db: D1Database): Promise<number> {
   const row = await db.prepare('SELECT COUNT(*) AS total FROM players').first<CountRow>()
-  return row?.total ?? 0
+  const histRow = await db.prepare('SELECT value FROM system_config WHERE key = ?1').bind('historical_anonymous_users').first<{ value: number }>()
+  return (row?.total ?? 0) + (histRow?.value ?? 0)
 }
 
 /** A row without a code is a row that cannot be moved to another device. */
@@ -110,12 +111,24 @@ export async function bumpPlayer(
   event: StatsEvent,
   now: number,
 ): Promise<void> {
+  if (event.type === 'play' && game.length > 0) {
+    await db
+      .prepare(
+        `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
+         VALUES (?1, ?2, NULL, 0, ?3, 1)
+         ON CONFLICT(player_id, slug) DO UPDATE
+           SET plays = player_games.plays + 1, updated_at = excluded.updated_at`,
+      )
+      .bind(playerId, game, now)
+      .run()
+    return
+  }
   if (event.type === 'score') {
     if (game.length > 0) {
       await db
         .prepare(
-          `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at)
-           VALUES (?1, ?2, ?3, 0, ?4)
+          `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
+           VALUES (?1, ?2, ?3, 0, ?4, 0)
            ON CONFLICT(player_id, slug) DO UPDATE
              SET highscore = MAX(COALESCE(player_games.highscore, 0), excluded.highscore),
                  updated_at = excluded.updated_at`,
@@ -145,8 +158,8 @@ export async function bumpPlayer(
   if (event.type === 'candy' && game.length > 0) {
     await db
       .prepare(
-        `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at)
-         VALUES (?1, ?2, NULL, ?3, ?4)
+        `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
+         VALUES (?1, ?2, NULL, ?3, ?4, 0)
          ON CONFLICT(player_id, slug) DO UPDATE
            SET candy = player_games.candy + excluded.candy, updated_at = excluded.updated_at`,
       )
@@ -169,8 +182,8 @@ export async function writeMergedPlayer(db: D1Database, target: PlayerRecord): P
   for (const [slug, record] of Object.entries(target.games)) {
     await db
       .prepare(
-        `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)`,
+        `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
+         VALUES (?1, ?2, ?3, ?4, ?5, 0)`,
       )
       .bind(target.id, slug, record.highscore, record.candy, Date.now())
       .run()
