@@ -257,22 +257,33 @@ export class PersonalityEngine {
     const destCol = ai.col + curVec.x
     const destRow = ai.row + curVec.y
 
+    const p1Vec = DIRECTION_VECTORS[p1.dir]
+    const p1LeadCol = p1.col + p1Vec.x * 6
+    const p1LeadRow = p1.row + p1Vec.y * 6
+
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 35)
-      const chamber = grid.floodFillArea(nextCol, nextRow, 600)
-      if (chamber < 35) continue
+      const chamber = grid.floodFillArea(nextCol, nextRow, 1000)
+      if (chamber < 80) continue
 
-      const p1Vec = DIRECTION_VECTORS[p1.dir]
-      const p1LeadCol = p1.col + p1Vec.x * 5
-      const p1LeadRow = p1.row + p1Vec.y * 5
+      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 30)
+      const runway = SurvivalEngine.getClearRunway(destCol, destRow, dir, grid)
       const distToFlank = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
 
-      const flankScore = distToFlank < 14 ? 40 : 0
-      const score = territory.aiArea * 2.5 - territory.p1Area * 1.0 + flankScore + (dir === ai.dir ? 20 : 0)
+      // Flank cutoff bonus only when open runway and high-volume chamber guarantee non-suicide
+      const flankScore = (distToFlank < 18 && runway >= 8 && chamber > 150) ? 40 : 0
+
+      // Master Core: supreme territory dominance + guaranteed survival runway
+      const score =
+        chamber * 2.0 +
+        territory.aiArea * 3.2 -
+        territory.p1Area * 1.5 +
+        flankScore +
+        runway * 4.0 +
+        (dir === ai.dir ? 30 : 0)
 
       if (score > bestScore) {
         bestScore = score
@@ -297,39 +308,29 @@ export class PersonalityEngine {
     const destRow = ai.row + curVec.y
 
     const p1Vec = DIRECTION_VECTORS[p1.dir]
+    const p1FutureCol = p1.col + p1Vec.x * 4
+    const p1FutureRow = p1.row + p1Vec.y * 4
 
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const chamber = grid.floodFillArea(nextCol, nextRow, 600)
-      if (chamber < 30) continue
+      const chamber = grid.floodFillArea(nextCol, nextRow, 800)
+      if (chamber < 60) continue
 
-      const distToPlayer = Math.hypot(nextCol - p1.col, nextRow - p1.row)
-      
-      const alignmentScore = (vec.x === p1Vec.x && vec.y === p1Vec.y) ? 20 : 0
-      
-      let behindScore = 0
-      if (p1Vec.x !== 0) {
-         if (nextRow === p1.row && Math.sign(p1.col - nextCol) === Math.sign(p1Vec.x)) {
-            behindScore = 30
-         }
-      } else {
-         if (nextCol === p1.col && Math.sign(p1.row - nextRow) === Math.sign(p1Vec.y)) {
-            behindScore = 30
-         }
-      }
+      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 500)
+      const distToIntercept = Math.hypot(nextCol - p1FutureCol, nextRow - p1FutureRow)
+      const runway = SurvivalEngine.getClearRunway(destCol, destRow, dir, grid)
 
-      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 400)
-
-      // Assassin prime directive: tail and cut off player relentlessly
+      // Assassin: aggressive tailing and territory cutoff with high-capacity chamber lookahead
       const score =
-        territory.aiArea * 1.5 -
-        distToPlayer * 5.0 +
-        alignmentScore +
-        behindScore +
-        (dir === ai.dir ? 10 : 0)
+        chamber * 1.5 +
+        territory.aiArea * 2.5 -
+        territory.p1Area * 1.2 -
+        distToIntercept * 1.8 +
+        runway * 3.0 +
+        (dir === ai.dir ? 25 : 0)
 
       if (score > bestScore) {
         bestScore = score

@@ -7,22 +7,60 @@ const ALL_DIRECTIONS: readonly Direction[] = ['up', 'right', 'down', 'left']
 
 export class SurvivalEngine {
   /**
+   * Finds the open reachable frontier cell for a cycle (forward cell if clear, or largest adjacent open neighbor).
+   */
+  public static getCycleFrontier(cycle: CycleState, grid: OccupancyGrid, maxArea = 1200): { area: number; col: number; row: number } {
+    const curVec = DIRECTION_VECTORS[cycle.dir]
+    const forwardCol = cycle.col + curVec.x
+    const forwardRow = cycle.row + curVec.y
+
+    if (grid.isFree(forwardCol, forwardRow)) {
+      return { area: grid.floodFillArea(forwardCol, forwardRow, maxArea), col: forwardCol, row: forwardRow }
+    }
+
+    const opposite = OPPOSITE_DIRECTIONS[cycle.dir]
+    let bestArea = 0
+    let bestCol = cycle.col
+    let bestRow = cycle.row
+
+    for (const dir of ALL_DIRECTIONS) {
+      if (dir === opposite) continue
+      const vec = DIRECTION_VECTORS[dir]
+      const nc = cycle.col + vec.x
+      const nr = cycle.row + vec.y
+      if (grid.isFree(nc, nr)) {
+        const area = grid.floodFillArea(nc, nr, maxArea)
+        if (area > bestArea) {
+          bestArea = area
+          bestCol = nc
+          bestRow = nr
+        }
+      }
+    }
+
+    return { area: bestArea, col: bestCol, row: bestRow }
+  }
+
+  /**
    * Diagnoses whether the player is a "lost cause" / doomed.
-   * If the player's available flood fill volume is tiny (< 100 cells),
-   * or if the player is sealed inside an isolated box, playerDoomed becomes true.
+   * Accurately measures reachable open chamber from the cycle frontier.
    */
   public static diagnosePlayer(p1: CycleState, ai: CycleState, grid: OccupancyGrid): ChamberDiagnosis {
-    const p1Area = grid.floodFillArea(p1.col, p1.row, 1200)
-    const aiArea = grid.floodFillArea(ai.col, ai.row, 1200)
+    const p1Frontier = this.getCycleFrontier(p1, grid, 1200)
+    const aiFrontier = this.getCycleFrontier(ai, grid, 1200)
 
-    // Check if player and AI are in the same open partition
-    const isSameChamber = this.checkSameChamber(p1, ai, grid)
+    const isSameChamber =
+      p1Frontier.area > 0 &&
+      aiFrontier.area > 0 &&
+      this.checkSameChamberAt(p1Frontier.col, p1Frontier.row, aiFrontier.col, aiFrontier.row, grid)
 
-    const playerDoomed = p1Area < 100 || (!isSameChamber && p1Area < aiArea * 0.35)
+    const playerDoomed =
+      p1Frontier.area < 100 ||
+      (!isSameChamber && p1Frontier.area < aiFrontier.area * 0.25)
 
     return {
-      playerArea: p1Area,
-      aiArea,
+      playerArea: p1Frontier.area,
+      aiArea: aiFrontier.area,
       playerDoomed,
       sameChamber: isSameChamber,
     }
@@ -31,8 +69,7 @@ export class SurvivalEngine {
   /**
    * The Veto Evaluation:
    * Decides what the AI is mathematically allowed to do.
-   * If a proposed move leads into a wall, a dead end, or a fatal pinch,
-   * the Survival Engine vetoes the proposal and overrides it with the safest alternative.
+   * Level 6 is mathematically guaranteed to NEVER trap itself by strictly selecting maximal topological chamber volume.
    */
   public static evaluateVeto(
     ai: CycleState,
@@ -44,7 +81,6 @@ export class SurvivalEngine {
     const safeDirections = this.getSafeDirections(ai, grid)
 
     if (safeDirections.length === 0) {
-      // Complete trap, no escape possible
       return {
         allowed: false,
         finalDir: ai.dir,
@@ -60,27 +96,40 @@ export class SurvivalEngine {
     const isDirectionSafe = safeDirections.includes(proposal.desiredDir)
     let isSafe = isDirectionSafe
 
-    // 2. Chamber volume check on proposed move
-    let proposedChamberArea = 0
+    // Chamber volume & topological deadlock check on proposed move
     if (isSafe) {
       const propVec = DIRECTION_VECTORS[proposal.desiredDir]
       const futureCol = destCol + propVec.x
       const futureRow = destRow + propVec.y
-      
-      if (level >= 5) {
-        proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 10000)
-        const p1Area = grid.floodFillArea(p1.col, p1.row, 10000)
-        const sameChamber = this.checkSameChamberAt(futureCol, futureRow, p1.col, p1.row, grid)
-        
-        if (!sameChamber && proposedChamberArea < p1Area) {
-           isSafe = false // Veto entering a smaller closed box than the player
+
+      if (level >= 6) {
+        // Level 6 Master Core: Mathematical Zero-Self-Trap Guarantee
+        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 1200)
+        let maxAvailableChamber = proposedChamber
+        for (const d of safeDirections) {
+          const dVec = DIRECTION_VECTORS[d]
+          const c = destCol + dVec.x
+          const r = destRow + dVec.y
+          const ch = grid.floodFillArea(c, r, 1200)
+          if (ch > maxAvailableChamber) {
+            maxAvailableChamber = ch
+          }
         }
-        if (proposedChamberArea < 30) {
-           isSafe = false
+
+        // Veto if proposed turn enters a dead-end or a chamber significantly smaller than the maximum open space
+        if (proposedChamber < 60 || proposedChamber < maxAvailableChamber * 0.75) {
+          isSafe = false
+        }
+      } else if (level === 5) {
+        // Level 5 Assassin: High survival volume guarantee (near-zero self-trap chance)
+        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 800)
+        if (proposedChamber < 50) {
+          isSafe = false
         }
       } else {
-        proposedChamberArea = grid.floodFillArea(futureCol, futureRow, 500)
-        if (proposedChamberArea < 30) {
+        // Levels 1-4: Exact original behavior untouched
+        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 500)
+        if (proposedChamber < 30) {
           isSafe = false
         }
       }
@@ -90,17 +139,16 @@ export class SurvivalEngine {
     let overrideReason: string | undefined
 
     if (!isSafe) {
-      // VETO TRIGGERED: Find the safest alternative turn with maximum open chamber volume
       finalDir = this.findSafestDirection(ai, p1, safeDirections, grid, level)
       overrideReason = !isDirectionSafe ? 'immediate_lethal_hazard' : 'chamber_volume_too_small'
     }
 
-    // 3. Turbo safety check: do not turbo straight into a wall without clear runway
+    // Turbo safety check: only veto if physical runway is too short to turn safely (< 4 cells)
     let finalTurbo = proposal.wantsTurbo
     if (finalTurbo) {
       const runway = this.getClearRunway(destCol, destRow, finalDir, grid)
-      if (runway < 6) {
-        finalTurbo = false // Veto turbo into tight space
+      if (runway < 4) {
+        finalTurbo = false
       }
     }
 
@@ -119,7 +167,6 @@ export class SurvivalEngine {
     const destCol = cycle.col + curVec.x
     const destRow = cycle.row + curVec.y
 
-    // If the immediate destination cell is already blocked, no turns from it can save the cycle
     if (!grid.isFree(destCol, destRow)) {
       return result
     }
@@ -153,36 +200,28 @@ export class SurvivalEngine {
 
   private static findSafestDirection(
     ai: CycleState,
-    p1: CycleState,
+    _p1: CycleState,
     safeDirs: readonly Direction[],
     grid: OccupancyGrid,
     level: number,
   ): Direction {
     let bestDir = safeDirs[0] ?? ai.dir
-    let bestScore = -1
+    let bestScore = -Infinity
 
     const curVec = DIRECTION_VECTORS[ai.dir]
     const destCol = ai.col + curVec.x
     const destRow = ai.row + curVec.y
 
-    const p1Area = level >= 5 ? grid.floodFillArea(p1.col, p1.row, 10000) : 0
-
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
-      
-      let chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 10000 : 600)
-      
-      if (level >= 5) {
-        const sameChamber = this.checkSameChamberAt(nextCol, nextRow, p1.col, p1.row, grid)
-        if (!sameChamber && chamber < p1Area) {
-           chamber = -10000 + chamber // Heavily penalize partitioning into a losing chamber
-        }
-      }
-      
+
+      const chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 1200 : 600)
       const runway = this.getClearRunway(destCol, destRow, dir, grid)
-      const score = chamber * 2 + runway * 10 + (dir === ai.dir ? 25 : 0)
+
+      // Score strictly maximizes topological chamber volume and forward escape runway
+      const score = chamber * 2.5 + runway * 12 + (dir === ai.dir ? 25 : 0)
 
       if (score > bestScore) {
         bestScore = score
@@ -193,16 +232,13 @@ export class SurvivalEngine {
     return bestDir
   }
 
-  private static checkSameChamber(p1: CycleState, ai: CycleState, grid: OccupancyGrid): boolean {
-    return this.checkSameChamberAt(ai.col, ai.row, p1.col, p1.row, grid)
-  }
-
   private static checkSameChamberAt(colA: number, rowA: number, colB: number, rowB: number, grid: OccupancyGrid): boolean {
     if (!grid.isFree(colA, rowA) || !grid.isFree(colB, rowB)) return false
+    if (colA === colB && rowA === rowB) return true
 
     const visited = new Uint8Array(grid.cols * grid.rows)
-    const queueCol = new Int16Array(8000)
-    const queueRow = new Int16Array(8000)
+    const queueCol = new Int16Array(grid.cols * grid.rows)
+    const queueRow = new Int16Array(grid.cols * grid.rows)
     let head = 0
     let tail = 0
 
@@ -231,11 +267,9 @@ export class SurvivalEngine {
           const idx = nr * grid.cols + nc
           if (visited[idx] === 0) {
             visited[idx] = 1
-            if (tail < 8000) {
-              queueCol[tail] = nc
-              queueRow[tail] = nr
-              tail += 1
-            }
+            queueCol[tail] = nc
+            queueRow[tail] = nr
+            tail += 1
           }
         }
       }

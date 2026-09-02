@@ -103,7 +103,7 @@ export class AIPatterns {
   public static generateLawnmowerMove(
     ai: CycleState,
     grid: OccupancyGrid,
-    pattern: PatternState,
+    _pattern: PatternState,
   ): Direction {
     const curVec = DIRECTION_VECTORS[ai.dir]
     const destCol = ai.col + curVec.x
@@ -115,21 +115,24 @@ export class AIPatterns {
     const isOneCellAway = !grid.isFree(nextCol2, nextRow2)
 
     if (isDirectlyBlocked || isOneCellAway) {
-      // Time to turn! Determine best orthogonal side (left or right relative to heading)
       const { leftDir, rightDir } = this.getOrthogonalDirections(ai.dir)
 
       const leftSafe = this.isDirectionClear(ai, leftDir, grid)
       const rightSafe = this.isDirectionClear(ai, rightDir, grid)
 
+      const leftVec = DIRECTION_VECTORS[leftDir]
+      const rightVec = DIRECTION_VECTORS[rightDir]
+
+      const leftChamber = leftSafe ? grid.floodFillArea(destCol + leftVec.x, destRow + leftVec.y, 800) : 0
+      const rightChamber = rightSafe ? grid.floodFillArea(destCol + rightVec.x, destRow + rightVec.y, 800) : 0
+
       let chosenTurn: Direction
       if (leftSafe && rightSafe) {
-        chosenTurn = pattern.lawnmowerTurnDirection === 'left' ? leftDir : rightDir
+        chosenTurn = leftChamber >= rightChamber ? leftDir : rightDir
       } else if (leftSafe) {
         chosenTurn = leftDir
-        pattern.lawnmowerTurnDirection = 'left'
       } else if (rightSafe) {
         chosenTurn = rightDir
-        pattern.lawnmowerTurnDirection = 'right'
       } else {
         chosenTurn = ai.dir
       }
