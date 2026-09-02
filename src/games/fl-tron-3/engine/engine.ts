@@ -34,7 +34,17 @@ export class TronEngine {
     this.state = createInitialTronState(1, 'campaign')
     this.grid = new OccupancyGrid()
     this.aiController = new AIController(1)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('tron:start-level', this.handleLevelSelectEvent)
+    }
     this.publish()
+  }
+
+  private handleLevelSelectEvent = (e: Event): void => {
+    const customEvent = e as CustomEvent<{ level: DifficultyLevel }>
+    if (customEvent.detail?.level) {
+      this.startCampaign(customEvent.detail.level)
+    }
   }
 
   public publish(): void {
@@ -52,18 +62,23 @@ export class TronEngine {
     }
   }
 
-  public startCampaign(): void {
+  public startCampaign(startingLevel?: DifficultyLevel): void {
+    const defaultLvl =
+      typeof window !== 'undefined' && (window as unknown as { __tronSelectedStartingLevel?: DifficultyLevel }).__tronSelectedStartingLevel
+        ? (window as unknown as { __tronSelectedStartingLevel: DifficultyLevel }).__tronSelectedStartingLevel
+        : 1
+    const targetLevel = startingLevel ?? defaultLvl
     this.isStarted = true
     this.audio.unlock()
     this.audio.play('ui')
     this.deps.current.beginRun()
     this.achievements?.onCampaignStart()
-    this.state.level = 1
+    this.state.level = targetLevel
     this.state.p1RoundWins = 0
     this.state.aiRoundWins = 0
     this.state.roundNumber = 1
     this.state.elapsedRunSeconds = 0
-    this.aiController = new AIController(1)
+    this.aiController = new AIController(targetLevel)
     this.setupRound()
   }
 
@@ -113,6 +128,9 @@ export class TronEngine {
   }
 
   public dispose(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('tron:start-level', this.handleLevelSelectEvent)
+    }
     this.audio.stopBikeHum()
   }
 
