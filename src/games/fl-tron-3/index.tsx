@@ -28,7 +28,7 @@ function renderLeftImage(snapshot: GameSnapshot) {
   }
 
   return (
-    <div style={{ flex: 1, position: 'relative', width: '220px' }}>
+    <div style={{ flex: 1, position: 'relative', width: '264px' }}>
       <QuantumHologram stateName={stateName} />
     </div>
   )

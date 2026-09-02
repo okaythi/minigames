@@ -78,7 +78,7 @@ export function QuantumHologram({ stateName }: QuantumHologramProps) {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        height: '60%',
+        height: '72%',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'flex-end',
