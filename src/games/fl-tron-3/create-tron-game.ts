@@ -62,15 +62,16 @@ export function attachTronGame(host: GameHost, engine: TronEngine): DisposableBa
 
   const handlePointerAction = (clientX: number, clientY: number) => {
     if (!engine.isStarted) {
-      engine.startCampaign()
       return
     }
 
     const { x, y } = pointerPositionInArena(clientX, clientY)
 
     if (engine.state.phase === 'menu') {
-      // Check if clicking inside Campaign button or start region
-      if (x >= 40 && x <= ARENA.width - 40 && y >= 100 && y <= ARENA.height - 40) {
+      // Check if clicking inside Campaign card or Start Campaign button
+      const isCardClick = x >= 50 && x <= 430 && y >= 135 && y <= 225
+      const isBtnClick = x >= 100 && x <= 380 && y >= 470 && y <= 540
+      if (isCardClick || isBtnClick) {
         engine.startCampaign()
       }
       return

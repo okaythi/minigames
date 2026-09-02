@@ -42,12 +42,18 @@ export class TronEngine {
   }
 
   public start(): void {
-    if (!this.isStarted || this.state.phase === 'menu') {
-      this.startCampaign()
+    if (!this.isStarted) {
+      this.isStarted = true
+      this.state.phase = 'menu'
+      this.audio.unlock()
+      this.audio.play('ui')
+      this.publish()
       return
     }
 
-    if (this.state.phase === 'intermission') {
+    if (this.state.phase === 'menu') {
+      this.startCampaign()
+    } else if (this.state.phase === 'intermission') {
       this.advanceFromIntermission()
     } else if (this.state.phase === 'game_over' || this.state.phase === 'victory') {
       this.restart()
@@ -121,10 +127,8 @@ export class TronEngine {
   public handleInput(key: string, isDown: boolean): void {
     if (!isDown) return
 
+    // Before clicking Start on the HTML overlay, ignore all key inputs
     if (!this.isStarted) {
-      if (key === 'Enter' || key === ' ') {
-        this.startCampaign()
-      }
       return
     }
 
@@ -139,8 +143,9 @@ export class TronEngine {
       return
     }
 
+    // In the in-canvas menu, do not start with Spacebar, only explicit Enter or clicking menu buttons
     if (this.state.phase === 'menu') {
-      if (key === 'Enter' || key === ' ') {
+      if (key === 'Enter') {
         this.startCampaign()
       }
       return
