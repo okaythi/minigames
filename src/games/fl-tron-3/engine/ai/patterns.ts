@@ -11,6 +11,9 @@ export interface PatternState {
   /** Tracks which relative side (left/right of heading) the last staircase macro used.
    *  The next macro always uses the opposite side, creating adjacent "glued" staircases. */
   lastStairSide: 'left' | 'right' | null
+  stairDirA: Direction | null
+  stairDirB: Direction | null
+  stairRemainingSteps: number
 }
 
 export function createInitialPatternState(): PatternState {
@@ -21,6 +24,9 @@ export function createInitialPatternState(): PatternState {
     lawnmowerStep: 0,
     stairStepCounter: 0,
     lastStairSide: null,
+    stairDirA: null,
+    stairDirB: null,
+    stairRemainingSteps: 0,
   }
 }
 
@@ -71,54 +77,77 @@ export class AIPatterns {
   }
 
   /**
-   * Generates next move in a Staircase macro.
-   * Alternates directions [Turn 90°, step, Turn -90°, step]
-   * Optional preferredTurnDir picks which orthogonal side turnA uses (e.g. toward a target).
+   * Generates next move in a machine-precise 1-cell step diagonal staircase macro.
+   * Alternates directions every single cell: [dirA, dirB, dirA, dirB...]
+   * Resulting trail is a minimally narrow, flawless 45° micro-diagonal.
    */
   public static generateStaircaseStep(
     ai: CycleState,
+    grid: OccupancyGrid,
     pattern: PatternState,
     isThick = false,
     preferredTurnDir?: Direction,
   ): Direction {
-    if (pattern.macroQueue.length === 0 || pattern.macroIndex >= pattern.macroQueue.length) {
-      // Build new staircase macro sequence
+    // 1. Initialize new staircase sequence if not active or finished
+    const needsInit =
+      pattern.stairDirA === null ||
+      pattern.stairDirB === null ||
+      pattern.stairRemainingSteps <= 0 ||
+      (ai.dir !== pattern.stairDirA && ai.dir !== pattern.stairDirB)
+
+    if (needsInit) {
       const { leftDir, rightDir } = this.getOrthogonalDirections(ai.dir)
 
       let turnA: Direction
       if (preferredTurnDir) {
-        // Level 4: steer toward a target — caller decides the side
         turnA = preferredTurnDir
         pattern.lastStairSide = preferredTurnDir === leftDir ? 'left' : 'right'
       } else {
-        // Glued-staircase technique: each new macro uses the OPPOSITE side from the last.
-        // This makes successive staircases touch edge-to-edge, filling space efficiently.
-        const nextSide = pattern.lastStairSide === 'left' ? 'right'
-          : pattern.lastStairSide === 'right' ? 'left'
-          : Math.random() < 0.5 ? 'left' : 'right' // first run: random
+        // Glued-staircase: alternate sides between macro runs for space-filling adjacent stairs
+        const nextSide =
+          pattern.lastStairSide === 'left'
+            ? 'right'
+            : pattern.lastStairSide === 'right'
+              ? 'left'
+              : Math.random() < 0.5
+                ? 'left'
+                : 'right'
         turnA = nextSide === 'left' ? leftDir : rightDir
         pattern.lastStairSide = nextSide
       }
 
-      const turnB = ai.dir
-      const stepsPerLeg = isThick ? 2 : 1
-      const queue: Direction[] = []
-
-      for (let s = 0; s < 6; s += 1) {
-        for (let i = 0; i < stepsPerLeg; i += 1) {
-          queue.push(turnA)
-        }
-        for (let i = 0; i < stepsPerLeg; i += 1) {
-          queue.push(turnB)
-        }
-      }
-
-      pattern.macroQueue = queue
-      pattern.macroIndex = 0
+      pattern.stairDirA = turnA
+      pattern.stairDirB = ai.dir
+      pattern.stairRemainingSteps = isThick ? 16 : 12
     }
 
-    const nextDir = pattern.macroQueue[pattern.macroIndex] ?? ai.dir
-    pattern.macroIndex += 1
+    const turnA = pattern.stairDirA!
+    const turnB = pattern.stairDirB!
+
+    // In a 1-cell staircase, if currently moving in turnB, next desired turn is turnA.
+    // If currently moving in turnA, next desired turn is turnB.
+    const nextDir = ai.dir === turnB ? turnA : turnB
+
+    // 2. Lookahead Safety Check: Verify that stepping in nextDir doesn't trap the AI
+    const curVec = DIRECTION_VECTORS[ai.dir]
+    const destCol = ai.col + curVec.x
+    const destRow = ai.row + curVec.y
+    const nextVec = DIRECTION_VECTORS[nextDir]
+    const stepCol = destCol + nextVec.x
+    const stepRow = destRow + nextVec.y
+
+    const isStepFree = grid.isFree(stepCol, stepRow)
+    const chamber = isStepFree ? grid.floodFillArea(stepCol, stepRow, 250) : 0
+
+    // If next stair step is blocked or enters a dangerously small chamber, ABORT staircase immediately!
+    if (!isStepFree || chamber < 35) {
+      pattern.stairDirA = null
+      pattern.stairDirB = null
+      pattern.stairRemainingSteps = 0
+      return ai.dir
+    }
+
+    pattern.stairRemainingSteps -= 1
     return nextDir
   }
 

@@ -4,7 +4,7 @@
 
 import { OccupancyGrid, OCCUPANCY } from '../src/games/fl-tron-3/engine/grid'
 import { createCycle, queueDirection, triggerCycleTurbo, updateCycleTimers, OPPOSITE_DIRECTIONS } from '../src/games/fl-tron-3/engine/cycle'
-import { AIController, SurvivalEngine, PersonalityEngine } from '../src/games/fl-tron-3/engine/ai'
+import { AIController, SurvivalEngine, PersonalityEngine, AIPatterns, createInitialPatternState } from '../src/games/fl-tron-3/engine/ai'
 import { AI_CONFIGS, ARENA, RULES } from '../src/games/fl-tron-3/engine/config'
 import { TronEngine } from '../src/games/fl-tron-3/engine/engine'
 import type { DifficultyLevel } from '../src/games/fl-tron-3/engine/types'
@@ -182,6 +182,36 @@ function level5AssassinBehaviorProbe(): void {
   check('Level 5 reacts to player turbo by triggering AI turbo', counterTurboMove.wantsTurbo)
 }
 
+function staircase1CellMicroStepProbe(): void {
+  const grid = new OccupancyGrid()
+  const ai = createCycle('ai', 40, 50, 'up', 3)
+  const pattern = createInitialPatternState()
+
+  // 1. Verify exact 1-cell step alternation (right -> up -> right -> up)
+  const step1 = AIPatterns.generateStaircaseStep(ai, grid, pattern, false, 'right')
+  ai.dir = step1
+  const step2 = AIPatterns.generateStaircaseStep(ai, grid, pattern, false)
+  ai.dir = step2
+  const step3 = AIPatterns.generateStaircaseStep(ai, grid, pattern, false)
+  ai.dir = step3
+  const step4 = AIPatterns.generateStaircaseStep(ai, grid, pattern, false)
+
+  const is1CellAlternation =
+    step1 === 'right' && step2 === 'up' && step3 === 'right' && step4 === 'up'
+
+  line('1-cell micro-staircase sequence', `${step1} -> ${step2} -> ${step3} -> ${step4}`)
+  check('staircase strictly alternates 1-cell micro-turns every step', is1CellAlternation)
+
+  // 2. Safety abort when obstacle blocks staircase
+  grid.set(41, 48, OCCUPANCY.p1Trail)
+  ai.dir = 'up'
+  ai.col = 40
+  ai.row = 49
+  const blockedStep = AIPatterns.generateStaircaseStep(ai, grid, pattern, false)
+  line('staircase obstacle avoidance', `aborted: ${pattern.stairDirA === null}`)
+  check('staircase safely aborts when path ahead is blocked', pattern.stairDirA === null)
+}
+
 function ghostCollisionAndInputQueueProbe(): void {
   // 1. Test 6-item buffer capacity and TTL expiry
   const p1 = createCycle('p1', 20, 75, 'up', 3)
@@ -320,6 +350,7 @@ cycleMechanicsProbe()
 vetoArchitectureProbe()
 aiCampaignScalingProbe()
 level5AssassinBehaviorProbe()
+staircase1CellMicroStepProbe()
 ghostCollisionAndInputQueueProbe()
 aiPerimeterNavigationProbe()
 

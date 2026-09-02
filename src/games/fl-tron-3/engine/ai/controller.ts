@@ -8,6 +8,9 @@ import type { MoveProposal } from './types'
 
 export class AIController {
   private reactionTimer = 0
+  private lastCol = -1
+  private lastRow = -1
+  private activeProposal: MoveProposal | null = null
   private readonly personality: PersonalityEngine
 
   public constructor(public readonly level: DifficultyLevel) {
@@ -25,16 +28,47 @@ export class AIController {
     this.reactionTimer += dt
     const config = AI_CONFIGS[this.level]
 
-    let proposal: MoveProposal = { desiredDir: aiCycle.dir, wantsTurbo: false, intent: 'wander' }
+    const cellChanged = aiCycle.col !== this.lastCol || aiCycle.row !== this.lastRow
+    if (cellChanged) {
+      this.lastCol = aiCycle.col
+      this.lastRow = aiCycle.row
+    }
 
-    if (this.reactionTimer >= config.reactionTime) {
-      proposal = this.personality.proposeMove(aiCycle, playerCycle, grid, this.reactionTimer)
+    // When an active micro-staircase or macro pattern is executing, evaluate immediately upon entering each new cell
+    const isMacroActive =
+      this.activeProposal?.intent === 'staircase' ||
+      this.activeProposal?.intent === 'thick_stairs' ||
+      this.activeProposal?.intent === 'lawnmower'
+
+    const shouldQueryPersonality =
+      this.reactionTimer >= config.reactionTime ||
+      (cellChanged && isMacroActive) ||
+      this.activeProposal === null
+
+    if (shouldQueryPersonality) {
+      this.activeProposal = this.personality.proposeMove(
+        aiCycle,
+        playerCycle,
+        grid,
+        Math.max(dt, this.reactionTimer),
+      )
       this.reactionTimer = 0
     }
+
+    const proposal = this.activeProposal ?? { desiredDir: aiCycle.dir, wantsTurbo: false, intent: 'wander' }
 
     // 2. Survival Engine ALWAYS runs every frame (The Veto System)
     // This ensures Level 1 & 2 AI don't randomly crash into walls between their slow reaction ticks!
     const verdict = SurvivalEngine.evaluateVeto(aiCycle, proposal, grid)
+
+    // If veto forced an override, clear active macro and accept safe direction
+    if (!verdict.allowed) {
+      this.activeProposal = {
+        desiredDir: verdict.finalDir,
+        wantsTurbo: verdict.finalTurbo,
+        intent: 'wander',
+      }
+    }
 
     // 3. Execute the final approved direction
     if (verdict.finalDir !== aiCycle.dir) {

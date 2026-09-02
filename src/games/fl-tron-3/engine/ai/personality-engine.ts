@@ -72,7 +72,7 @@ export class PersonalityEngine {
         const dir = AIPatterns.generateLawnmowerMove(ai, grid, this.patternState)
         return { desiredDir: dir, wantsTurbo: false, intent: 'lawnmower' }
       } else {
-        const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, true)
+        const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, true)
         return { desiredDir: dir, wantsTurbo: false, intent: 'thick_stairs' }
       }
     }
@@ -81,14 +81,21 @@ export class PersonalityEngine {
     // (Level 5 is excluded: prime directive is relentless tailing)
     if (config.enjoysStairs && this.funCooldownTimer <= 0) {
       if (config.level === 3) {
-        // Level 3 LOVES stairs: activates readily, always perfect 1-cell step.
-        // "Lawnmowing on stairs" = each successive macro glues to the previous one (see AIPatterns).
-        if (distToPlayer > 6) {
+        // Level 3 LOVES stairs in open space: always machine-precise 1-cell step.
+        // Glued-staircase technique automatically mirrors on the adjacent edge.
+        // Needs adequate open chamber (> 320 cells) and safe distance to avoid self-trapping.
+        if (distToPlayer > 10) {
           const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
-          if (aiChamber > 150 && Math.random() < config.stairProbability) {
+          if (aiChamber > 320 && Math.random() < config.stairProbability) {
             this.mood = 'having_fun'
-            const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false)
-            return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
+            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false)
+            if (dir === ai.dir && this.patternState.stairDirA === null) {
+              // Staircase aborted or no safe path, cooldown to exit region safely
+              this.funCooldownTimer = 1.2
+              this.mood = 'aggressive'
+            } else {
+              return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
+            }
           }
         }
       } else if (config.level === 4) {
@@ -100,7 +107,7 @@ export class PersonalityEngine {
             this.mood = 'having_fun'
             const { leftDir, rightDir } = AIPatterns.getOrthogonalDirections(ai.dir)
             const preferredDir = this.pickDirTowardTarget(ai, p1, leftDir, rightDir)
-            const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, false, preferredDir)
+            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false, preferredDir)
             // Turbo only when actually closing in on the player AND a spare turbo is kept in reserve
             const isApproach = distToPlayer < 38
             const wantsTurbo =
@@ -118,7 +125,7 @@ export class PersonalityEngine {
         if (aiChamber > 900 && Math.random() < config.stairProbability) {
           this.mood = 'having_fun'
           const isThick = Math.random() < 0.4
-          const dir = AIPatterns.generateStaircaseStep(ai, this.patternState, isThick)
+          const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, isThick)
           const wantsTurbo = config.level >= 6 && Math.random() < 0.25
           return { desiredDir: dir, wantsTurbo, intent: isThick ? 'thick_stairs' : 'staircase' }
         }
@@ -310,14 +317,15 @@ export class PersonalityEngine {
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
       const chamber = grid.floodFillArea(nextCol, nextRow, 600)
-      if (chamber < 30) continue
+      if (chamber < 35) continue
 
       const p1Vec = DIRECTION_VECTORS[p1.dir]
       const p1FutureCol = p1.col + p1Vec.x * 4
       const p1FutureRow = p1.row + p1Vec.y * 4
       const dist = Math.hypot(nextCol - p1FutureCol, nextRow - p1FutureRow)
 
-      const score = chamber * 1.5 - dist * 3.0
+      // Emphasize spacious survival volume while aggressively cutting towards player's future position
+      const score = chamber * 2.8 - dist * 2.2 + (dir === ai.dir ? 15 : 0)
       if (score > bestScore) {
         bestScore = score
         bestDir = dir
@@ -344,8 +352,10 @@ export class PersonalityEngine {
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
       const chamber = grid.floodFillArea(nextCol, nextRow, 300)
-      if (chamber > bestScore) {
-        bestScore = chamber
+      // Momentum bonus to avoid erratic zigzagging into own trail
+      const score = chamber + (dir === ai.dir ? 30 : 0)
+      if (score > bestScore) {
+        bestScore = score
         bestDir = dir
       }
     }
