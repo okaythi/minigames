@@ -243,13 +243,23 @@ export class PersonalityEngine {
     return bestDir
   }
 
+  private macroCommitment: { targetDir: Direction; expiresAt: number } | null = null
+
   private evaluateMinimaxMove(
     ai: CycleState,
     p1: CycleState,
     grid: OccupancyGrid,
     safeDirs: readonly Direction[],
-    depth: number,
+    lookaheadIntersections: number,
   ): Direction {
+    // 1. Goal Commitment Failsafe (eliminates erratic jitter)
+    if (this.macroCommitment && this.elapsedTime < this.macroCommitment.expiresAt) {
+      if (safeDirs.includes(this.macroCommitment.targetDir)) {
+        return this.macroCommitment.targetDir
+      }
+      this.macroCommitment = null // Path blocked, must recalculate
+    }
+
     let bestDir = safeDirs[0] ?? ai.dir
     let bestScore = -Infinity
 
@@ -257,32 +267,108 @@ export class PersonalityEngine {
     const destCol = ai.col + curVec.x
     const destRow = ai.row + curVec.y
 
-    const p1Vec = DIRECTION_VECTORS[p1.dir]
-    const p1LeadCol = p1.col + p1Vec.x * 6
-    const p1LeadRow = p1.row + p1Vec.y * 6
+    const startTime = performance.now()
+    const TIME_BUDGET_MS = 1.8 // Strict sub-2ms failsafe budget
 
-    for (const dir of safeDirs) {
-      const vec = DIRECTION_VECTORS[dir]
-      const nextCol = destCol + vec.x
-      const nextRow = destRow + vec.y
+    for (const initialDir of safeDirs) {
+      // Evaluate the immediate deep-horizon path for this branch
+      let maxScoreForDir = -Infinity
+      
+      const qCol = new Int16Array(2000)
+      const qRow = new Int16Array(2000)
+      const qDir = new Array<Direction>(2000)
+      const qDepth = new Int8Array(2000)
+      const qSteps = new Int16Array(2000)
+      
+      let head = 0
+      let tail = 0
 
-      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, depth * 35)
-      const distToFlank = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
+      const startVec = DIRECTION_VECTORS[initialDir]
+      qCol[tail] = destCol + startVec.x
+      qRow[tail] = destRow + startVec.y
+      qDir[tail] = initialDir
+      qDepth[tail] = 0
+      qSteps[tail] = 1
+      tail++
 
-      const flankScore = distToFlank < 16 ? 50 : 0
+      // Simplified visited tracker to prevent infinite loops in deep search
+      const visited = new Uint8Array(grid.cols * grid.rows * 4)
 
-      // Master Core: pure unhinged aggression. Maximize territory dominance, cut off the player.
-      // SurvivalEngine already handles 100% of the safety, so we DO NOT score chamber volume here.
-      const score =
-        territory.aiArea * 3.5 -
-        territory.p1Area * 2.0 +
-        flankScore +
-        (dir === ai.dir ? 15 : 0)
+      while (head < tail) {
+        if (performance.now() - startTime > TIME_BUDGET_MS) {
+          break // Failsafe triggered
+        }
 
-      if (score > bestScore) {
-        bestScore = score
-        bestDir = dir
+        const c = qCol[head]!
+        const r = qRow[head]!
+        const d = qDir[head]!
+        const currentDepth = qDepth[head]!
+        const stepsTaken = qSteps[head]!
+        head++
+
+        // Terminal node evaluation (either hit max intersections or time budget)
+        if (currentDepth >= lookaheadIntersections || head > 300) {
+          // Extrapolate player position based on steps taken
+          const pVec = DIRECTION_VECTORS[p1.dir]
+          const pFutureCol = Math.max(1, Math.min(grid.cols - 2, p1.col + pVec.x * stepsTaken))
+          const pFutureRow = Math.max(1, Math.min(grid.rows - 2, p1.row + pVec.y * stepsTaken))
+
+          const territory = grid.voronoiTerritory(pFutureCol, pFutureRow, c, r, 500)
+          const distToFlank = Math.hypot(c - pFutureCol, r - pFutureRow)
+          
+          const flankScore = distToFlank < 16 ? 50 : 0
+          const score = territory.aiArea * 3.5 - territory.p1Area * 2.0 + flankScore
+
+          if (score > maxScoreForDir) {
+            maxScoreForDir = score
+          }
+          continue
+        }
+
+        // Branching: Straight, Left, Right
+        const branches: Direction[] = [d]
+        const { leftDir, rightDir } = AIPatterns.getOrthogonalDirections(d)
+        branches.push(leftDir, rightDir)
+
+        const dirToIndex = { 'up': 0, 'down': 1, 'left': 2, 'right': 3 } as const
+
+        for (const branchDir of branches) {
+          const bVec = DIRECTION_VECTORS[branchDir]
+          const nc = c + bVec.x
+          const nr = r + bVec.y
+
+          if (grid.isFree(nc, nr)) {
+            const vIdx = (nr * grid.cols + nc) * 4 + dirToIndex[branchDir]
+            if (visited[vIdx] === 0) {
+              visited[vIdx] = 1
+              
+              const isTurn = branchDir !== d
+              if (tail < 2000) {
+                qCol[tail] = nc
+                qRow[tail] = nr
+                qDir[tail] = branchDir
+                qDepth[tail] = currentDepth + (isTurn ? 1 : 0) // Only increment depth at intersections/turns
+                qSteps[tail] = stepsTaken + 1
+                tail++
+              }
+            }
+          }
+        }
       }
+
+      // Add small bonus for continuing straight to break ties cleanly
+      maxScoreForDir += (initialDir === ai.dir ? 15 : 0)
+
+      if (maxScoreForDir > bestScore) {
+        bestScore = maxScoreForDir
+        bestDir = initialDir
+      }
+    }
+
+    // Commit to this goal for 150ms to ensure determined, ruthless execution
+    this.macroCommitment = {
+      targetDir: bestDir,
+      expiresAt: this.elapsedTime + 0.15,
     }
 
     return bestDir
