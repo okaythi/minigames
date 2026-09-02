@@ -31,6 +31,13 @@ export class PersonalityEngine {
     return this.playerDoomed
   }
 
+  public abortPattern(): void {
+    AIPatterns.resetStaircase(this.patternState)
+    this.patternState.activePattern = 'none'
+    this.funCooldownTimer = 1.5
+    this.mood = 'aggressive'
+  }
+
   public proposeMove(
     ai: CycleState,
     p1: CycleState,
@@ -75,12 +82,18 @@ export class PersonalityEngine {
 
     const distToPlayer = Math.hypot(ai.col - p1.col, ai.row - p1.row)
 
-    // 2. Personality State Machine
-    if (this.playerDoomed && config.level >= 4) {
-      // THE "PASSING TIME" STATE: Player is a lost cause, run out the clock with lawnmower or thick stairs
+    // 2. Personality State Machine: Passing Time (Level 6 AI passes time if player is doomed)
+    if (this.playerDoomed && config.level >= 6) {
       this.mood = 'passing_time'
-      const useLawnmower = Math.random() < 0.75
-      if (useLawnmower) {
+      if (!AIPatterns.isMacroActive(this.patternState)) {
+        const useLawnmower = Math.random() < 0.65
+        this.patternState.activePattern = useLawnmower ? 'lawnmower' : 'staircase'
+        if (!useLawnmower) {
+          AIPatterns.initStaircase(ai, this.patternState, 30, true)
+        }
+      }
+
+      if (this.patternState.activePattern === 'lawnmower') {
         const dir = AIPatterns.generateLawnmowerMove(ai, grid, this.patternState)
         return { desiredDir: dir, wantsTurbo: false, intent: 'lawnmower' }
       } else {
@@ -89,60 +102,95 @@ export class PersonalityEngine {
       }
     }
 
-    // 3. "HAVING FUN" STATE: Level-specific staircase / lawnmower patterns
+    // 3. Ongoing Active Macro Commitment
+    // If a staircase macro is currently executing, commit to continuing it step-by-step!
+    if (AIPatterns.isStaircaseActive(this.patternState)) {
+      const isThick = this.patternState.isThick
+      const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, isThick)
+
+      if (!AIPatterns.isStaircaseActive(this.patternState)) {
+        // Staircase finished or aborted safely
+        this.funCooldownTimer = 2.0
+        this.mood = 'aggressive'
+        return this.evaluateTacticalMove(ai, p1, grid, config)
+      }
+
+      this.mood = 'having_fun'
+      const isApproach = config.level === 4 && distToPlayer < 38 && distToPlayer > 8
+      const wantsTurbo =
+        isApproach &&
+        !ai.isTurbo &&
+        ai.turboCooldown === 0 &&
+        ai.turbosLeft > 1 &&
+        Math.random() < 0.2
+
+      return {
+        desiredDir: dir,
+        wantsTurbo,
+        intent: isThick ? 'thick_stairs' : 'staircase',
+      }
+    }
+
+    // 4. "HAVING FUN" / APPROACH STATE: Initiate new staircase if conditions are met
     // (Level 5 is excluded: prime directive is relentless tailing)
-    if (config.enjoysStairs && this.funCooldownTimer <= 0) {
+    if (config.enjoysStairs && this.funCooldownTimer <= 0 && !AIPatterns.isMacroActive(this.patternState)) {
       if (config.level === 3) {
         // Level 3 LOVES stairs in open space: always machine-precise 1-cell step.
         // Glued-staircase technique automatically mirrors on the adjacent edge.
-        // Needs adequate open chamber (> 320 cells) and safe distance to avoid self-trapping.
-        if (distToPlayer > 10) {
+        // Needs adequate open chamber (> 320 cells) and safe distance.
+        if (distToPlayer > 8) {
           const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
           if (aiChamber > 320 && Math.random() < config.stairProbability) {
             this.mood = 'having_fun'
-            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false)
-            if (dir === ai.dir && this.patternState.stairDirA === null) {
-              this.mood = 'aggressive'
-            } else {
+            const steps = Math.min(32, Math.max(10, Math.floor(Math.sqrt(aiChamber) * 0.8)))
+            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false, undefined, steps)
+            if (AIPatterns.isStaircaseActive(this.patternState)) {
               return { desiredDir: dir, wantsTurbo: false, intent: 'staircase' }
             }
           }
         }
       } else if (config.level === 4) {
-        // Level 4: Stairs aimed toward the player as an approach shortcut.
-        // Turbo fires only when mid-range (18–38 cells) and at least 1 spare turbo remains.
-        if (distToPlayer > 18) {
+        // Level 4: Stairs aimed toward the player as an approach shortcut or intercept.
+        // Deterministic decision: diagonal route cuts towards player position (never more than 60 steps)
+        if (distToPlayer > 12) {
           const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
-          if (aiChamber > 500 && Math.random() < config.stairProbability) {
-            this.mood = 'having_fun'
+          if (aiChamber > 400 && Math.random() < config.stairProbability) {
             const { leftDir, rightDir } = AIPatterns.getOrthogonalDirections(ai.dir)
             const preferredDir = this.pickDirTowardTarget(ai, p1, leftDir, rightDir)
-            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false, preferredDir)
-            // Turbo only when actually closing in on the player AND a spare turbo is kept in reserve
-            const isApproach = distToPlayer < 38
-            const wantsTurbo =
-              isApproach &&
-              !ai.isTurbo &&
-              ai.turboCooldown === 0 &&
-              ai.turbosLeft > 1 &&
-              Math.random() < 0.12
-            return { desiredDir: dir, wantsTurbo, intent: 'staircase' }
+            const manhattanDist = Math.abs(ai.col - p1.col) + Math.abs(ai.row - p1.row)
+            const steps = Math.min(60, Math.max(8, manhattanDist))
+
+            this.mood = 'having_fun'
+            const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, false, preferredDir, steps)
+            if (AIPatterns.isStaircaseActive(this.patternState)) {
+              const isApproach = distToPlayer < 38
+              const wantsTurbo =
+                isApproach &&
+                !ai.isTurbo &&
+                ai.turboCooldown === 0 &&
+                ai.turbosLeft > 1 &&
+                Math.random() < 0.25
+              return { desiredDir: dir, wantsTurbo, intent: 'staircase' }
+            }
           }
         }
-      } else if (config.level !== 5 && distToPlayer > 26) {
+      } else if (config.level !== 5 && distToPlayer > 24) {
         // Levels 1, 2, 6: original broad-space staircase logic
         const aiChamber = grid.floodFillArea(ai.col, ai.row, 1200)
-        if (aiChamber > 900 && Math.random() < config.stairProbability) {
+        if (aiChamber > 700 && Math.random() < config.stairProbability) {
           this.mood = 'having_fun'
-          const isThick = Math.random() < 0.4
-          const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, isThick)
-          const wantsTurbo = config.level >= 6 && Math.random() < 0.25
-          return { desiredDir: dir, wantsTurbo, intent: isThick ? 'thick_stairs' : 'staircase' }
+          const isThick = Math.random() < 0.35
+          const steps = Math.min(40, Math.max(10, Math.floor(Math.sqrt(aiChamber) * 0.7)))
+          const dir = AIPatterns.generateStaircaseStep(ai, grid, this.patternState, isThick, undefined, steps)
+          if (AIPatterns.isStaircaseActive(this.patternState)) {
+            const wantsTurbo = config.level >= 6 && Math.random() < 0.25
+            return { desiredDir: dir, wantsTurbo, intent: isThick ? 'thick_stairs' : 'staircase' }
+          }
         }
       }
     }
 
-    // 4. Default: THE AGGRESSIVE / TACTICAL STATE
+    // 5. Default: THE AGGRESSIVE / TACTICAL STATE
     this.mood = 'aggressive'
     return this.evaluateTacticalMove(ai, p1, grid, config)
   }

@@ -104,7 +104,7 @@ function vetoArchitectureProbe(): void {
   // The veto should detect 'up' is a dead end and redirect to left or right.
   grid.set(40, 48, OCCUPANCY.p1Trail)
   const lethalProposal = { desiredDir: 'up' as const, wantsTurbo: true, intent: 'chase' as const }
-  const vetoVerdict = SurvivalEngine.evaluateVeto(ai, lethalProposal, grid)
+  const vetoVerdict = SurvivalEngine.evaluateVeto(ai, p1, lethalProposal, grid, 1)
 
   line('veto of lethal wall collision', `${vetoVerdict.allowed ? 'ALLOWED' : 'VETOED'} -> override to ${vetoVerdict.finalDir}`)
   check('survival engine vetoes lethal collision', !vetoVerdict.allowed && vetoVerdict.finalDir !== 'up')
@@ -123,10 +123,10 @@ function vetoArchitectureProbe(): void {
   line('doomed player diagnosis (<100 cells box)', `playerArea: ${diagnosis.playerArea}, doomed: ${diagnosis.playerDoomed}`)
   check('diagnosePlayer detects trapped/doomed player', diagnosis.playerDoomed)
 
-  // 3. Test Personality Engine transition to passing_time
-  const l5Personality = new PersonalityEngine(5)
-  const moveWhenDoomed = l5Personality.proposeMove(ai, p1, grid, 0.2)
-  line('personality mood when player is doomed', `intent: ${moveWhenDoomed.intent}`)
+  // 3. Test Personality Engine transition to passing_time (Level 6 AI passes time when player doomed)
+  const l6Personality = new PersonalityEngine(6)
+  const moveWhenDoomed = l6Personality.proposeMove(ai, p1, grid, 0.2)
+  line('personality mood when player is doomed (L6)', `intent: ${moveWhenDoomed.intent}`)
   check('personality switches to lawnmower/thick_stairs when doomed', moveWhenDoomed.intent === 'lawnmower' || moveWhenDoomed.intent === 'thick_stairs')
 }
 
@@ -210,6 +210,46 @@ function staircase1CellMicroStepProbe(): void {
   const blockedStep = AIPatterns.generateStaircaseStep(ai, grid, pattern, false)
   line('staircase obstacle avoidance', `aborted: ${pattern.stairDirA === null}`)
   check('staircase safely aborts when path ahead is blocked', pattern.stairDirA === null)
+}
+
+function staircaseCommitmentAndMultiStepProbe(): void {
+  const grid = new OccupancyGrid()
+  const p1 = createCycle('p1', 10, 80, 'up', 3)
+  const ai = createCycle('ai', 40, 40, 'up', 3)
+
+  // 1. Level 3 AI staircase commitment across multiple frames
+  const l3Personality = new PersonalityEngine(3)
+  AIPatterns.initStaircase(ai, (l3Personality as any).patternState, 10, false, 'right')
+
+  const l3Dirs: string[] = []
+  for (let step = 0; step < 10; step += 1) {
+    const prop = l3Personality.proposeMove(ai, p1, grid, 0.05)
+    l3Dirs.push(prop.desiredDir)
+    ai.dir = prop.desiredDir
+    if (prop.desiredDir === 'right') ai.col += 1
+    else if (prop.desiredDir === 'up') ai.row -= 1
+  }
+
+  // All 10 steps should have strictly executed the staircase macro without aborting early or changing mind
+  const l3FullStaircaseExecuted = l3Dirs.length === 10 && l3Dirs[0] === 'right' && l3Dirs[1] === 'up' && l3Dirs[2] === 'right'
+
+  line('L3 10-step staircase commitment', `${l3Dirs.join(' -> ')}`)
+  check('Level 3 commits to completing all steps of active staircase', l3FullStaircaseExecuted)
+
+  // 2. Thick staircase 2-cell step testing
+  const thickPattern = createInitialPatternState()
+  const aiThick = createCycle('ai', 30, 30, 'up', 3)
+  AIPatterns.initStaircase(aiThick, thickPattern, 8, true, 'right')
+  const thickDirs: string[] = []
+  for (let s = 0; s < 8; s += 1) {
+    const dir = AIPatterns.generateStaircaseStep(aiThick, grid, thickPattern, true)
+    thickDirs.push(dir)
+    aiThick.dir = dir
+  }
+  // Thick stairs take 2 cells in direction A, 2 in direction B: right, right, up, up, right, right...
+  const thickStairsPattern = thickDirs[0] === 'right' && thickDirs[1] === 'right' && thickDirs[2] === 'up' && thickDirs[3] === 'up'
+  line('thick 2-cell staircase sequence', `${thickDirs.join(' -> ')}`)
+  check('thick staircase steps 2 cells per direction before alternating', thickStairsPattern)
 }
 
 function ghostCollisionAndInputQueueProbe(): void {
@@ -351,6 +391,7 @@ vetoArchitectureProbe()
 aiCampaignScalingProbe()
 level5AssassinBehaviorProbe()
 staircase1CellMicroStepProbe()
+staircaseCommitmentAndMultiStepProbe()
 ghostCollisionAndInputQueueProbe()
 aiPerimeterNavigationProbe()
 

@@ -34,16 +34,17 @@ export class AIController {
       this.lastRow = aiCycle.row
     }
 
-    // When an active micro-staircase or macro pattern is executing, evaluate immediately upon entering each new cell
+    // When an active macro pattern is executing, only query personality upon entering a new cell (cellChanged)
+    // When no macro is active, query on reactionTimer or cell entry
     const isMacroActive =
       this.activeProposal?.intent === 'staircase' ||
       this.activeProposal?.intent === 'thick_stairs' ||
       this.activeProposal?.intent === 'lawnmower'
 
     const shouldQueryPersonality =
-      this.reactionTimer >= config.reactionTime ||
-      (cellChanged && isMacroActive) ||
-      this.activeProposal === null
+      this.activeProposal === null ||
+      (isMacroActive && cellChanged) ||
+      (!isMacroActive && (this.reactionTimer >= config.reactionTime || cellChanged))
 
     if (shouldQueryPersonality) {
       this.activeProposal = this.personality.proposeMove(
@@ -63,6 +64,7 @@ export class AIController {
 
     // If veto forced an override, clear active macro and accept safe direction
     if (!verdict.allowed) {
+      this.personality.abortPattern()
       this.activeProposal = {
         desiredDir: verdict.finalDir,
         wantsTurbo: verdict.finalTurbo,
