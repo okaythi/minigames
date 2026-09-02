@@ -36,6 +36,7 @@ const VALID_ACHIEVEMENT_IDS = new Set<string>([
   'avoid_wall_tapper', 'avoid_wall_bouncer', 'avoid_spike_hopper', 'avoid_century_flyer',
   'avoid_candy_snack', 'avoid_candy_mid_air', 'avoid_candy_sweet_flight', 'avoid_candy_gem_swarm',
   'avoid_mover_moving_teeth', 'avoid_mover_slalom_pilot', 'avoid_mover_chaos_navigator',
+  'avoid_destroy_movers_10', 'avoid_destroy_movers_50', 'avoid_destroy_movers_80',
   'avoid_graze_razor', 'avoid_graze_danger_dancer', 'avoid_graze_needle_threader',
   'avoid_edge_ceiling_skimmer', 'avoid_edge_floor_sweeper', 'avoid_edge_oblivion',
   'avoid_flap_one_tap', 'avoid_flap_quick_turnaround', 'avoid_flap_veteran_grazer',

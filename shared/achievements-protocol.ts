@@ -49,6 +49,9 @@ export type AchievementId =
   | 'avoid_mover_moving_teeth'
   | 'avoid_mover_slalom_pilot'
   | 'avoid_mover_chaos_navigator'
+  | 'avoid_destroy_movers_10'
+  | 'avoid_destroy_movers_50'
+  | 'avoid_destroy_movers_80'
   // Avoid the Spikes! – Precision Grazes
   | 'avoid_graze_razor'
   | 'avoid_graze_danger_dancer'

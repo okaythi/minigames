@@ -308,6 +308,33 @@ export const ACHIEVEMENT_DEFS: readonly AchievementDef[] = [
     icon: '🌪️',
     maxProgress: null,
   },
+  {
+    id: 'avoid_destroy_movers_10',
+    pillar: 'avoid-the-spikes',
+    track: 'Floating Hazard Navigation',
+    name: '💥 Red Sweeper',
+    description: 'Destroy 10 red floating spikes by collecting candy in Avoid the Spikes!.',
+    icon: '💥',
+    maxProgress: 10,
+  },
+  {
+    id: 'avoid_destroy_movers_50',
+    pillar: 'avoid-the-spikes',
+    track: 'Floating Hazard Navigation',
+    name: '🧨 Hazard Obliterator',
+    description: 'Destroy 50 red floating spikes by collecting candy in Avoid the Spikes!.',
+    icon: '🧨',
+    maxProgress: 50,
+  },
+  {
+    id: 'avoid_destroy_movers_80',
+    pillar: 'avoid-the-spikes',
+    track: 'Floating Hazard Navigation',
+    name: '🎆 Apex Purifier',
+    description: 'Destroy 80 red floating spikes by collecting candy in Avoid the Spikes!.',
+    icon: '🎆',
+    maxProgress: 80,
+  },
 
   // Track: Precision Grazes & Separating-Axis Saves
   {

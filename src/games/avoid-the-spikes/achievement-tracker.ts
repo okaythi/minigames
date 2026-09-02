@@ -35,6 +35,29 @@ interface PerRunStats {
 interface LifetimeStats {
   totalCandyAvoid: number
   totalGrazes: number
+  totalMoversDestroyed: number
+}
+
+const MOVERS_DESTROYED_KEY = 'nixlabs.avoid.movers_destroyed'
+
+function loadMoversDestroyed(): number {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(MOVERS_DESTROYED_KEY) : null
+    const parsed = raw !== null ? Number.parseInt(raw, 10) : 0
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  } catch {
+    return 0
+  }
+}
+
+function saveMoversDestroyed(count: number): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(MOVERS_DESTROYED_KEY, String(count))
+    }
+  } catch {
+    // Ignore storage quota/security restrictions
+  }
 }
 
 const MOVERS_SPAWN_SCORE = 10
@@ -53,7 +76,11 @@ const FLOOR_SAFE_RECOVERY_Y = 410
 
 export class AvoidAchievementTracker {
   private run: PerRunStats = this.freshRun()
-  private lifetime: LifetimeStats = { totalCandyAvoid: 0, totalGrazes: 0 }
+  private lifetime: LifetimeStats = {
+    totalCandyAvoid: 0,
+    totalGrazes: 0,
+    totalMoversDestroyed: loadMoversDestroyed(),
+  }
 
   constructor(private readonly bus: AchievementBus) {}
 
@@ -229,6 +256,32 @@ export class AvoidAchievementTracker {
       this.bus.unlock('avoid_mover_slalom_pilot', dodgesThisRun)
     } else {
       this.bus.progress('avoid_mover_slalom_pilot', dodgesThisRun)
+    }
+  }
+
+  /** Call this when floating spikes are dissolved by collecting candy. */
+  onMoversDestroyed(count: number): void {
+    if (count <= 0) return
+    this.lifetime.totalMoversDestroyed += count
+    saveMoversDestroyed(this.lifetime.totalMoversDestroyed)
+
+    const total = this.lifetime.totalMoversDestroyed
+    if (total >= 10) {
+      this.bus.unlock('avoid_destroy_movers_10', total)
+    } else {
+      this.bus.progress('avoid_destroy_movers_10', total)
+    }
+
+    if (total >= 50) {
+      this.bus.unlock('avoid_destroy_movers_50', total)
+    } else {
+      this.bus.progress('avoid_destroy_movers_50', total)
+    }
+
+    if (total >= 80) {
+      this.bus.unlock('avoid_destroy_movers_80', total)
+    } else {
+      this.bus.progress('avoid_destroy_movers_80', total)
     }
   }
 

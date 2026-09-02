@@ -64,6 +64,9 @@ export function createAvoidRuntime(deps: { readonly current: GameRuntimeDeps }):
     onMoverDodge: (count) => {
       achievementTracker.onMoverDodge(count)
     },
+    onMoversDestroyed: (count) => {
+      achievementTracker.onMoversDestroyed(count)
+    },
   })
 
   store.set(describe(session.snapshotValue))
