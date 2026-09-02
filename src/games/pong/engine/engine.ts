@@ -152,7 +152,7 @@ export class PongEngine {
     bounceBall(this.state, this.state.player, -1)
     this.state.aiReactionTimer = AI_REACTION_DELAY
     this.state.aiErrorOffset = (Math.random() - 0.5) * (this.state.ai.w * 0.7)
-    this.audio.play('flap')
+    this.audio.play('bounce')
     this.state.notifications.push({ text: 'BALL RELEASED', time: 1.2, y: this.state.player.y - 30 })
   }
 
@@ -182,7 +182,7 @@ export class PongEngine {
   public update(dt: number): void {
     if (this.state.phase === 'playing') {
       stepPhysics(this.state, this.pointerX, dt, () => {
-        this.audio.play('bounce')
+        this.audio.play('flap')
       })
 
       updateAI(this.state, dt, (idx) => {
@@ -193,7 +193,7 @@ export class PongEngine {
 
       checkCollisions(this.state, {
         onPaddleHit: () => {
-          this.audio.play('flap')
+          this.audio.play('bounce')
           this.achievements?.onPaddleHit(this.state.playerHits)
         },
         onScorePoint: (scorer) => {
