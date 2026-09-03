@@ -408,7 +408,7 @@ export function statsDevPlugin(): Plugin {
                 recordsHeld: 1,
                 recordsList: ['Avoid the Spikes!'],
                 arcadeRating: 'Top 4%',
-                title: user.developer ? 'Lab Developer' : user.legacyUser ? 'Lab Pioneer' : 'Arcade Champion',
+                title: 'Record Holder',
                 activeStreak: 5,
                 streakDays: [true, true, true, true, true, false, false],
                 badges,

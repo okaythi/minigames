@@ -116,16 +116,14 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
 
   // Derive title
   let primaryTitle = 'Lab Recruit'
-  if (isDev) {
-    primaryTitle = 'Lab Developer'
-  } else if (isPioneer) {
-    primaryTitle = 'Lab Pioneer'
-  } else if (recordsHeld > 0) {
+  if (recordsHeld > 0) {
     primaryTitle = 'Record Holder'
   } else if (totalPlays >= 50) {
     primaryTitle = 'Arcade Veteran'
   } else if (totalCandy >= 100) {
     primaryTitle = 'Candy Hoarder'
+  } else if (totalPlays >= 10) {
+    primaryTitle = 'Novice Runner'
   }
 
   // Build full 80 badges from the canonical definitions merged with player achievements
