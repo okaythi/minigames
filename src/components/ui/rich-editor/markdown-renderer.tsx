@@ -236,8 +236,13 @@ function parseInline(text: string): string {
   // Game Slugs: @avoid-the-spikes, @fl-tron-3, @pong, @platform
   result = result.replace(/@(avoid-the-spikes|fl-tron-3|pong|platform)/g, '<span class="nx-md-game-pill">@$1</span>')
 
-  // Stat deltas: [delta:+15%], [delta:-2.0s]
-  result = result.replace(/\[delta:([+-][^\]]+)\]/g, '<span class="nx-md-stat-delta">$1</span>')
+  // Stat deltas: [delta:+15%], [delta:-15%], [delta:-2.0s]
+  result = result.replace(/\[delta:([^\]]+)\]/g, (_match, rawDelta) => {
+    const delta = rawDelta.trim()
+    const isNegative = delta.startsWith('-') || delta.startsWith('−') || delta.startsWith('–')
+    const polarity = isNegative ? 'negative' : 'positive'
+    return `<span class="nx-md-stat-delta nx-md-stat-delta-${polarity}" data-polarity="${polarity}">${delta}</span>`
+  })
 
   return result
 }

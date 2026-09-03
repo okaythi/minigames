@@ -200,6 +200,18 @@
   color: var(--nx-green-deep);
 }
 
+.nx-markdown-body .nx-md-stat-delta.nx-md-stat-delta-positive,
+.nx-markdown-body .nx-md-stat-delta[data-polarity='positive'] {
+  background: var(--nx-green-tint);
+  color: var(--nx-green-deep);
+}
+
+.nx-markdown-body .nx-md-stat-delta.nx-md-stat-delta-negative,
+.nx-markdown-body .nx-md-stat-delta[data-polarity='negative'] {
+  background: var(--nx-red-tint);
+  color: var(--nx-red-deep);
+}
+
 .nx-markdown-body .nx-md-hr {
   border: 0;
   border-top: var(--nx-hairline);
