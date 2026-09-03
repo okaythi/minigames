@@ -7,7 +7,8 @@ import { ROUTES } from '../app/parse-route'
 import { SettingsDrawer } from '../components/settings-drawer'
 import { AchievementsShowcase } from '../components/achievements/achievements-showcase'
 import { DeveloperBadge } from '../components/ui/developer-badge'
-import { hasFlag, UserFlags } from '../../shared/flags'
+import { BadgeTooltip } from '../components/ui/badge-tooltip'
+import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
 import { readGlobalCandy } from '../services/stats/local-counters'
 import './user-profile.css'
@@ -132,23 +133,25 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             <div className="nx-passport-meta">
               <div className="nx-passport-name-row">
                 <h1 className="nx-passport-username">@{profile.username}</h1>
-                {(hasFlag(profile.flags, UserFlags.USER_DEVELOPER) || profile.developer) && (
-                  <DeveloperBadge size={22} title="Develops games for our Lab." />
-                )}
-                {(hasFlag(profile.flags, UserFlags.USER_PIONEER) || profile.legacyUser) && (
-                  <span className="nx-user-menu-badge" title="Labs Pioneer">
-                    <span>⚡</span> Pioneer
-                  </span>
+                {hasFlag(profile.flags, UserFlags.STAFF) && (
+                  <BadgeTooltip label={FLAGS_METADATA[UserFlags.STAFF]?.name ?? 'Staff'}>
+                    <DeveloperBadge size={22} title="" />
+                  </BadgeTooltip>
                 )}
                 {profile.nickname && (
                   <span className="nx-passport-nickname">{profile.nickname}</span>
                 )}
               </div>
 
+              {(hasFlag(profile.flags, UserFlags.USER_PIONEER) || profile.legacyUser) && (
+                <div className="nx-passport-pioneer-row">
+                  <span className="nx-passport-pioneer-pill">
+                    <span>⚡</span> Pioneer
+                  </span>
+                </div>
+              )}
+
               <div className="nx-passport-submeta">
-                {(hasFlag(profile.flags, UserFlags.USER_DEVELOPER) || profile.developer) && (
-                  <DeveloperBadge withTag title="Develops games for our Lab." />
-                )}
                 <span className="nx-passport-title-badge">
                   <span>✨</span> {profile.title}
                 </span>
