@@ -36,8 +36,7 @@ export class RemoteStorageAdapter implements ReaderInterface, WriterInterface {
       const res = await fetch('/api/admin/updates/drafts')
       if (!res.ok) return []
       const data = await res.json()
-      const all = (data.releases as ReleaseAggregate[]) ?? []
-      return all.filter((r) => r.meta.status === 'draft' || r.meta.status === 'review')
+      return (data.releases as ReleaseAggregate[]) ?? []
     } catch {
       return []
     }

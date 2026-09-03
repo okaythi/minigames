@@ -1,4 +1,4 @@
-﻿import type { ReaderInterface, SubscriberInterface, WriterInterface } from '../interfaces'
+import type { ReaderInterface, SubscriberInterface, WriterInterface } from '../interfaces'
 import type {
   CreateItemInput,
   CreateReleaseInput,
@@ -68,10 +68,7 @@ export class LocalStorageAdapter implements ReaderInterface, WriterInterface {
   }
 
   public async getDrafts(): Promise<readonly ReleaseAggregate[]> {
-    const drafts = Object.values(this.state.releases).filter(
-      (r) => r.status === 'draft' || r.status === 'review',
-    )
-    return this.buildAggregates(drafts)
+    return this.buildAggregates(Object.values(this.state.releases))
   }
 
   public async getLatestPublished(): Promise<ReleaseAggregate | null> {

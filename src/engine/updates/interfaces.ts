@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   CreateItemInput,
   CreateReleaseInput,
   GamePillarProjection,
@@ -22,7 +22,7 @@ import type { ParseResult } from './parser'
 export interface ReaderInterface {
   /** Retrieve all published releases with projections. */
   getPublished(): Promise<readonly ReleaseAggregate[]>
-  /** Retrieve all working drafts with projections. */
+  /** Retrieve all releases and working drafts for CMS authoring with projections. */
   getDrafts(): Promise<readonly ReleaseAggregate[]>
   /** Retrieve the latest published release (consumed by TopBanner). */
   getLatestPublished(): Promise<ReleaseAggregate | null>

@@ -168,7 +168,6 @@ export function AdminUpdatesPage() {
       <header className="nx-admin-header">
         <div className="nx-admin-title-row">
           <h1 className="nx-admin-title">Update Notes CMS</h1>
-          <span className="nx-admin-role-badge">STAFF &bull; CMS_EDITOR</span>
         </div>
         <div className="nx-admin-header-actions">
           <button
