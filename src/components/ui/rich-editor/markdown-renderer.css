@@ -1,0 +1,207 @@
+.nx-markdown-body {
+  font-family: var(--nx-font-sans);
+  color: var(--nx-ink);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.nx-markdown-body .nx-md-p {
+  margin: 0 0 12px;
+}
+
+.nx-markdown-body .nx-md-p:last-child {
+  margin-bottom: 0;
+}
+
+.nx-markdown-body .nx-md-h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 16px 0 10px;
+  color: var(--nx-ink);
+  letter-spacing: var(--nx-tracking-tight);
+}
+
+.nx-markdown-body .nx-md-h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 14px 0 8px;
+  color: var(--nx-ink);
+}
+
+.nx-markdown-body .nx-md-h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 12px 0 6px;
+  color: var(--nx-ink);
+}
+
+.nx-markdown-body .nx-md-inline-code {
+  font-family: var(--nx-font-mono);
+  font-size: 0.85em;
+  background: var(--nx-sand);
+  padding: 2px 5px;
+  border-radius: var(--nx-radius-sm);
+  color: var(--nx-ink);
+  border: var(--nx-hairline);
+}
+
+.nx-markdown-body .nx-md-code-block {
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius);
+  padding: 12px 14px;
+  font-family: var(--nx-font-mono);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 12px 0;
+  color: var(--nx-graphite);
+}
+
+.nx-markdown-body .nx-md-quote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--nx-orange);
+  background: var(--nx-sand);
+  border-radius: 0 var(--nx-radius-sm) var(--nx-radius-sm) 0;
+  color: var(--nx-graphite);
+  font-style: italic;
+}
+
+.nx-markdown-body .nx-md-callout {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: var(--nx-radius);
+  border: 1px solid var(--nx-line);
+  background: var(--nx-card);
+}
+
+.nx-markdown-body .nx-md-callout[data-callout='note'] {
+  border-left: 4px solid var(--nx-blue);
+  background: var(--nx-blue-tint);
+}
+
+.nx-markdown-body .nx-md-callout[data-callout='warning'] {
+  border-left: 4px solid var(--nx-orange);
+  background: var(--nx-orange-tint);
+}
+
+.nx-markdown-body .nx-md-callout[data-callout='tip'] {
+  border-left: 4px solid var(--nx-green);
+  background: var(--nx-green-tint);
+}
+
+.nx-markdown-body .nx-md-callout[data-callout='important'] {
+  border-left: 4px solid var(--nx-red);
+  background: var(--nx-red-tint);
+}
+
+.nx-markdown-body .nx-md-callout-title {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: var(--nx-tracking-wide);
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--nx-ink);
+}
+
+.nx-markdown-body .nx-md-list {
+  margin: 8px 0 12px 20px;
+  padding: 0;
+}
+
+.nx-markdown-body .nx-md-list li {
+  margin-bottom: 4px;
+}
+
+.nx-markdown-body .nx-md-task-list {
+  list-style: none;
+  margin-left: 0;
+}
+
+.nx-markdown-body .nx-md-task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nx-markdown-body .nx-md-table-wrapper {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.nx-markdown-body .nx-md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: var(--nx-card);
+  border: var(--nx-hairline);
+  border-radius: var(--nx-radius);
+}
+
+.nx-markdown-body .nx-md-table th,
+.nx-markdown-body .nx-md-table td {
+  padding: 8px 12px;
+  border: var(--nx-hairline);
+  text-align: left;
+}
+
+.nx-markdown-body .nx-md-table th {
+  background: var(--nx-sand);
+  font-weight: 600;
+  color: var(--nx-ink);
+}
+
+.nx-markdown-body .nx-md-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--nx-radius);
+  border: var(--nx-hairline);
+  margin: 10px 0;
+}
+
+.nx-markdown-body .nx-md-media-player video,
+.nx-markdown-body .nx-md-media-player audio {
+  width: 100%;
+  max-width: 100%;
+  border-radius: var(--nx-radius);
+  margin: 10px 0;
+}
+
+.nx-markdown-body .nx-md-link {
+  color: var(--nx-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nx-markdown-body .nx-md-mark {
+  background: var(--nx-orange-glow);
+  color: var(--nx-ink);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.nx-markdown-body .nx-md-game-pill {
+  font-family: var(--nx-font-mono);
+  font-size: 0.8rem;
+  background: var(--nx-sand);
+  color: var(--nx-graphite);
+  padding: 2px 6px;
+  border-radius: var(--nx-radius-sm);
+  border: var(--nx-hairline);
+}
+
+.nx-markdown-body .nx-md-stat-delta {
+  font-family: var(--nx-font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-green-tint);
+  color: var(--nx-green-deep);
+}
+
+.nx-markdown-body .nx-md-hr {
+  border: 0;
+  border-top: var(--nx-hairline);
+  margin: 16px 0;
+}

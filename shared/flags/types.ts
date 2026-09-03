@@ -1,16 +1,23 @@
 /**
- * Core User Flags type definitions and compile-time validators.
+ * User Flags — Bitmask Vector System.
+ *
+ * Flags represent discrete account capabilities, entitlements, and roles.
+ * Compressed into a compact integer bitmask for single-clock-cycle bitwise evaluation.
  */
 
-/** Single flag record inside a user's flags dictionary. */
-export interface UserFlagState {
-  readonly enabled?: boolean
-  readonly grantedAt?: number
-  readonly [key: string]: unknown
-}
+/**
+ * Compact binary flag definitions.
+ */
+export const UserFlags = {
+  NONE: 0,
+  USER_DEVELOPER: 1 << 0, // Bit 0 (0001) = 1
+  USER_PIONEER:   1 << 1, // Bit 1 (0010) = 2
+  STAFF:          1 << 2, // Bit 2 (0100) = 4
+  CMS_EDITOR:     1 << 3, // Bit 3 (1000) = 8
+} as const
 
-/** Dictionary of user flags attached to a user account. */
-export type UserFlags = Record<string, UserFlagState>
+export type UserFlagsBit = (typeof UserFlags)[keyof typeof UserFlags]
+export type UserFlags = number
 
 /** Helper types for compile-time word count parsing. */
 type SplitWords<S extends string> =
@@ -28,13 +35,14 @@ type NonEmptyWords<T extends string[]> =
 export type WordCount<S extends string> = NonEmptyWords<SplitWords<S>>['length']
 
 /**
- * Enforces that a string literal has between 1 and 4 words at compile time.
- * If longer than 4 words, evaluates to an error string literal.
+ * Enforces that a string literal has 10 words or fewer at compile time.
+ * If longer than 10 words, evaluates to a compiler error string.
  */
 export type MaxFourWords<T extends string> =
-  WordCount<T> extends 1 | 2 | 3 | 4
+  WordCount<T> extends 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
     ? T
-    : 'ERROR: Flag description must be 4 words or fewer'
+    : 'ERROR: Flag description must be 10 words or fewer'
+
 
 export interface FlagDefinition<TDesc extends string = string> {
   readonly description: MaxFourWords<TDesc>

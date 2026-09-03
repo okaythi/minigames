@@ -1,5 +1,14 @@
-import { FLAGS, hasFlag, enableFlag, disableFlag, parseFlags, getActiveFlagNames } from '../shared/flags'
-import type { MaxFourWords } from '../shared/flags'
+import {
+  UserFlags,
+  FLAGS_METADATA,
+  hasFlag,
+  enableFlag,
+  disableFlag,
+  hasAllFlags,
+  hasAnyFlag,
+  parseFlags,
+  type MaxFourWords,
+} from '../shared/flags'
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -8,52 +17,63 @@ function assert(condition: boolean, message: string) {
   }
 }
 
-console.log('🧪 Running User Flags system unit tests...')
+console.log('🧪 Running User Flags Bitmask system unit tests...')
 
 // 1. Check canonical flag catalogue
-assert(FLAGS.USER_DEVELOPER.description === 'Labs Developer', 'USER_DEVELOPER description')
-assert(FLAGS.USER_PIONEER.description === 'Labs Pioneer', 'USER_PIONEER description')
+assert(FLAGS_METADATA[UserFlags.USER_DEVELOPER].description === 'Labs Developer', 'USER_DEVELOPER description')
+assert(FLAGS_METADATA[UserFlags.USER_PIONEER].description === 'Labs Pioneer', 'USER_PIONEER description')
+assert(FLAGS_METADATA[UserFlags.STAFF].description === 'Nixlabs Staff', 'STAFF description')
+assert(FLAGS_METADATA[UserFlags.CMS_EDITOR].description === 'Update Notes Editor', 'CMS_EDITOR description')
 
-// Word count check
-for (const [name, def] of Object.entries(FLAGS)) {
+// Word count check (<= 4 words)
+for (const [bit, def] of Object.entries(FLAGS_METADATA)) {
   const words = def.description.trim().split(/\s+/).filter(Boolean)
-  assert(words.length <= 4, `${name} description has ${words.length} words (must be <= 4)`)
+  assert(words.length <= 4, `Bit ${bit} description has ${words.length} words (must be <= 4)`)
 }
 
-// 2. Type-level assertions
+
+// 2. Type-level compile-time word validator assertions
 type ValidDesc = MaxFourWords<'Labs Developer'>
 type InvalidDesc = MaxFourWords<'This description is way too long for a flag'>
 const _testValid: ValidDesc = 'Labs Developer'
 // @ts-expect-error - Must reject > 4 words
 const _testInvalid: InvalidDesc = 'This description is way too long for a flag'
 
-// 3. Helper tests
-const emptyFlags = parseFlags('{}')
-assert(!hasFlag(emptyFlags, 'USER_DEVELOPER'), 'Empty flags should not have USER_DEVELOPER')
-assert(!hasFlag(emptyFlags, 'USER_PIONEER'), 'Empty flags should not have USER_PIONEER')
+// 3. Bitwise operations tests
+let flags = UserFlags.NONE
+assert(!hasFlag(flags, UserFlags.USER_DEVELOPER), 'NONE should not have USER_DEVELOPER')
+assert(!hasFlag(flags, UserFlags.USER_PIONEER), 'NONE should not have USER_PIONEER')
 
-const withDev = enableFlag(emptyFlags, 'USER_DEVELOPER')
-assert(hasFlag(withDev, 'USER_DEVELOPER'), 'Should have USER_DEVELOPER after enable')
-assert(!hasFlag(withDev, 'USER_PIONEER'), 'Should not have USER_PIONEER yet')
+// Enable USER_DEVELOPER
+flags = enableFlag(flags, UserFlags.USER_DEVELOPER)
+assert(hasFlag(flags, UserFlags.USER_DEVELOPER), 'flags should have USER_DEVELOPER')
+assert(!hasFlag(flags, UserFlags.USER_PIONEER), 'flags should not have USER_PIONEER')
+assert(flags === 1, 'flags vector should equal 1')
 
-const withBoth = enableFlag(withDev, 'USER_PIONEER', { grantedAt: 12345 })
-assert(hasFlag(withBoth, 'USER_DEVELOPER'), 'Should still have USER_DEVELOPER')
-assert(hasFlag(withBoth, 'USER_PIONEER'), 'Should now have USER_PIONEER')
-assert(withBoth['USER_PIONEER']?.grantedAt === 12345, 'Should preserve metadata')
+// Enable USER_PIONEER
+flags = enableFlag(flags, UserFlags.USER_PIONEER)
+assert(hasFlag(flags, UserFlags.USER_DEVELOPER), 'flags should still have USER_DEVELOPER')
+assert(hasFlag(flags, UserFlags.USER_PIONEER), 'flags should now have USER_PIONEER')
+assert(flags === 3, 'flags vector should equal 3 (0x03)')
 
-const active = getActiveFlagNames(withBoth)
-assert(active.includes('USER_DEVELOPER') && active.includes('USER_PIONEER'), 'Active flags list')
+// Compound checks
+const PIONEER_DEV = UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER
+assert(hasAllFlags(flags, PIONEER_DEV), 'flags should satisfy PIONEER_DEV requirement')
+assert(hasAnyFlag(flags, UserFlags.USER_DEVELOPER), 'hasAnyFlag with single flag')
 
-const withoutDev = disableFlag(withBoth, 'USER_DEVELOPER')
-assert(!hasFlag(withoutDev, 'USER_DEVELOPER'), 'Should not have USER_DEVELOPER after disable')
-assert(hasFlag(withoutDev, 'USER_PIONEER'), 'Should still have USER_PIONEER')
+// Disable USER_DEVELOPER
+flags = disableFlag(flags, UserFlags.USER_DEVELOPER)
+assert(!hasFlag(flags, UserFlags.USER_DEVELOPER), 'USER_DEVELOPER should be disabled')
+assert(hasFlag(flags, UserFlags.USER_PIONEER), 'USER_PIONEER should still be enabled')
+assert(flags === 2, 'flags vector should equal 2 (0x02)')
+assert(!hasAllFlags(flags, PIONEER_DEV), 'flags no longer satisfies all PIONEER_DEV')
 
 // 4. Safe parsing tests
-assert(Object.keys(parseFlags(null)).length === 0, 'parseFlags(null) -> {}')
-assert(Object.keys(parseFlags(undefined)).length === 0, 'parseFlags(undefined) -> {}')
-assert(Object.keys(parseFlags('invalid-json')).length === 0, 'parseFlags(invalid) -> {}')
+assert(parseFlags(null) === 0, 'parseFlags(null) -> 0')
+assert(parseFlags(undefined) === 0, 'parseFlags(undefined) -> 0')
+assert(parseFlags(3) === 3, 'parseFlags(3) -> 3')
+assert(parseFlags('3') === 3, 'parseFlags("3") -> 3')
+assert(parseFlags('invalid') === 0, 'parseFlags(invalid) -> 0')
+assert(parseFlags('{"USER_PIONEER":{"enabled":true}}') === 2, 'parseFlags legacy JSON string')
 
-const parsedJson = parseFlags('{"USER_PIONEER":{"enabled":true}}')
-assert(hasFlag(parsedJson, 'USER_PIONEER'), 'parseFlags valid JSON string')
-
-console.log('✅ All User Flags unit tests passed successfully!')
+console.log('✅ All User Flags Bitmask unit tests passed successfully!')

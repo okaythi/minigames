@@ -9,8 +9,7 @@
 
 import type { AchievementId } from '../../../shared/achievements-protocol'
 import type { PlayerAchievementState } from '../../../shared/achievements-protocol'
-import type { UserFlags } from '../../../shared/flags'
-import { hasFlag } from '../../../shared/flags'
+import { hasFlag, UserFlags } from '../../../shared/flags'
 
 export interface PlayerStatSnapshot {
   readonly totalCandy: number
@@ -18,7 +17,8 @@ export interface PlayerStatSnapshot {
   readonly streakDays: number
   readonly legacyUser: boolean
   readonly developer: boolean
-  readonly flags?: UserFlags
+  readonly flags?: number
+
   readonly hasPfp: boolean
   readonly hasNickname: boolean
   readonly arcadeRatingPercent: number // e.g. 3 means "Top 3%"
@@ -93,7 +93,7 @@ export function evaluatePlatformAchievements(
       updates.push({ id: 'identity_picture_perfect', progress: 1, shouldUnlock: true })
     }
   }
-  if (hasFlag(stats.flags, 'USER_PIONEER') || stats.legacyUser) {
+  if (hasFlag(stats.flags, UserFlags.USER_PIONEER) || stats.legacyUser) {
     const prev = existingMap.get('identity_lab_pioneer')
     if (!prev?.unlockedAt) {
       updates.push({ id: 'identity_lab_pioneer', progress: 1, shouldUnlock: true })

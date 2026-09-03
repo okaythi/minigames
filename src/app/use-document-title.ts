@@ -22,10 +22,13 @@ export function titleForRoute(route: Route): string {
       return `Not found · ${SITE_TITLE}`
     case 'settings':
       return `Settings · ${SITE_TITLE}`
+    case 'admin-updates':
+      return `Update Notes CMS · ${SITE_TITLE}`
     case 'user-profile':
       return `@${route.username} · ${SITE_TITLE}`
   }
 }
+
 
 export function useDocumentTitle(route: Route): void {
   const title = titleForRoute(route)

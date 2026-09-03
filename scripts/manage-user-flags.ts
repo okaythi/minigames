@@ -7,23 +7,21 @@
  *   npx tsx scripts/manage-user-flags.ts --user=thy --revoke=USER_DEVELOPER
  */
 
-import { FLAGS, hasFlag, enableFlag, disableFlag, parseFlags, type UserFlagName } from '../shared/flags'
+import { UserFlags, FLAGS_METADATA, hasFlag, enableFlag, disableFlag, parseFlags, type UserFlagsBit } from '../shared/flags'
 
 export function applyFlagAction(
-  currentRaw: string | null | undefined,
+  currentRaw: unknown,
   action: 'grant' | 'revoke',
-  flag: UserFlagName | string,
-): string {
+  flag: UserFlagsBit,
+): number {
   const flags = parseFlags(currentRaw)
-  const updated = action === 'grant' ? enableFlag(flags, flag) : disableFlag(flags, flag)
-  return JSON.stringify(updated)
+  return action === 'grant' ? enableFlag(flags, flag) : disableFlag(flags, flag)
 }
 
 export function listAvailableFlags(): void {
   console.log('Available platform flags:')
-  for (const [key, def] of Object.entries(FLAGS)) {
-    console.log(`  - ${key}: "${def.description}"`)
-  }
+  console.log(`  - USER_DEVELOPER (Bit 1): "${FLAGS_METADATA[UserFlags.USER_DEVELOPER].description}"`)
+  console.log(`  - USER_PIONEER   (Bit 2): "${FLAGS_METADATA[UserFlags.USER_PIONEER].description}"`)
 }
 
 if (process.argv.includes('--help')) {

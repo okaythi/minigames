@@ -1,4 +1,4 @@
-import type { FlagDefinition, MaxFourWords } from './types'
+import { UserFlags, type FlagDefinition, type MaxFourWords } from './types'
 
 /**
  * Type-safe flag definition helper.
@@ -11,17 +11,23 @@ function defineFlag<const TDesc extends string>(def: {
 }
 
 /**
- * Canonical registry of all user flags.
+ * Canonical registry of active user flag metadata.
  *
  * Descriptions are strictly type-checked at compile time to never exceed 4 words.
  */
-export const FLAGS = {
-  USER_DEVELOPER: defineFlag({
+export const FLAGS_METADATA = {
+  [UserFlags.USER_DEVELOPER]: defineFlag({
     description: 'Labs Developer',
   }),
-  USER_PIONEER: defineFlag({
+  [UserFlags.USER_PIONEER]: defineFlag({
     description: 'Labs Pioneer',
+  }),
+  [UserFlags.STAFF]: defineFlag({
+    description: 'Nixlabs Staff',
+  }),
+  [UserFlags.CMS_EDITOR]: defineFlag({
+    description: 'Update Notes Editor',
   }),
 } as const
 
-export type UserFlagName = keyof typeof FLAGS
+export const FLAGS = FLAGS_METADATA

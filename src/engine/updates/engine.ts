@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ParserInterface,
   ProjectionInterface,
   ReaderInterface,
@@ -26,6 +26,8 @@ import { defaultProjections } from './projections'
 import { InterfaceRegistry } from './registry'
 import { LocalStorageAdapter } from './adapters/local-storage-adapter'
 import { StaticSeedAdapter } from './adapters/static-seed-adapter'
+import { RemoteStorageAdapter } from './adapters/remote-storage-adapter'
+
 
 /**
  * Event-bus subscriber implementation.
@@ -197,12 +199,18 @@ const defaultParser: ParserInterface = {
 export class UpdateNotesEngine {
   public readonly registry: InterfaceRegistry
 
-  public constructor() {
+  public constructor(customWriter?: WriterInterface, customReader?: ReaderInterface) {
     const subscriber = new EventBusSubscriber()
     const staticSeed = new StaticSeedAdapter()
     const localAdapter = new LocalStorageAdapter(subscriber)
-    const reader = new CompositeReader(localAdapter, staticSeed)
-    const writer = new ValidatingWriterProxy(localAdapter)
+    const remoteAdapter = new RemoteStorageAdapter(subscriber)
+
+    const isBrowser = typeof window !== 'undefined'
+    const defaultReader = isBrowser ? remoteAdapter : new CompositeReader(localAdapter, staticSeed)
+    const defaultWriter = isBrowser ? remoteAdapter : localAdapter
+
+    const reader = customReader ?? defaultReader
+    const writer = new ValidatingWriterProxy(customWriter ?? defaultWriter)
 
     this.registry = new InterfaceRegistry({
       reader,
@@ -212,6 +220,7 @@ export class UpdateNotesEngine {
       parser: defaultParser,
     })
   }
+
 
   public get reader(): ReaderInterface {
     return this.registry.get('reader')

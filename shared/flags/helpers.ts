@@ -1,74 +1,101 @@
-import type { UserFlags } from './types'
-import type { UserFlagName } from './registry'
+import { UserFlags, type UserFlagsBit } from './types'
 
 /**
- * Checks whether a given flag is actively present and enabled on a user's flags object.
+ * Checks whether a specific flag bit is set on the user's bitmask vector.
+ * Runs in a single CPU clock cycle for bit numbers, and resolves strings via static dictionary.
  */
 export function hasFlag(
-  flags: UserFlags | undefined | null,
-  flag: UserFlagName | string,
+  flags: number | undefined | null,
+  flag: UserFlagsBit | number | string,
 ): boolean {
-  if (!flags || typeof flags !== 'object') return false
-  const entry = flags[flag]
-  if (!entry) return false
-  if (entry.enabled === false) return false
-  return true
+  const vector = Number(flags) || 0
+  if (typeof flag === 'string') {
+    const bit = (UserFlags as Record<string, number>)[flag]
+    if (!bit) return false
+    return (vector & bit) === bit
+  }
+  if (flag === 0) return false
+  return (vector & flag) === flag
 }
 
 /**
- * Returns a new UserFlags object with the specified flag enabled.
+ * Returns a new bitmask vector with the specified flag bit set.
  */
 export function enableFlag(
-  flags: UserFlags | undefined | null,
-  flag: UserFlagName | string,
-  extraData?: Record<string, unknown>,
-): UserFlags {
-  const current = flags ? { ...flags } : {}
-  const existing = current[flag] ?? {}
-  current[flag] = {
-    ...existing,
-    ...extraData,
-    enabled: true,
-  }
-  return current
+  flags: number | undefined | null,
+  flag: UserFlagsBit | number | string,
+): number {
+  const bit = typeof flag === 'string' ? (UserFlags as Record<string, number>)[flag] ?? 0 : flag
+  return (Number(flags) || 0) | bit
 }
 
 /**
- * Returns a new UserFlags object with the specified flag removed.
+ * Returns a new bitmask vector with the specified flag bit cleared.
  */
 export function disableFlag(
-  flags: UserFlags | undefined | null,
-  flag: UserFlagName | string,
-): UserFlags {
-  if (!flags) return {}
-  const next = { ...flags }
-  delete next[flag]
-  return next
+  flags: number | undefined | null,
+  flag: UserFlagsBit | number | string,
+): number {
+  const bit = typeof flag === 'string' ? (UserFlags as Record<string, number>)[flag] ?? 0 : flag
+  return (Number(flags) || 0) & ~bit
 }
 
 /**
- * Safely parses raw JSON from D1 or an API payload into a typed UserFlags record.
+ * Checks whether ALL flags in the requirement mask are set.
+ *
+ * Example:
+ *   const PIONEER_DEV = UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER
+ *   if (hasAllFlags(user.flags, PIONEER_DEV)) { ... }
  */
-export function parseFlags(raw: string | UserFlags | undefined | null): UserFlags {
-  if (!raw) return {}
-  if (typeof raw === 'object') return raw as UserFlags
+export function hasAllFlags(
+  flags: number | undefined | null,
+  mask: number,
+): boolean {
+  if (mask === 0) return true
+  const vector = Number(flags) || 0
+  return (vector & mask) === mask
+}
+
+/**
+ * Checks whether ANY of the flags in the mask are set.
+ */
+export function hasAnyFlag(
+  flags: number | undefined | null,
+  mask: number,
+): boolean {
+  if (mask === 0) return false
+  const vector = Number(flags) || 0
+  return (vector & mask) !== 0
+}
+
+/**
+ * Safely coerces a raw database or API field into an integer bitmask.
+ * Supports numbers, numeric strings, and legacy JSON fallback.
+ */
+export function parseFlags(raw: unknown): number {
+  if (typeof raw === 'number' && !Number.isNaN(raw)) {
+    return Math.floor(raw)
+  }
   if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    const numeric = Number(trimmed)
+    if (!Number.isNaN(numeric)) {
+      return Math.floor(numeric)
+    }
+    // Backward compatibility with temporary JSON format:
     try {
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as UserFlags
+      const parsed = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object') {
+        let mask = 0
+        if (parsed.USER_DEVELOPER?.enabled) mask |= UserFlags.USER_DEVELOPER
+        if (parsed.USER_PIONEER?.enabled) mask |= UserFlags.USER_PIONEER
+        if (parsed.STAFF?.enabled) mask |= UserFlags.STAFF
+        if (parsed.CMS_EDITOR?.enabled) mask |= UserFlags.CMS_EDITOR
+        return mask
       }
     } catch {
-      return {}
+      return 0
     }
   }
-  return {}
-}
-
-/**
- * Returns an array of all active flag names.
- */
-export function getActiveFlagNames(flags: UserFlags | undefined | null): string[] {
-  if (!flags) return []
-  return Object.keys(flags).filter((flag) => hasFlag(flags, flag))
+  return 0
 }

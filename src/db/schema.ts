@@ -59,7 +59,7 @@ export const users = sqliteTable('users', {
   lastLoginIpIsVpn: integer('last_login_ip_is_vpn').default(0).notNull(),
   registeredIp: text('registered_ip'),
   developer: integer('developer').default(0).notNull(),
-  flags: text('flags').default('{}').notNull(),
+  flags: integer('flags').default(0).notNull(),
 })
 
 export const systemConfig = sqliteTable('system_config', {
@@ -93,4 +93,44 @@ export const playerDailyActivity = sqliteTable(
     pk: primaryKey({ columns: [table.playerId, table.utcDay] }),
   }),
 )
+
+export const updateReleases = sqliteTable('update_releases', {
+  id: text('id').primaryKey(),
+  globalVersion: text('global_version').notNull(),
+  title: text('title').notNull(),
+  headline: text('headline').notNull(),
+  status: text('status').notNull(), // 'draft' | 'review' | 'published' | 'archived'
+  releaseDate: text('release_date').notNull(),
+  authorUsername: text('author_username'),
+  publishedAt: integer('published_at'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+export const updateRationales = sqliteTable('update_rationales', {
+  releaseId: text('release_id')
+    .primaryKey()
+    .references(() => updateReleases.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  authorUsername: text('author_username'),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+export const updateItems = sqliteTable('update_items', {
+  id: text('id').primaryKey(),
+  releaseId: text('release_id')
+    .notNull()
+    .references(() => updateReleases.id, { onDelete: 'cascade' }),
+  scopeType: text('scope_type').notNull(), // 'game' | 'engine' | 'platform'
+  scopeTargetId: text('scope_target_id').notNull(),
+  scopeEntityName: text('scope_entity_name'),
+  tag: text('tag').notNull(), // 'Balance' | 'New' | 'Fix' | 'Feature' | 'Polish'
+  itemVersion: text('item_version'),
+  subject: text('subject'),
+  description: text('description').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
 

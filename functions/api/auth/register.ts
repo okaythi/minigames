@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
 import { UserRegisterSchema } from '../../../shared/auth-protocol'
+import { UserFlags } from '../../../shared/flags'
 import { hashPassword } from '../../../shared/crypto'
 import { users, players, playerAchievements } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
@@ -70,7 +71,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     lastLoggedIn: now,
     registeredInCountry: country,
     legacyUser,
-    flags: legacyUser === 1 ? JSON.stringify({ USER_PIONEER: { enabled: true, grantedAt: now } }) : '{}',
+    flags: legacyUser === 1 ? UserFlags.USER_PIONEER : UserFlags.NONE,
     accountLocked: 0,
     lastLoginIp: ip,
     lastLoginIpIsVpn: isVpn,

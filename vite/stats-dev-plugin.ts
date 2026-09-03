@@ -10,7 +10,7 @@ import type { StatsMemory } from '../shared/memory-store'
 import type { StatsStore } from '../shared/stats-store'
 import { loadStatsMemory, saveStatsMemory } from './stats-file'
 import { headerOf, sendJson, readBody, parseJson, identitySignals } from './http-helpers'
-import type { UserFlags } from '../shared/flags'
+import { UserFlags } from '../shared/flags'
 
 /**
  * Local stand-in for the Pages Function, route for route: `/api/stats` and
@@ -159,10 +159,7 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000),
               legacyUser: true,
               developer: username === 'thy',
-              flags: {
-                USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) },
-                ...(username === 'thy' ? { USER_DEVELOPER: { enabled: true } } : {}),
-              },
+              flags: UserFlags.USER_PIONEER | (username === 'thy' ? UserFlags.USER_DEVELOPER : UserFlags.NONE),
             }
             devUsers.set(username, newUser)
             devPlayerToUsername.set(playerId, username)
@@ -221,10 +218,7 @@ export function statsDevPlugin(): Plugin {
                 createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
                 legacyUser: true,
                 developer: true,
-                flags: {
-                  USER_DEVELOPER: { enabled: true },
-                  USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) - 86400 * 30 },
-                },
+                flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER,
               }
               devUsers.set('thy', user)
               devPlayerToUsername.set(identity.id, 'thy')
@@ -297,10 +291,7 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
               legacyUser: true,
               developer: true,
-              flags: {
-                USER_DEVELOPER: { enabled: true },
-                USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) - 86400 * 30 },
-              },
+              flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER,
             }
             devUsers.set('thy', user)
           }

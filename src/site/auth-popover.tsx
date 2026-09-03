@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { login, register, logout, getMe, subscribeAuth } from '../services/auth-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
-import { hasFlag } from '../../shared/flags'
+import { hasFlag, UserFlags } from '../../shared/flags'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
 import { DeveloperBadge } from '../components/ui/developer-badge'
@@ -127,12 +127,12 @@ export function AuthPopover() {
                 <div className="nx-user-menu-meta">
                   <div className="nx-user-menu-username" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>@{user.username}</span>
-                    {(hasFlag(user.flags, 'USER_DEVELOPER') || user.developer) && (
+                    {(hasFlag(user.flags, UserFlags.USER_DEVELOPER) || user.developer) && (
                       <DeveloperBadge size={16} title="Develops games for our Lab." />
                     )}
                   </div>
                   {user.nickname && <div className="nx-user-menu-nickname">{user.nickname}</div>}
-                  {(hasFlag(user.flags, 'USER_PIONEER') || user.legacyUser) && (
+                  {(hasFlag(user.flags, UserFlags.USER_PIONEER) || user.legacyUser) && (
                     <span className="nx-user-menu-badge">
                       <span>⚡</span> Pioneer
                     </span>
@@ -164,7 +164,23 @@ export function AuthPopover() {
                   <span className="nx-user-menu-item-icon">⚙️</span>
                   <span>Settings & Avatar</span>
                 </button>
+
+                {hasFlag(user.flags, UserFlags.STAFF) && hasFlag(user.flags, UserFlags.CMS_EDITOR) && (
+                  <button
+                    type="button"
+                    className="nx-user-menu-item"
+                    onClick={() => {
+
+                      setIsOpen(false)
+                      navigate(ROUTES.adminUpdates)
+                    }}
+                  >
+                    <span className="nx-user-menu-item-icon">🛠️</span>
+                    <span>Update Notes CMS</span>
+                  </button>
+                )}
               </div>
+
 
               <hr className="nx-user-menu-divider" />
 

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link } from '../app/link'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
@@ -6,6 +7,7 @@ import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
 import { AuthPopover } from './auth-popover'
 import { TopBanner } from './top-banner'
+import { isCmsEditor, subscribeAuth } from '../services/auth-api'
 import './site-header.css'
 
 interface SiteHeaderProps {
@@ -14,9 +16,18 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ manifests }: SiteHeaderProps) {
   const { route } = useRouter()
+  const [hasCmsAccess, setHasCmsAccess] = useState(isCmsEditor())
+
+  useEffect(() => {
+    setHasCmsAccess(isCmsEditor())
+    return subscribeAuth(() => setHasCmsAccess(isCmsEditor()))
+  }, [])
+
   const isAbout = route.name === 'about'
   const isUpdates = route.name === 'updates'
   const isGames = route.name === 'home'
+  const isAdminUpdates = route.name === 'admin-updates'
+
 
   return (
     <>
@@ -41,7 +52,18 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
             <Link to={ROUTES.about} className="nx-nav-link" data-active={isAbout ? 'true' : undefined}>
               About
             </Link>
+            {hasCmsAccess && (
+              <Link
+                to={ROUTES.adminUpdates}
+                className="nx-nav-link nx-nav-link-cms"
+                data-active={isAdminUpdates ? 'true' : undefined}
+                title="Update Notes CMS (STAFF & CMS_EDITOR)"
+              >
+                CMS
+              </Link>
+            )}
             <AuthPopover />
+
           </nav>
         </div>
       </header>

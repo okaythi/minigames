@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
 import { users } from '../../../src/db/schema'
 import { UserProfileUpdateSchema } from '../../../shared/auth-protocol'
-import { parseFlags, hasFlag } from '../../../shared/flags'
+import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -35,8 +35,8 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       username: user.username,
       nickname: user.nickname,
       pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
-      legacyUser: hasFlag(flags, 'USER_PIONEER') || user.legacyUser === 1,
-      developer: hasFlag(flags, 'USER_DEVELOPER') || user.developer === 1,
+      legacyUser: hasFlag(flags, UserFlags.USER_PIONEER) || user.legacyUser === 1,
+      developer: hasFlag(flags, UserFlags.USER_DEVELOPER) || user.developer === 1,
       flags,
       nicknameChangedCount: user.nicknameChangedCount,
       createdOn: user.createdOn,

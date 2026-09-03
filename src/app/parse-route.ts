@@ -7,6 +7,7 @@ export const ROUTES = {
   about: '/about',
   updates: '/updates',
   settings: '/settings',
+  adminUpdates: '/admin/updates',
   game: (slug: string): string => `/games/${slug}`,
   userProfile: (username: string): string => `/users/${username}`,
 } as const
@@ -32,6 +33,11 @@ export function parseRoute(pathname: string, search: string): Route {
   if (path === '/settings') {
     return { name: 'settings', query: readQuery(search) }
   }
+
+  if (path === '/admin/updates') {
+    return { name: 'admin-updates', query: readQuery(search) }
+  }
+
 
   if (path.startsWith(GAME_SEGMENT)) {
     const slug = path.slice(GAME_SEGMENT.length).replace(/\/+$/, '')

@@ -6,6 +6,7 @@ import { UpdatesPage } from '../pages/updates-page'
 import { NotFoundPage } from '../pages/not-found-page'
 import { UserProfilePage } from '../pages/user-profile'
 import { SettingsPage } from '../pages/settings'
+import { AdminUpdatesPage } from '../pages/admin/admin-updates-page'
 import { useDocumentTitle } from './use-document-title'
 import { useRouter } from './router'
 
@@ -31,6 +32,8 @@ export function AppRoutes() {
       return <UpdatesPage />
     case 'settings':
       return <SettingsPage />
+    case 'admin-updates':
+      return <AdminUpdatesPage />
     case 'user-profile':
       return <UserProfilePage username={route.username} />
     case 'game':
@@ -39,3 +42,4 @@ export function AppRoutes() {
       return <NotFoundPage path={route.path} />
   }
 }
+

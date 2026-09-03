@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react'
 import { usePublishedUpdates } from '../engine/updates'
 import type { UpdateTag } from '../engine/updates'
+import { BrokenFlaskEmptyState } from '../components/ui/broken-flask-empty-state'
+import { MarkdownRenderer } from '../components/ui/rich-editor/markdown-renderer'
 import './updates-page.css'
+
 
 type ViewMode = 'by-game' | 'by-tag'
 
@@ -124,9 +127,11 @@ export function UpdatesPage() {
       {/* Releases List */}
       <div className="nx-releases-list">
         {loading && releases.length === 0 ? (
-          <p style={{ color: 'var(--nx-muted)' }}>Loading update history...</p>
+          <p style={{ color: 'var(--nx-muted)', textAlign: 'center', padding: '32px' }}>Loading update history...</p>
+        ) : releases.length === 0 ? (
+          <BrokenFlaskEmptyState message="nothing to see here yet" subtitle="Our lab researchers haven't published any updates yet. Check back soon!" />
         ) : filteredReleases.length === 0 ? (
-          <p style={{ color: 'var(--nx-muted)' }}>No updates match the selected filter.</p>
+          <p style={{ color: 'var(--nx-muted)', textAlign: 'center', padding: '32px' }}>No updates match the selected filter.</p>
         ) : (
           filteredReleases.map((release) => (
             <article key={release.meta.id} className="nx-release-card">
@@ -140,7 +145,7 @@ export function UpdatesPage() {
               {release.rationale && (
                 <section className="nx-release-rationale" aria-label="Developer notes">
                   <div className="nx-release-rationale-title">Developer Rationale</div>
-                  <p className="nx-release-rationale-text">{release.rationale.content}</p>
+                  <MarkdownRenderer content={release.rationale.content} />
                 </section>
               )}
 
@@ -162,7 +167,7 @@ export function UpdatesPage() {
                               {item.subject && (
                                 <strong className="nx-change-subject">{item.subject}:</strong>
                               )}
-                              {item.description}
+                              <MarkdownRenderer content={item.description} />
                             </span>
                           </li>
                         ))}
@@ -201,7 +206,7 @@ export function UpdatesPage() {
                               {item.subject && (
                                 <strong className="nx-change-subject">{item.subject}:</strong>
                               )}
-                              {item.description}
+                              <MarkdownRenderer content={item.description} />
                             </span>
                           </li>
                         ))}
@@ -214,6 +219,7 @@ export function UpdatesPage() {
           ))
         )}
       </div>
+
     </div>
   )
 }

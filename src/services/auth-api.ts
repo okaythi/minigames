@@ -5,7 +5,7 @@ import type {
   UserProfileResponse,
   UserPublicProfileResponse,
 } from '../../shared/auth-protocol'
-import { hasFlag } from '../../shared/flags'
+import { hasFlag, UserFlags } from '../../shared/flags'
 
 let cachedCurrentUser: UserProfileResponse | null = null
 const authListeners = new Set<() => void>()
@@ -23,8 +23,23 @@ export function getCurrentUser(): UserProfileResponse | null {
 
 export function isCurrentDeveloper(): boolean {
   if (!cachedCurrentUser) return false
-  return hasFlag(cachedCurrentUser.flags, 'USER_DEVELOPER') || cachedCurrentUser.developer === true
+  return hasFlag(cachedCurrentUser.flags, UserFlags.USER_DEVELOPER) || cachedCurrentUser.developer === true
 }
+
+export function isStaff(): boolean {
+  if (!cachedCurrentUser) return false
+  return hasFlag(cachedCurrentUser.flags, UserFlags.STAFF)
+}
+
+export function isCmsEditor(): boolean {
+  if (!cachedCurrentUser) return false
+  return (
+    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
+    hasFlag(cachedCurrentUser.flags, UserFlags.CMS_EDITOR)
+  )
+}
+
+
 
 export function subscribeAuth(listener: () => void): () => void {
   authListeners.add(listener)

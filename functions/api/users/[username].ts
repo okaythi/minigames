@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { eq, sql } from 'drizzle-orm'
 import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity } from '../../../src/db/schema'
 import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem } from '../../../shared/auth-protocol'
-import { parseFlags, hasFlag } from '../../../shared/flags'
+import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
 import { badRequest, jsonResponse } from '../stats/respond'
 import type { StatsEnv } from '../stats/store-for'
@@ -111,8 +111,8 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
   }
 
   const flags = parseFlags(user.flags)
-  const isDev = hasFlag(flags, 'USER_DEVELOPER') || user.developer === 1
-  const isPioneer = hasFlag(flags, 'USER_PIONEER') || user.legacyUser === 1
+  const isDev = hasFlag(flags, UserFlags.USER_DEVELOPER) || user.developer === 1
+  const isPioneer = hasFlag(flags, UserFlags.USER_PIONEER) || user.legacyUser === 1
 
   // Derive title
   let primaryTitle = 'Lab Recruit'
