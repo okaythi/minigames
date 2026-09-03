@@ -9,6 +9,7 @@ export function SiteFooter() {
       <div className="nx-footer-inner nx-page">
         <p className="nx-footer-note">
           <strong>Nixlabs</strong>
+          <span className="nx-footer-author"> by Thy</span>
         </p>
         <nav className="nx-footer-nav" aria-label="Footer">
           <Link to={ROUTES.home}>Games</Link>

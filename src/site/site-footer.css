@@ -24,6 +24,11 @@
   font-weight: 600;
 }
 
+.nx-footer-author {
+  color: var(--nx-slate);
+  font-weight: 400;
+}
+
 .nx-footer-nav {
   display: flex;
   gap: 16px;
