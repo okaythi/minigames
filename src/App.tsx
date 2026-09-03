@@ -1,3 +1,4 @@
+import { ErrorBoundary } from './app/error-boundary'
 import { AppRoutes } from './app/app-routes'
 import { RouterProvider } from './app/router'
 import { SiteFooter } from './site/site-footer'
@@ -15,7 +16,9 @@ export function App() {
         <div className="nx-shell">
           <SiteHeader manifests={MANIFESTS} />
           <main className="nx-main nx-page" id="main">
-            <AppRoutes />
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
           </main>
           <SiteFooter />
           <AchievementToast />

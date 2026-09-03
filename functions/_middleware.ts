@@ -43,21 +43,36 @@ export const onRequest = async (context: {
 
     if (!isApi && !hasExtension) {
       let assetResponse: Response | null = null
-      const indexRequest = new Request(new URL('/', context.request.url), context.request)
 
       if (context.env?.ASSETS) {
-        assetResponse = await context.env.ASSETS.fetch(indexRequest)
-        if (assetResponse.status === 404) {
+        const cleanRequest = new Request(new URL('/index.html', context.request.url), {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html',
+          },
+        })
+        assetResponse = await context.env.ASSETS.fetch(cleanRequest)
+        if (assetResponse.status >= 400) {
           assetResponse = await context.env.ASSETS.fetch(
-            new Request(new URL('/index.html', context.request.url), context.request),
+            new Request(new URL('/', context.request.url), {
+              method: 'GET',
+              headers: {
+                'Accept': 'text/html',
+              },
+            }),
           )
         }
       } else {
-        assetResponse = await context.next(indexRequest)
+        assetResponse = await context.next(new Request(new URL('/', context.request.url)))
       }
 
-      if (assetResponse && assetResponse.status < 400) {
-        const clone = new Response(assetResponse.body, assetResponse)
+      if (assetResponse && assetResponse.status < 400 && assetResponse.body) {
+        const clone = new Response(assetResponse.body, {
+          status: 200,
+          headers: assetResponse.headers,
+        })
+        clone.headers.set('Content-Type', 'text/html; charset=utf-8')
+        clone.headers.set('Cache-Control', 'no-cache, must-revalidate')
         clone.headers.set('X-Robots-Tag', 'noindex, nofollow, nosnippet, noimageindex, noarchive')
         return clone
       }

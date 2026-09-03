@@ -52,6 +52,13 @@ export interface ReleaseItem {
   readonly updatedAt: number
 }
 
+export interface ReleaseAuthorBadge {
+  readonly id?: string | undefined
+  readonly name: string
+  readonly icon?: string | undefined
+  readonly unlocked?: boolean | undefined
+}
+
 export interface ReleaseAuthor {
   readonly username: string
   readonly nickname?: string | undefined
@@ -59,6 +66,7 @@ export interface ReleaseAuthor {
   readonly flags?: number | undefined
   readonly developer?: boolean | undefined
   readonly legacyUser?: boolean | undefined
+  readonly badges?: readonly ReleaseAuthorBadge[] | undefined
 }
 
 export interface ReleaseMeta {

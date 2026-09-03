@@ -58,6 +58,36 @@
 .nx-author-byline-badges {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-left: 2px;
+}
+
+.nx-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  user-select: none;
+}
+
+.nx-badge-icon:hover {
+  transform: scale(1.18);
+}
+
+.nx-badge-icon.nx-badge-pioneer {
+  font-size: 15px;
+  color: var(--nx-orange);
+  filter: drop-shadow(0 0 2px rgba(246, 130, 31, 0.4));
+}
+
+.nx-badge-icon.nx-badge-editor {
+  color: var(--nx-blue);
+  font-size: 14px;
+}
+
+.nx-badge-icon.nx-badge-achievement {
+  font-size: 15px;
 }

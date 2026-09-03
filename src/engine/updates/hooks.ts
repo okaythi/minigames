@@ -19,35 +19,54 @@ let publishedCache: readonly ReleaseAggregate[] | null = null
 let latestCache: ReleaseAggregate | null = null
 let draftsCache: readonly ReleaseAggregate[] | null = null
 
+const EMPTY_RELEASES: readonly ReleaseAggregate[] = []
+const EMPTY_DRAFTS: readonly ReleaseAggregate[] = []
+const localSubscribers = new Set<() => void>()
+
+function notifyLocalSubscribers(): void {
+  for (const cb of localSubscribers) {
+    cb()
+  }
+}
+
 // Initial fetch to prime synchronous caches
 if (typeof window !== 'undefined') {
   void updatesEngine.reader.getPublished().then((res) => {
     publishedCache = res
+    notifyLocalSubscribers()
   })
   void updatesEngine.reader.getLatestPublished().then((res) => {
     latestCache = res
+    notifyLocalSubscribers()
   })
   void updatesEngine.reader.getDrafts().then((res) => {
     draftsCache = res
+    notifyLocalSubscribers()
   })
 }
 
 function subscribeUpdates(callback: () => void): () => void {
-  return updatesEngine.subscriber.subscribe(() => {
+  localSubscribers.add(callback)
+  const unsubscribeBus = updatesEngine.subscriber.subscribe(() => {
     // Invalidate local in-memory snapshot caches
     void updatesEngine.reader.getPublished().then((res) => {
       publishedCache = res
-      callback()
+      notifyLocalSubscribers()
     })
     void updatesEngine.reader.getLatestPublished().then((res) => {
       latestCache = res
-      callback()
+      notifyLocalSubscribers()
     })
     void updatesEngine.reader.getDrafts().then((res) => {
       draftsCache = res
-      callback()
+      notifyLocalSubscribers()
     })
   })
+
+  return () => {
+    localSubscribers.delete(callback)
+    unsubscribeBus()
+  }
 }
 
 /**
@@ -62,8 +81,8 @@ export function usePublishedUpdates(): {
 
   const releases = useSyncExternalStore(
     subscribeUpdates,
-    () => publishedCache ?? [],
-    () => [],
+    () => publishedCache ?? EMPTY_RELEASES,
+    () => EMPTY_RELEASES,
   )
 
   useEffect(() => {
@@ -129,8 +148,8 @@ export function useUpdateEditor(selectedReleaseId?: ReleaseId): {
 } {
   const drafts = useSyncExternalStore(
     subscribeUpdates,
-    () => draftsCache ?? [],
-    () => [],
+    () => draftsCache ?? EMPTY_DRAFTS,
+    () => EMPTY_DRAFTS,
   )
 
   const [activeRelease, setActiveRelease] = useState<ReleaseAggregate | null>(null)
