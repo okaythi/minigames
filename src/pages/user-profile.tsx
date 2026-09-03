@@ -152,10 +152,6 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
               )}
 
               <div className="nx-passport-submeta">
-                <span className="nx-passport-title-badge">
-                  <span>✨</span> {profile.title}
-                </span>
-                <span className="nx-passport-bullet">•</span>
                 <span>Joined {joinDateText}</span>
               </div>
             </div>
