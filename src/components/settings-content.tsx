@@ -1,6 +1,7 @@
 import { useState, useRef, type ChangeEvent, type FormEvent, type DragEvent } from 'react'
 import { updateNickname, updatePfp } from '../services/auth-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
+import { hasFlag } from '../../shared/flags'
 import '../pages/settings.css'
 
 interface SettingsContentProps {
@@ -344,7 +345,7 @@ export function SettingsContent({ profile, onProfileUpdated }: SettingsContentPr
             <div className="nx-nickname-locked-meta">
               <span className="nx-nickname-locked-label">Account Tier</span>
               <span className="nx-nickname-locked-value">
-                {profile.legacyUser ? '⚡ Lab Pioneer' : '🎮 Arcade Member'}
+                {hasFlag(profile.flags, 'USER_PIONEER') || profile.legacyUser ? '⚡ Labs Pioneer' : '🎮 Arcade Member'}
               </span>
             </div>
           </div>

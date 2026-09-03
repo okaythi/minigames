@@ -59,6 +59,7 @@ export const users = sqliteTable('users', {
   lastLoginIpIsVpn: integer('last_login_ip_is_vpn').default(0).notNull(),
   registeredIp: text('registered_ip'),
   developer: integer('developer').default(0).notNull(),
+  flags: text('flags').default('{}').notNull(),
 })
 
 export const systemConfig = sqliteTable('system_config', {

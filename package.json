@@ -15,7 +15,8 @@
     "db:init": "npx --yes wrangler d1 migrations apply nix-minigames --local",
     "db:migrate": "npx --yes wrangler d1 migrations apply nix-minigames --remote",
     "simulate": "esbuild scripts/simulate-avoid.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/simulate.mjs --log-level=warning && node node_modules/.tmp/simulate.mjs",
-    "simulate:tron": "esbuild scripts/simulate-tron.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/simulate-tron.mjs --log-level=warning && node node_modules/.tmp/simulate-tron.mjs"
+    "simulate:tron": "esbuild scripts/simulate-tron.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/simulate-tron.mjs --log-level=warning && node node_modules/.tmp/simulate-tron.mjs",
+    "test:flags": "esbuild scripts/test-user-flags.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/test-flags.mjs --log-level=warning && node node_modules/.tmp/test-flags.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

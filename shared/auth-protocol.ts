@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { UserFlags } from './flags'
 
 const usernameRegex = /^[a-z_]([a-z0-9_\.]*[a-z0-9_])?$/
 
@@ -37,6 +38,7 @@ export interface UserProfileResponse {
   pfpUrl: string | null
   legacyUser: boolean
   developer: boolean
+  flags: UserFlags
   nicknameChangedCount: number
   createdOn: number
 }
@@ -78,6 +80,7 @@ export interface UserPublicProfileResponse {
   pfpUrl: string | null
   legacyUser: boolean
   developer: boolean
+  flags: UserFlags
   nicknameChangedCount: number
   createdOn: number
   totalPlays: number

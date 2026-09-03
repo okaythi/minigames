@@ -10,6 +10,7 @@ import type { StatsMemory } from '../shared/memory-store'
 import type { StatsStore } from '../shared/stats-store'
 import { loadStatsMemory, saveStatsMemory } from './stats-file'
 import { headerOf, sendJson, readBody, parseJson, identitySignals } from './http-helpers'
+import type { UserFlags } from '../shared/flags'
 
 /**
  * Local stand-in for the Pages Function, route for route: `/api/stats` and
@@ -127,6 +128,7 @@ export function statsDevPlugin(): Plugin {
         createdOn: number
         legacyUser: boolean
         developer: boolean
+        flags: UserFlags
       }
 
       const devUsers = new Map<string, DevUser>()
@@ -157,6 +159,10 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000),
               legacyUser: true,
               developer: username === 'thy',
+              flags: {
+                USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) },
+                ...(username === 'thy' ? { USER_DEVELOPER: { enabled: true } } : {}),
+              },
             }
             devUsers.set(username, newUser)
             devPlayerToUsername.set(playerId, username)
@@ -215,6 +221,10 @@ export function statsDevPlugin(): Plugin {
                 createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
                 legacyUser: true,
                 developer: true,
+                flags: {
+                  USER_DEVELOPER: { enabled: true },
+                  USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) - 86400 * 30 },
+                },
               }
               devUsers.set('thy', user)
               devPlayerToUsername.set(identity.id, 'thy')
@@ -229,6 +239,7 @@ export function statsDevPlugin(): Plugin {
                   pfpUrl: user.pfpUrl,
                   legacyUser: user.legacyUser,
                   developer: user.developer,
+                  flags: user.flags,
                   nicknameChangedCount: user.nicknameChangedCount,
                   createdOn: user.createdOn,
                 },
@@ -286,6 +297,10 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
               legacyUser: true,
               developer: true,
+              flags: {
+                USER_DEVELOPER: { enabled: true },
+                USER_PIONEER: { enabled: true, grantedAt: Math.floor(Date.now() / 1000) - 86400 * 30 },
+              },
             }
             devUsers.set('thy', user)
           }
@@ -394,6 +409,7 @@ export function statsDevPlugin(): Plugin {
                 pfpUrl: user.pfpUrl,
                 legacyUser: user.legacyUser,
                 developer: user.developer,
+                flags: user.flags,
                 nicknameChangedCount: user.nicknameChangedCount,
                 createdOn: user.createdOn,
                 totalPlays,

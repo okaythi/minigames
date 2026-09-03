@@ -20,6 +20,7 @@ import {
 import { evaluatePlatformAchievements } from './evaluator'
 import type { AchievementId } from '../../../shared/achievements-protocol'
 import { isRecordOfStats, readField } from '../../../shared/stats-protocol'
+import { parseFlags } from '../../../shared/flags'
 
 interface PagesContext {
   readonly request: Request
@@ -105,6 +106,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
         streakDays,
         legacyUser: user.legacyUser === 1,
         developer: user.developer === 1,
+        flags: parseFlags(user.flags),
         hasPfp: user.pfpR2Key !== null,
         hasNickname: user.nickname !== null,
         arcadeRatingPercent,

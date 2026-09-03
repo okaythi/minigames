@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { eq, sql } from 'drizzle-orm'
 import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity } from '../../../src/db/schema'
 import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem } from '../../../shared/auth-protocol'
+import { parseFlags, hasFlag } from '../../../shared/flags'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
 import { badRequest, jsonResponse } from '../stats/respond'
 import type { StatsEnv } from '../stats/store-for'
@@ -109,11 +110,15 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     arcadeRating = 'Top 25%'
   }
 
+  const flags = parseFlags(user.flags)
+  const isDev = hasFlag(flags, 'USER_DEVELOPER') || user.developer === 1
+  const isPioneer = hasFlag(flags, 'USER_PIONEER') || user.legacyUser === 1
+
   // Derive title
   let primaryTitle = 'Lab Recruit'
-  if (user.developer === 1) {
+  if (isDev) {
     primaryTitle = 'Lab Developer'
-  } else if (user.legacyUser === 1) {
+  } else if (isPioneer) {
     primaryTitle = 'Lab Pioneer'
   } else if (recordsHeld > 0) {
     primaryTitle = 'Record Holder'
@@ -138,9 +143,9 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     let currentProgress = row?.progress ?? 0
 
     // Auto-fallback checks for platform legacy & basic milestones if row missing
-    if (def.id === 'identity_developer' && user.developer === 1) {
+    if (def.id === 'identity_developer' && isDev) {
       unlocked = true
-    } else if (def.id === 'identity_lab_pioneer' && user.legacyUser === 1) {
+    } else if (def.id === 'identity_lab_pioneer' && isPioneer) {
       unlocked = true
     } else if (def.id === 'candy_sweet_tooth' && totalCandy >= 10) {
       unlocked = true
@@ -238,8 +243,9 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     username: user.username,
     nickname: user.nickname,
     pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
-    legacyUser: user.legacyUser === 1,
-    developer: user.developer === 1,
+    legacyUser: isPioneer,
+    developer: isDev,
+    flags,
     nicknameChangedCount: user.nicknameChangedCount,
     createdOn: user.createdOn,
     totalPlays,

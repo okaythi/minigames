@@ -7,6 +7,7 @@ import { ROUTES } from '../app/parse-route'
 import { SettingsDrawer } from '../components/settings-drawer'
 import { AchievementsShowcase } from '../components/achievements/achievements-showcase'
 import { DeveloperBadge } from '../components/ui/developer-badge'
+import { hasFlag } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
 import { readGlobalCandy } from '../services/stats/local-counters'
 import './user-profile.css'
@@ -131,8 +132,13 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             <div className="nx-passport-meta">
               <div className="nx-passport-name-row">
                 <h1 className="nx-passport-username">@{profile.username}</h1>
-                {profile.developer && (
+                {(hasFlag(profile.flags, 'USER_DEVELOPER') || profile.developer) && (
                   <DeveloperBadge size={22} title="Develops games for our Lab." />
+                )}
+                {(hasFlag(profile.flags, 'USER_PIONEER') || profile.legacyUser) && (
+                  <span className="nx-user-menu-badge" title="Labs Pioneer">
+                    <span>⚡</span> Pioneer
+                  </span>
                 )}
                 {profile.nickname && (
                   <span className="nx-passport-nickname">{profile.nickname}</span>
@@ -140,7 +146,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
               </div>
 
               <div className="nx-passport-submeta">
-                {profile.developer && (
+                {(hasFlag(profile.flags, 'USER_DEVELOPER') || profile.developer) && (
                   <DeveloperBadge withTag title="Develops games for our Lab." />
                 )}
                 <span className="nx-passport-title-badge">

@@ -70,6 +70,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     lastLoggedIn: now,
     registeredInCountry: country,
     legacyUser,
+    flags: legacyUser === 1 ? JSON.stringify({ USER_PIONEER: { enabled: true, grantedAt: now } }) : '{}',
     accountLocked: 0,
     lastLoginIp: ip,
     lastLoginIpIsVpn: isVpn,

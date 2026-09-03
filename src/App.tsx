@@ -5,6 +5,7 @@ import { SiteHeader } from './site/site-header'
 import { StatsProvider } from './services/stats/stats-provider'
 import { MANIFESTS } from './games/registry'
 import { AchievementToast } from './components/achievements/achievement-toast'
+import { SyncStatusPill } from './components/ui/sync-status-pill'
 import './site/app-shell.css'
 
 export function App() {
@@ -18,6 +19,7 @@ export function App() {
           </main>
           <SiteFooter />
           <AchievementToast />
+          <SyncStatusPill />
         </div>
       </StatsProvider>
     </RouterProvider>

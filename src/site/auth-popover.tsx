@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
-import { login, register, logout, getMe } from '../services/auth-api'
+import { login, register, logout, getMe, subscribeAuth } from '../services/auth-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
+import { hasFlag } from '../../shared/flags'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
 import { DeveloperBadge } from '../components/ui/developer-badge'
@@ -19,9 +20,15 @@ export function AuthPopover() {
 
   useEffect(() => {
     void getMe().then(setUser)
+    return subscribeAuth(() => {
+      void getMe().then(setUser)
+    })
   }, [])
 
   useEffect(() => {
+    function handleOpenAuth() {
+      setIsOpen(true)
+    }
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setIsOpen(false)
@@ -32,9 +39,11 @@ export function AuthPopover() {
         setIsOpen(false)
       }
     }
+    window.addEventListener('nx:open-auth', handleOpenAuth)
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
     return () => {
+      window.removeEventListener('nx:open-auth', handleOpenAuth)
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
     }
@@ -118,10 +127,12 @@ export function AuthPopover() {
                 <div className="nx-user-menu-meta">
                   <div className="nx-user-menu-username" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>@{user.username}</span>
-                    {user.developer && <DeveloperBadge size={16} title="Develops games for our Lab." />}
+                    {(hasFlag(user.flags, 'USER_DEVELOPER') || user.developer) && (
+                      <DeveloperBadge size={16} title="Develops games for our Lab." />
+                    )}
                   </div>
                   {user.nickname && <div className="nx-user-menu-nickname">{user.nickname}</div>}
-                  {user.legacyUser && (
+                  {(hasFlag(user.flags, 'USER_PIONEER') || user.legacyUser) && (
                     <span className="nx-user-menu-badge">
                       <span>⚡</span> Pioneer
                     </span>
