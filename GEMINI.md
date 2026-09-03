@@ -8,3 +8,6 @@
   3. If you think so, modularise it.
   4. If not, proceed naturally.
   5. Just let the user know at the end of the job!
+
+## Tool Usage Directive
+- Prefer native tools (view_file, replace_file_content, write_to_file, etc.) over shell commands whenever possible.

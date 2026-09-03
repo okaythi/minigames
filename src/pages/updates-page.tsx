@@ -22,27 +22,58 @@ export function UpdatesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('by-game')
   const [selectedFilter, setSelectedFilter] = useState<string>('all')
 
-  // Collect distinct game slugs from all release pillars
+  // Collect distinct game slugs and count matching releases
   const gameOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    map.set('all', 'All Games')
+    const titleMap = new Map<string, string>()
+    const countMap = new Map<string, number>()
+
+    titleMap.set('all', 'All Games')
+    countMap.set('all', releases.length)
+
     for (const release of releases) {
+      const seen = new Set<string>()
       for (const pillar of release.pillars) {
-        if (!map.has(pillar.gameSlug)) {
-          map.set(pillar.gameSlug, pillar.gameTitle)
+        if (!titleMap.has(pillar.gameSlug)) {
+          titleMap.set(pillar.gameSlug, pillar.gameTitle)
+        }
+        if (!seen.has(pillar.gameSlug)) {
+          seen.add(pillar.gameSlug)
+          countMap.set(pillar.gameSlug, (countMap.get(pillar.gameSlug) ?? 0) + 1)
         }
       }
     }
-    return Array.from(map.entries()).map(([slug, title]) => ({ id: slug, title }))
+
+    return Array.from(titleMap.entries()).map(([slug, title]) => ({
+      id: slug,
+      title,
+      count: countMap.get(slug) ?? 0,
+    }))
   }, [releases])
 
-  // Collect tag options
+  // Collect tag options and count matching releases
   const tagOptions = useMemo(() => {
+    const countMap = new Map<string, number>()
+    countMap.set('all', releases.length)
+
+    for (const release of releases) {
+      const seen = new Set<string>()
+      for (const group of release.tagGroups) {
+        if (!seen.has(group.tag)) {
+          seen.add(group.tag)
+          countMap.set(group.tag, (countMap.get(group.tag) ?? 0) + 1)
+        }
+      }
+    }
+
     return [
-      { id: 'all', title: 'All Categories' },
-      ...ALL_TAGS.map((tag) => ({ id: tag, title: tag })),
+      { id: 'all', title: 'All Categories', count: countMap.get('all') ?? 0 },
+      ...ALL_TAGS.map((tag) => ({
+        id: tag,
+        title: tag,
+        count: countMap.get(tag) ?? 0,
+      })),
     ]
-  }, [])
+  }, [releases])
 
   // Filter releases according to active viewMode and selectedFilter
   const filteredReleases = useMemo(() => {
@@ -79,51 +110,62 @@ export function UpdatesPage() {
         </p>
       </header>
 
-      {/* Toolbar with View Mode Switcher */}
-      <div className="nx-updates-toolbar">
-        <nav className="nx-view-mode-toggle" aria-label="View mode switcher">
-          <button
-            type="button"
-            className="nx-view-mode-btn"
-            data-active={viewMode === 'by-game' ? 'true' : undefined}
-            onClick={() => {
-              setViewMode('by-game')
-              setSelectedFilter('all')
-            }}
-          >
-            By Game
-          </button>
-          <button
-            type="button"
-            className="nx-view-mode-btn"
-            data-active={viewMode === 'by-tag' ? 'true' : undefined}
-            onClick={() => {
-              setViewMode('by-tag')
-              setSelectedFilter('all')
-            }}
-          >
-            By Category
-          </button>
+      {/* Integrated Controls Bar (Option 1: Nixlabs Brand Warmth) */}
+      <div className="nx-updates-controls">
+        <div className="nx-updates-toolbar">
+          <nav className="nx-view-mode-toggle" aria-label="View mode switcher">
+            <button
+              type="button"
+              className="nx-view-mode-btn"
+              data-active={viewMode === 'by-game' ? 'true' : undefined}
+              onClick={() => {
+                setViewMode('by-game')
+                setSelectedFilter('all')
+              }}
+            >
+              By Game
+            </button>
+            <button
+              type="button"
+              className="nx-view-mode-btn"
+              data-active={viewMode === 'by-tag' ? 'true' : undefined}
+              onClick={() => {
+                setViewMode('by-tag')
+                setSelectedFilter('all')
+              }}
+            >
+              By Category
+            </button>
+          </nav>
+
+          <span className="nx-updates-count-indicator">
+            {filteredReleases.length === 1 ? '1 update release' : `${filteredReleases.length} update releases`}
+          </span>
+        </div>
+
+        {/* Dynamic Filter Pills */}
+        <nav
+          className="nx-updates-filters"
+          aria-label={viewMode === 'by-game' ? 'Filter updates by game' : 'Filter updates by category'}
+        >
+          {(viewMode === 'by-game' ? gameOptions : tagOptions).map((opt) => {
+            const isActive = selectedFilter === opt.id
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className="nx-updates-filter-btn"
+                data-active={isActive ? 'true' : undefined}
+                onClick={() => setSelectedFilter(opt.id)}
+              >
+                {isActive && <span className="nx-filter-active-pip" aria-hidden="true" />}
+                <span className="nx-filter-title">{opt.title}</span>
+                <span className="nx-filter-count">{opt.count}</span>
+              </button>
+            )
+          })}
         </nav>
       </div>
-
-      {/* Dynamic Filter Pills */}
-      <nav
-        className="nx-updates-filters"
-        aria-label={viewMode === 'by-game' ? 'Filter updates by game' : 'Filter updates by tag'}
-      >
-        {(viewMode === 'by-game' ? gameOptions : tagOptions).map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            className="nx-updates-filter-btn"
-            data-active={selectedFilter === opt.id ? 'true' : undefined}
-            onClick={() => setSelectedFilter(opt.id)}
-          >
-            {opt.title}
-          </button>
-        ))}
-      </nav>
 
       {/* Releases List */}
       <div className="nx-releases-list">
