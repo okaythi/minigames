@@ -1,4 +1,5 @@
 import { localStore, onLocalStorageChange } from '../storage/local-store'
+import { ALLOWED_SLUGS } from '../../../shared/game-slugs'
 
 /**
  * Per-browser counters. This is the single writer for anything the games
@@ -102,4 +103,12 @@ export function readGlobalCandy(knownSlugs: readonly string[]): number {
     total += readLocalCounters(slug).candy
   }
   return total
+}
+
+export function resetLocalCounters(slugs: readonly string[] = ALLOWED_SLUGS): void {
+  for (const slug of slugs) {
+    localStore.remove(keyFor(slug))
+    cache.delete(slug)
+  }
+  emit()
 }

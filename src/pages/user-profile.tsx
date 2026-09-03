@@ -10,7 +10,6 @@ import { DeveloperBadge } from '../components/ui/developer-badge'
 import { BadgeTooltip } from '../components/ui/badge-tooltip'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
-import { readGlobalCandy } from '../services/stats/local-counters'
 import './user-profile.css'
 
 interface UserProfilePageProps {
@@ -99,8 +98,6 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
 
   const isOwner = currentUser?.username.toLowerCase() === profile.username.toLowerCase()
   const joinDateText = formatJoinDate(profile.createdOn)
-  const localCandy = readGlobalCandy(MANIFESTS.map((m) => m.slug))
-  const displayedCandy = isOwner ? Math.max(profile.totalCandy, localCandy) : profile.totalCandy
 
   // Find best game to challenge (only games where user has an established personal best)
   const hasPb = (game: UserGameStat): boolean => {
@@ -215,7 +212,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
           <div className="nx-passport-stat-cell">
             <span className="nx-passport-stat-label">Candy Bank</span>
             <div className="nx-passport-stat-value">
-              <span>{displayedCandy.toLocaleString()}</span>
+              <span>{profile.totalCandy.toLocaleString()}</span>
               <span className="nx-passport-stat-sub">🍬</span>
             </div>
           </div>

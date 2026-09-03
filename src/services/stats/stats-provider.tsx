@@ -86,18 +86,8 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
 
       if (payload.player) {
         for (const slug of ALLOWED_SLUGS) {
-          const local = readLocalCounters(slug)
           const remoteGameCandy = payload.player.games[slug]?.candy ?? 0
-          if (remoteGameCandy > local.candy) {
-            patchLocalCounters(slug, { candy: remoteGameCandy })
-          } else if (local.candy > remoteGameCandy) {
-            const diff = local.candy - remoteGameCandy
-            void pushStatsEvent(slug, { type: 'candy', amount: diff }).then((res) => {
-              if (!cancelled && res?.player) {
-                setPlayerRecord(res.player)
-              }
-            })
-          }
+          patchLocalCounters(slug, { candy: remoteGameCandy })
         }
       }
     })

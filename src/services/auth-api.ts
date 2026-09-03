@@ -5,7 +5,8 @@ import type {
   UserProfileResponse,
   UserPublicProfileResponse,
 } from '../../shared/auth-protocol'
-import { hasFlag, UserFlags } from '../../shared/flags'
+import { UserFlags, hasFlag } from '../../shared/flags'
+import { resetLocalCounters } from './stats/local-counters'
 
 let cachedCurrentUser: UserProfileResponse | null = null
 const authListeners = new Set<() => void>()
@@ -49,6 +50,7 @@ export function subscribeAuth(listener: () => void): () => void {
 }
 
 export async function login(payload: UserLoginPayload) {
+  resetLocalCounters()
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -74,6 +76,7 @@ export async function register(payload: UserRegisterPayload) {
 
 export async function logout() {
   setCachedUser(null)
+  resetLocalCounters()
   await fetch('/api/auth/logout', { method: 'POST' })
   window.location.reload()
 }
