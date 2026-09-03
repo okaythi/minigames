@@ -32,6 +32,22 @@ export const FLAGS_METADATA = {
     name: 'Update Notes Editor',
     description: 'Update Notes Editor',
   }),
+  [UserFlags.USER_FRIENDS_BLOCKED]: defineFlag({
+    name: 'Friends Blocked',
+    description: 'Friends Management Blocked',
+  }),
+  [UserFlags.USER_FRIENDS_MAX]: defineFlag({
+    name: 'Max Friends Reached',
+    description: 'Max Friends Limit Reached',
+  }),
+  [UserFlags.TEST_ACCOUNT]: defineFlag({
+    name: 'Test Account',
+    description: 'Internal Sandbox Test Account',
+  }),
+  [UserFlags.USER_MESSAGES_BLOCKED]: defineFlag({
+    name: 'Messaging Suspended',
+    description: 'Direct Messaging Suspended',
+  }),
 } as const
 
 export const FLAGS = FLAGS_METADATA

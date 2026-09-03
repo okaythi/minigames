@@ -1,0 +1,140 @@
+.nx-friends-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px var(--nx-gutter, 16px) 80px;
+}
+
+.nx-friends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--nx-line);
+}
+
+.nx-friends-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.nx-friends-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--nx-ink);
+}
+
+.nx-friends-count-pill {
+  font-size: 13px;
+  font-family: var(--nx-font-mono, monospace);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nx-line);
+  color: var(--nx-slate, #64748b);
+}
+
+.nx-friends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.nx-friend-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--nx-card);
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius, 8px);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nx-friend-card:hover {
+  border-color: var(--nx-orange);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.nx-friend-avatar-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nx-paper);
+  border: 1px solid var(--nx-line);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--nx-orange);
+  overflow: visible;
+}
+
+.nx-friend-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.nx-friend-presence-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--nx-card);
+  background: var(--nx-line);
+}
+
+.nx-friend-presence-dot[data-state="online"] {
+  background: var(--nx-green);
+}
+
+.nx-friend-presence-dot[data-state="idle"] {
+  background: var(--nx-orange-bright);
+}
+
+.nx-friend-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.nx-friend-handle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nx-friend-handle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nx-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-friend-nickname {
+  font-size: 12px;
+  color: var(--nx-slate, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-friends-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--nx-slate, #64748b);
+}

@@ -10,6 +10,7 @@ export const ROUTES = {
   adminUpdates: '/admin/updates',
   game: (slug: string): string => `/games/${slug}`,
   userProfile: (username: string): string => `/users/${username}`,
+  userFriends: (username: string): string => `/users/${username}/friends`,
 } as const
 
 export const GAME_SEGMENT = '/games/' as const
@@ -47,9 +48,15 @@ export function parseRoute(pathname: string, search: string): Route {
   }
 
   if (path.startsWith(USER_SEGMENT)) {
-    const username = path.slice(USER_SEGMENT.length).replace(/\/+$/, '')
-    if (username.length > 0) {
-      return { name: 'user-profile', username, query: readQuery(search) }
+    const rest = path.slice(USER_SEGMENT.length).replace(/\/+$/, '')
+    if (rest.endsWith('/friends')) {
+      const username = rest.slice(0, -'/friends'.length)
+      if (username.length > 0) {
+        return { name: 'user-friends', username, query: readQuery(search) }
+      }
+    }
+    if (rest.length > 0) {
+      return { name: 'user-profile', username: rest, query: readQuery(search) }
     }
   }
 

@@ -26,6 +26,8 @@ export function titleForRoute(route: Route): string {
       return `Update Notes CMS · ${SITE_TITLE}`
     case 'user-profile':
       return `@${route.username} · ${SITE_TITLE}`
+    case 'user-friends':
+      return `@${route.username}'s Friends · ${SITE_TITLE}`
   }
 }
 

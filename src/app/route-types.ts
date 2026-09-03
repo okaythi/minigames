@@ -10,6 +10,7 @@ export type Route =
   | { readonly name: 'about'; readonly query: QueryParams }
   | { readonly name: 'updates'; readonly query: QueryParams }
   | { readonly name: 'user-profile'; readonly username: string; readonly query: QueryParams }
+  | { readonly name: 'user-friends'; readonly username: string; readonly query: QueryParams }
   | { readonly name: 'settings'; readonly query: QueryParams }
   | { readonly name: 'admin-updates'; readonly query: QueryParams }
   | { readonly name: 'not-found'; readonly path: string; readonly query: QueryParams }

@@ -1,5 +1,6 @@
-import { useState, useRef, type ChangeEvent, type FormEvent, type DragEvent } from 'react'
+import { useState, useRef, useEffect, type ChangeEvent, type FormEvent, type DragEvent } from 'react'
 import { updateNickname, updatePfp } from '../services/auth-api'
+import { getPrivacySettings, updatePrivacySettings } from '../services/social-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { hasFlag, UserFlags } from '../../shared/flags'
 import '../pages/settings.css'
@@ -25,6 +26,26 @@ export function SettingsContent({ profile, onProfileUpdated }: SettingsContentPr
   const [nicknameError, setNicknameError] = useState('')
   const [nicknameSuccess, setNicknameSuccess] = useState('')
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+  // Privacy state
+  const [privacySettings, setPrivacySettings] = useState<{ hideFriends: boolean; showOnline: boolean }>({
+    hideFriends: false,
+    showOnline: true,
+  })
+
+  useEffect(() => {
+    getPrivacySettings().then(setPrivacySettings).catch(() => {})
+  }, [])
+
+  const handlePrivacyToggle = async (key: 'hideFriends' | 'showOnline', val: boolean) => {
+    const updated = { ...privacySettings, [key]: val }
+    setPrivacySettings(updated)
+    try {
+      await updatePrivacySettings({ [key]: val })
+    } catch {
+      setPrivacySettings(privacySettings)
+    }
+  }
 
   // Avatar handlers
   const handleFileSelect = (file: File) => {
@@ -349,6 +370,78 @@ export function SettingsContent({ profile, onProfileUpdated }: SettingsContentPr
               </span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <hr className="nx-settings-divider" />
+
+      {/* 4. Social & Privacy Section */}
+      <section className="nx-settings-section">
+        <div className="nx-settings-section-header">
+          <h3 className="nx-settings-section-title">
+            <span>🔒</span> Social & Privacy
+          </h3>
+          <p className="nx-settings-section-desc">
+            Control visibility of your friends and presence.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              background: 'var(--nx-paper)',
+              borderRadius: 'var(--nx-radius-sm, 6px)',
+              border: 'var(--nx-hairline)',
+              cursor: 'pointer',
+            }}
+          >
+            <div>
+              <strong style={{ display: 'block', fontSize: '13.5px', color: 'var(--nx-ink)' }}>
+                Hide Friends List
+              </strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--nx-slate)' }}>
+                Hides your friends list from your public profile.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={privacySettings.hideFriends}
+              onChange={(e) => handlePrivacyToggle('hideFriends', e.target.checked)}
+              style={{ width: '16px', height: '16px', accentColor: 'var(--nx-orange)', cursor: 'pointer' }}
+            />
+          </label>
+
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              background: 'var(--nx-paper)',
+              borderRadius: 'var(--nx-radius-sm, 6px)',
+              border: 'var(--nx-hairline)',
+              cursor: 'pointer',
+            }}
+          >
+            <div>
+              <strong style={{ display: 'block', fontSize: '13.5px', color: 'var(--nx-ink)' }}>
+                Show Online Presence
+              </strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--nx-slate)' }}>
+                Allow friends to see when you are online or playing games.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={privacySettings.showOnline}
+              onChange={(e) => handlePrivacyToggle('showOnline', e.target.checked)}
+              style={{ width: '16px', height: '16px', accentColor: 'var(--nx-orange)', cursor: 'pointer' }}
+            />
+          </label>
         </div>
       </section>
 

@@ -20,8 +20,9 @@ export function applyFlagAction(
 
 export function listAvailableFlags(): void {
   console.log('Available platform flags:')
-  console.log(`  - USER_DEVELOPER (Bit 1): "${FLAGS_METADATA[UserFlags.USER_DEVELOPER].description}"`)
-  console.log(`  - USER_PIONEER   (Bit 2): "${FLAGS_METADATA[UserFlags.USER_PIONEER].description}"`)
+  for (const [bit, meta] of Object.entries(FLAGS_METADATA)) {
+    console.log(`  - ${meta.name} (Bit ${bit}): "${meta.description}"`)
+  }
 }
 
 if (process.argv.includes('--help')) {

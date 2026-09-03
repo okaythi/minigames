@@ -74,6 +74,50 @@ export interface ActivityItem {
   icon: string
 }
 
+export interface FriendSummary {
+  username: string
+  nickname: string | null
+  pfpUrl: string | null
+  flags: number
+  presence: {
+    state: 'online' | 'idle' | 'offline'
+    gameSlug: string | null
+    gameStartedAt: number | null
+    lastActiveAt: number
+  }
+}
+
+export interface DirectMessage {
+  id: string
+  conversationId: string
+  senderUsername: string
+  senderNickname: string | null
+  senderPfpUrl: string | null
+  recipientUsername: string
+  messageType: 'text' | 'challenge' | 'system'
+  content: string
+  metadata?: string | null
+  readAt?: number | null
+  createdAt: number
+  failed?: boolean
+}
+
+export interface ChallengeMetadata {
+  challengeId: string
+  gameSlug: string
+  targetScore: number
+  bountyCandy: number
+  status: 'pending' | 'accepted' | 'completed' | 'declined' | 'expired'
+  challengerUsername: string
+  challengedUsername: string
+  winnerUsername?: string | null
+}
+
+export interface PrivacySettings {
+  hideFriends: boolean
+  showOnline: boolean
+}
+
 export interface UserPublicProfileResponse {
   username: string
   nickname: string | null
@@ -94,5 +138,8 @@ export interface UserPublicProfileResponse {
   badges: Badge[]
   games: Record<string, UserGameStat>
   recentActivity: ActivityItem[]
+  friendsHidden?: boolean
+  friends?: FriendSummary[]
+  friendsCount?: number
 }
 

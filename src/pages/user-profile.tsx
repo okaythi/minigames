@@ -421,25 +421,105 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
             </a>
           </div>
 
-          {/* C. Recent Run Ledger */}
-          <div className="nx-sidebar-card">
-            <div className="nx-sidebar-card-title">
-              <span>Recent Activity</span>
-              <span>⚡</span>
-            </div>
+          {/* C. Friends List Preview (Up to 4) */}
+          {(!profile.friendsHidden || isOwner) && (
+            <div className="nx-sidebar-card">
+              <div className="nx-sidebar-card-title">
+                <span>Friends</span>
+                <span className="nx-profile-section-badge">
+                  {profile.friendsCount ?? profile.friends?.length ?? 0}
+                </span>
+              </div>
 
-            <div className="nx-activity-list">
-              {profile.recentActivity.map((act) => (
-                <div key={act.id} className="nx-activity-item">
-                  <span className="nx-activity-icon">{act.icon}</span>
-                  <div>
-                    <div>{act.text}</div>
-                    <div className="nx-activity-meta">{act.timeAgo}</div>
+              {profile.friends && profile.friends.length > 0 ? (
+                <>
+                  <div className="nx-friends-sidebar-list">
+                    {profile.friends.slice(0, 4).map((friend) => {
+                      const hasStaff =
+                        hasFlag(friend.flags, UserFlags.STAFF) ||
+                        hasFlag(friend.flags, UserFlags.USER_DEVELOPER)
+                      const hasPioneer = hasFlag(friend.flags, UserFlags.USER_PIONEER)
+
+                      let statusText = 'Offline'
+                      if (friend.presence.state === 'online') {
+                        statusText = friend.presence.gameSlug
+                          ? `Playing ${friend.presence.gameSlug}`
+                          : 'Online'
+                      } else if (friend.presence.state === 'idle') {
+                        statusText = 'Idle 🌙'
+                      }
+
+                      return (
+                        <Link
+                          key={friend.username}
+                          to={ROUTES.userProfile(friend.username)}
+                          className="nx-friend-sidebar-item"
+                        >
+                          <div className="nx-friend-sidebar-avatar">
+                            {friend.pfpUrl ? (
+                              <img src={friend.pfpUrl} alt={friend.username} />
+                            ) : (
+                              friend.username.charAt(0).toUpperCase()
+                            )}
+                            <div
+                              className="nx-friend-presence-dot"
+                              data-state={friend.presence.state}
+                            />
+                          </div>
+
+                          <div className="nx-friend-sidebar-info">
+                            <div className="nx-friend-sidebar-name">
+                              <span>@{friend.username}</span>
+                              {hasStaff && <DeveloperBadge size={13} title="Staff" />}
+                              {hasPioneer && (
+                                <span
+                                  title="Pioneer"
+                                  style={{
+                                    color: 'var(--nx-orange-bright)',
+                                    fontSize: '12px',
+                                  }}
+                                >
+                                  ⚡
+                                </span>
+                              )}
+                            </div>
+                            <div className="nx-friend-sidebar-status">{statusText}</div>
+                          </div>
+                        </Link>
+                      )
+                    })}
                   </div>
+
+                  <Link
+                    to={ROUTES.userFriends(profile.username)}
+                    className="nx-passport-btn"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      marginTop: '12px',
+                      fontSize: '12.5px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <span>See All ({profile.friendsCount ?? profile.friends.length}) Friends</span>
+                    <span>→</span>
+                  </Link>
+                </>
+              ) : (
+                <div
+                  style={{
+                    padding: '12px 0',
+                    color: 'var(--nx-slate)',
+                    fontSize: '13px',
+                    textAlign: 'center',
+                    fontFamily: 'var(--nx-font-mono)',
+                  }}
+                >
+                  No friends added yet.
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          )}
         </aside>
       </div>
 

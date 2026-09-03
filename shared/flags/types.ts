@@ -10,10 +10,14 @@
  */
 export const UserFlags = {
   NONE: 0,
-  USER_DEVELOPER: 1 << 0, // Bit 0 (0001) = 1
-  USER_PIONEER:   1 << 1, // Bit 1 (0010) = 2
-  STAFF:          1 << 2, // Bit 2 (0100) = 4
-  CMS_EDITOR:     1 << 3, // Bit 3 (1000) = 8
+  USER_DEVELOPER:        1 << 0, // Bit 0 (0001) = 1
+  USER_PIONEER:          1 << 1, // Bit 1 (0010) = 2
+  STAFF:                 1 << 2, // Bit 2 (0100) = 4
+  CMS_EDITOR:            1 << 3, // Bit 3 (1000) = 8
+  USER_FRIENDS_BLOCKED:  1 << 4, // Bit 4 (0001 0000) = 16
+  USER_FRIENDS_MAX:      1 << 5, // Bit 5 (0010 0000) = 32
+  TEST_ACCOUNT:          1 << 6, // Bit 6 (0100 0000) = 64
+  USER_MESSAGES_BLOCKED: 1 << 7, // Bit 7 (1000 0000) = 128
 } as const
 
 export type UserFlagsBit = (typeof UserFlags)[keyof typeof UserFlags]

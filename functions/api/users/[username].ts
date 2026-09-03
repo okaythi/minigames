@@ -1,11 +1,12 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { eq, sql } from 'drizzle-orm'
-import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity } from '../../../src/db/schema'
-import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem } from '../../../shared/auth-protocol'
+import { eq, sql, or, and, inArray } from 'drizzle-orm'
+import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity, friendships, userPresence, userPrivacySettings } from '../../../src/db/schema'
+import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem, FriendSummary } from '../../../shared/auth-protocol'
 import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
 import { badRequest, jsonResponse } from '../stats/respond'
-import type { StatsEnv } from '../stats/store-for'
+import { identifyPlayer } from '../stats/identity'
+import { storeFor, type StatsEnv } from '../stats/store-for'
 
 interface PagesContext {
   readonly request: Request
@@ -19,7 +20,7 @@ const KNOWN_GAMES: Record<string, string> = {
   'fl-tron-3': 'FL Tron 3.0',
 }
 
-export const onRequestGet = async ({ env, params }: PagesContext): Promise<Response> => {
+export const onRequestGet = async ({ request, env, params }: PagesContext): Promise<Response> => {
   const db = drizzle(env.NIXLABS_DB)
   const username = params.username.toLowerCase()
 
@@ -242,6 +243,75 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     icon: '✨',
   })
 
+  const store = storeFor(env)
+  const { playerId: viewerPlayerId } = await identifyPlayer(request, store)
+  const isProfileOwner = viewerPlayerId === user.playerId
+
+  const privacyRow = await db
+    .select()
+    .from(userPrivacySettings)
+    .where(eq(userPrivacySettings.playerId, user.playerId))
+    .get()
+
+  const friendsHidden = privacyRow ? privacyRow.hideFriends === 1 : false
+  let friendsList: FriendSummary[] = []
+  let totalFriendsCount = 0
+
+  if (!friendsHidden || isProfileOwner) {
+    const friendRelations = await db
+      .select()
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.status, 'accepted'),
+          or(eq(friendships.requesterId, user.playerId), eq(friendships.addresseeId, user.playerId)),
+        ),
+      )
+      .all()
+
+    totalFriendsCount = friendRelations.length
+    const previewRelations = friendRelations.slice(0, 4)
+    const previewFriendIds = previewRelations.map((r) =>
+      r.requesterId === user.playerId ? r.addresseeId : r.requesterId,
+    )
+
+    if (previewFriendIds.length > 0) {
+      const nowSeconds = Math.floor(Date.now() / 1000)
+      const [friendUsers, friendPresences, friendPrivacies] = await Promise.all([
+        db.select().from(users).where(inArray(users.playerId, previewFriendIds)).all(),
+        db.select().from(userPresence).where(inArray(userPresence.playerId, previewFriendIds)).all(),
+        db.select().from(userPrivacySettings).where(inArray(userPrivacySettings.playerId, previewFriendIds)).all(),
+      ])
+
+      const pMap = new Map(friendPresences.map((p) => [p.playerId, p]))
+      const prMap = new Map(friendPrivacies.map((pr) => [pr.playerId, pr]))
+
+      friendsList = friendUsers.map((fu) => {
+        const pr = prMap.get(fu.playerId)
+        const showOnline = pr ? pr.showOnline === 1 : true
+        const p = pMap.get(fu.playerId)
+        const diff = p ? nowSeconds - p.lastActiveAt : 999999
+        let state: 'online' | 'idle' | 'offline' = 'offline'
+        if (showOnline && p) {
+          if (diff < 45) state = p.state === 'idle' ? 'idle' : 'online'
+          else if (diff < 165) state = 'idle'
+        }
+        return {
+          username: fu.username,
+          nickname: fu.nickname,
+          pfpUrl: fu.pfpR2Key ? `/api/assets/pfp/${fu.pfpR2Key}` : null,
+          flags: fu.flags,
+          presence: {
+            state,
+            gameSlug: state !== 'offline' && p ? p.gameSlug : null,
+            gameStartedAt: state !== 'offline' && p ? p.gameStartedAt : null,
+            lastActiveAt: p ? p.lastActiveAt : 0,
+          },
+        }
+      })
+    }
+  }
+
   const profileResponse: UserPublicProfileResponse = {
     username: user.username,
     nickname: user.nickname,
@@ -262,6 +332,9 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
     badges,
     games: userGames,
     recentActivity,
+    friendsHidden,
+    friends: (!friendsHidden || isProfileOwner) ? friendsList : [],
+    friendsCount: (!friendsHidden || isProfileOwner) ? totalFriendsCount : 0,
   }
 
   return jsonResponse(200, {

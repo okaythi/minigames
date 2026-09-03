@@ -1,10 +1,13 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
+import { useRouter } from '../app/router'
 import { Tag } from '../components/ui/tag'
 import { compactCount } from '../lib/format'
 import { findGame } from '../games/registry'
 import { useGameStats } from '../services/stats/stats-provider'
+import { setCurrentlyPlaying } from '../services/presence-service'
+import { getChallenge, resolveChallenge } from '../services/social-api'
 import { NotFoundPage } from './not-found-page'
 import { emptyGameStats } from './game-stats'
 import './game-page.css'
@@ -19,9 +22,45 @@ interface GamePageProps {
  * it only reads the manifest and the stats service.
  */
 export function GamePage({ slug }: GamePageProps) {
+  const { route } = useRouter()
+  const challengeId = route.name === 'game' ? route.query['challengeId'] : undefined
+  const [challenge, setChallenge] = useState<any>(null)
+  const [challengeWon, setChallengeWon] = useState(false)
+
   const game = findGame(slug)
   const liveStats = useGameStats(slug)
   const stats = game === undefined ? emptyGameStats() : liveStats
+
+  useEffect(() => {
+    setCurrentlyPlaying(slug)
+    return () => {
+      setCurrentlyPlaying(null)
+    }
+  }, [slug])
+
+  useEffect(() => {
+    if (!challengeId) return
+    let active = true
+    getChallenge(challengeId).then((ch) => {
+      if (active && ch) setChallenge(ch)
+    })
+    return () => {
+      active = false
+    }
+  }, [challengeId])
+
+  useEffect(() => {
+    if (!challenge || challenge.status !== 'pending' || !challengeId) return
+    const currentBest = stats.personalBest ?? 0
+    if (currentBest >= challenge.targetScore && !challengeWon) {
+      resolveChallenge(challengeId, currentBest).then((res) => {
+        if (res.won) {
+          setChallengeWon(true)
+          setChallenge((prev: any) => (prev ? { ...prev, status: 'completed' } : null))
+        }
+      })
+    }
+  }, [stats.personalBest, challenge, challengeId, challengeWon])
 
   if (game === undefined) {
     return <NotFoundPage path={`/games/${slug}`} />
@@ -92,6 +131,60 @@ export function GamePage({ slug }: GamePageProps) {
           data-protected-image="true"
           style={manifest.bannerAspectRatio ? { aspectRatio: manifest.bannerAspectRatio } : undefined}
         />
+      )}
+
+      {challenge && (
+        <div
+          className="nx-challenge-banner"
+          style={{
+            background: challengeWon ? 'rgba(31, 157, 91, 0.12)' : 'var(--nx-card)',
+            border: `1px solid ${challengeWon ? 'var(--nx-green)' : 'var(--nx-orange)'}`,
+            borderRadius: 'var(--nx-radius, 8px)',
+            padding: '12px 18px',
+            margin: '0 auto 16px',
+            maxWidth: '520px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>{challengeWon ? '🏆' : '⚔️'}</span>
+            <div>
+              <strong style={{ display: 'block', color: 'var(--nx-ink)', fontSize: '13.5px' }}>
+                {challengeWon
+                  ? 'Challenge Defeated!'
+                  : `Challenge from @${challenge.challengerUsername}`}
+              </strong>
+              <span style={{ color: 'var(--nx-slate)', fontSize: '12px' }}>
+                Target to beat:{' '}
+                <strong style={{ color: 'var(--nx-ink)' }}>
+                  {manifest.formatScore ? manifest.formatScore(challenge.targetScore) : challenge.targetScore}
+                </strong>
+              </span>
+            </div>
+          </div>
+          {challenge.bountyCandy > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(251, 173, 65, 0.15)',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                border: '1px solid rgba(251, 173, 65, 0.3)',
+              }}
+            >
+              <span>🍬</span>
+              <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--nx-ink)' }}>
+                {challenge.bountyCandy} Candy
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="nx-game-play">

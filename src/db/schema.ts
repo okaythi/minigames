@@ -133,4 +133,109 @@ export const updateItems = sqliteTable('update_items', {
   updatedAt: integer('updated_at').notNull(),
 })
 
+export const friendships = sqliteTable(
+  'friendships',
+  {
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => users.playerId, { onDelete: 'cascade' }),
+    addresseeId: text('addressee_id')
+      .notNull()
+      .references(() => users.playerId, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.requesterId, table.addresseeId] }),
+  }),
+)
+
+export const conversations = sqliteTable('conversations', {
+  id: text('id').primaryKey(),
+  user1Id: text('user1_id')
+    .notNull()
+    .references(() => users.playerId),
+  user2Id: text('user2_id')
+    .notNull()
+    .references(() => users.playerId),
+  lastMessageAt: integer('last_message_at').notNull(),
+  createdAt: integer('created_at').notNull(),
+})
+
+export const messages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id')
+    .notNull()
+    .references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: text('sender_id')
+    .notNull()
+    .references(() => users.playerId),
+  recipientId: text('recipient_id')
+    .notNull()
+    .references(() => users.playerId),
+  messageType: text('message_type').notNull().default('text'),
+  content: text('content').notNull(),
+  metadata: text('metadata'),
+  deletedBySender: integer('deleted_by_sender').notNull().default(0),
+  deletedByRecipient: integer('deleted_by_recipient').notNull().default(0),
+  readAt: integer('read_at'),
+  createdAt: integer('created_at').notNull(),
+})
+
+export const challenges = sqliteTable('challenges', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id').references(() => conversations.id),
+  gameSlug: text('game_slug').notNull(),
+  challengerId: text('challenger_id')
+    .notNull()
+    .references(() => users.playerId),
+  challengedId: text('challenged_id')
+    .notNull()
+    .references(() => users.playerId),
+  targetScore: integer('target_score').notNull(),
+  bountyCandy: integer('bounty_candy').notNull().default(0),
+  status: text('status').notNull().default('pending'),
+  winnerId: text('winner_id').references(() => users.playerId),
+  createdAt: integer('created_at').notNull(),
+  completedAt: integer('completed_at'),
+})
+
+export const userPresence = sqliteTable('user_presence', {
+  playerId: text('player_id')
+    .primaryKey()
+    .references(() => users.playerId, { onDelete: 'cascade' }),
+  lastActiveAt: integer('last_active_at').notNull(),
+  state: text('state').notNull().default('online'),
+  gameSlug: text('game_slug'),
+  gameStartedAt: integer('game_started_at'),
+})
+
+export const userPrivacySettings = sqliteTable('user_privacy_settings', {
+  playerId: text('player_id')
+    .primaryKey()
+    .references(() => users.playerId, { onDelete: 'cascade' }),
+  hideFriends: integer('hide_friends').notNull().default(0),
+  showOnline: integer('show_online').notNull().default(1),
+})
+
+export const moderationReports = sqliteTable('moderation_reports', {
+  id: text('id').primaryKey(),
+  reporterId: text('reporter_id')
+    .notNull()
+    .references(() => users.playerId),
+  reportedUserId: text('reported_user_id')
+    .notNull()
+    .references(() => users.playerId),
+  messageId: text('message_id').references(() => messages.id),
+  reason: text('reason').notNull(),
+  details: text('details'),
+  snapshotContext: text('snapshot_context'),
+  status: text('status').notNull().default('open'),
+  reviewedByStaffId: text('reviewed_by_staff_id'),
+  resolutionAction: text('resolution_action'),
+  createdAt: integer('created_at').notNull(),
+  resolvedAt: integer('resolved_at'),
+})
+
 
