@@ -26,6 +26,8 @@ export function parseMarkdownToHtml(markdown: string): string {
   let inTable = false
   let tableHeaderParsed = false
   let inList: 'ul' | 'ol' | null = null
+  let inCallout = false
+  let inQuote = false
 
   function closeList() {
     if (inList) {
@@ -42,6 +44,26 @@ export function parseMarkdownToHtml(markdown: string): string {
     }
   }
 
+  function closeCallout() {
+    if (inCallout) {
+      htmlParts.push('</div>')
+      inCallout = false
+    }
+  }
+
+  function closeQuote() {
+    if (inQuote) {
+      htmlParts.push('</blockquote>')
+      inQuote = false
+    }
+  }
+
+  function closeAllBlocks() {
+    closeList()
+    closeTable()
+    closeCallout()
+    closeQuote()
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i]!
@@ -50,8 +72,7 @@ export function parseMarkdownToHtml(markdown: string): string {
     // 1. Code blocks
     if (trimmed.startsWith('```')) {
       if (!inCodeBlock) {
-        closeList()
-        closeTable()
+        closeAllBlocks()
         inCodeBlock = true
         codeBlockLang = trimmed.slice(3).trim()
         codeBlockLines = []
@@ -73,6 +94,8 @@ export function parseMarkdownToHtml(markdown: string): string {
     // 2. Tables
     if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
       closeList()
+      closeCallout()
+      closeQuote()
       const cells = trimmed
         .slice(1, -1)
         .split('|')
@@ -103,53 +126,82 @@ export function parseMarkdownToHtml(markdown: string): string {
       closeTable()
     }
 
-    // 3. Blank line
+    // 3. Blank line: terminates lists, callouts, and blockquotes
     if (trimmed.length === 0) {
       closeList()
+      closeCallout()
+      closeQuote()
       continue
     }
 
     // 4. Horizontal rule
     if (/^(\*\*\*|---|___)$/.test(trimmed)) {
-      closeList()
+      closeAllBlocks()
       htmlParts.push('<hr class="nx-md-hr" />')
       continue
     }
 
     // 5. Headings
     if (trimmed.startsWith('### ')) {
-      closeList()
+      closeAllBlocks()
       htmlParts.push(`<h3 class="nx-md-h3">${parseInline(trimmed.slice(4))}</h3>`)
       continue
     }
     if (trimmed.startsWith('## ')) {
-      closeList()
+      closeAllBlocks()
       htmlParts.push(`<h2 class="nx-md-h2">${parseInline(trimmed.slice(3))}</h2>`)
       continue
     }
     if (trimmed.startsWith('# ')) {
-      closeList()
+      closeAllBlocks()
       htmlParts.push(`<h1 class="nx-md-h1">${parseInline(trimmed.slice(2))}</h1>`)
       continue
     }
 
     // 6. Alert Callouts (> [!NOTE], > [!WARNING], > [!TIP], > [!IMPORTANT])
     if (trimmed.startsWith('> [!')) {
-      closeList()
+      closeAllBlocks()
       const kindMatch = trimmed.match(/^> \[!(NOTE|WARNING|TIP|IMPORTANT)\]/i)
       const kind = (kindMatch?.[1] ?? 'NOTE').toLowerCase()
+      inCallout = true
       htmlParts.push(`<div class="nx-md-callout" data-callout="${kind}"><strong class="nx-md-callout-title">${kind.toUpperCase()}</strong>`)
       continue
     }
-    if (trimmed.startsWith('> ')) {
+
+    // Callout content continuation (either lines starting with '>' or lazy lines until next blank line)
+    if (inCallout) {
       closeList()
-      htmlParts.push(`<blockquote class="nx-md-quote">${parseInline(trimmed.slice(2))}</blockquote>`)
+      closeQuote()
+      if (trimmed.startsWith('> ')) {
+        htmlParts.push(`<p class="nx-md-p">${parseInline(trimmed.slice(2))}</p>`)
+      } else if (trimmed === '>') {
+        // empty blockquote spacer inside callout
+      } else {
+        htmlParts.push(`<p class="nx-md-p">${parseInline(trimmed)}</p>`)
+      }
       continue
     }
 
-    // 7. Lists
+    // 7. Blockquotes (> ...)
+    if (trimmed.startsWith('> ') || trimmed === '>') {
+      closeList()
+      if (!inQuote) {
+        inQuote = true
+        htmlParts.push('<blockquote class="nx-md-quote">')
+      }
+      if (trimmed !== '>') {
+        htmlParts.push(`<p class="nx-md-p">${parseInline(trimmed.slice(2))}</p>`)
+      }
+      continue
+    } else if (inQuote) {
+      closeQuote()
+    }
+
+    // 8. Lists
     const taskMatch = trimmed.match(/^-\s+\[([ xX])\]\s+(.*)$/)
     if (taskMatch) {
+      closeCallout()
+      closeQuote()
       if (inList !== 'ul') {
         closeList()
         inList = 'ul'
@@ -164,6 +216,8 @@ export function parseMarkdownToHtml(markdown: string): string {
 
     const bulletMatch = trimmed.match(/^[-*]\s+(.*)$/)
     if (bulletMatch) {
+      closeCallout()
+      closeQuote()
       if (inList !== 'ul') {
         closeList()
         inList = 'ul'
@@ -175,6 +229,8 @@ export function parseMarkdownToHtml(markdown: string): string {
 
     const numMatch = trimmed.match(/^\d+\.\s+(.*)$/)
     if (numMatch) {
+      closeCallout()
+      closeQuote()
       if (inList !== 'ol') {
         closeList()
         inList = 'ol'
@@ -185,19 +241,20 @@ export function parseMarkdownToHtml(markdown: string): string {
     }
 
     closeList()
+    closeCallout()
+    closeQuote()
 
-    // 8. Video or Audio embedding shortcut
+    // 9. Video or Audio embedding shortcut
     if (trimmed.startsWith('<video') || trimmed.startsWith('<audio')) {
       htmlParts.push(`<div class="nx-md-media-player">${trimmed}</div>`)
       continue
     }
 
-    // 9. Standard Paragraph
+    // 10. Standard Paragraph
     htmlParts.push(`<p class="nx-md-p">${parseInline(trimmed)}</p>`)
   }
 
-  closeList()
-  closeTable()
+  closeAllBlocks()
 
   return htmlParts.join('')
 }
