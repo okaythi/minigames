@@ -86,7 +86,7 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
                             <span className="nx-change-tag" data-tag={item.tag}>
                               {item.tag}
                             </span>
-                            <span>
+                            <div className="nx-change-content">
                               {item.itemVersion && (
                                 <span className="nx-item-version">v{item.itemVersion}</span>
                               )}
@@ -94,7 +94,7 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
                                 <strong className="nx-change-subject">{item.subject}:</strong>
                               )}
                               <MarkdownRenderer content={item.description} />
-                            </span>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -118,18 +118,10 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
                       <ul className="nx-pillar-changes">
                         {group.items.map((item) => (
                           <li key={item.id} className="nx-change-item">
-                            <span
-                              style={{
-                                fontFamily: 'var(--nx-font-mono)',
-                                fontSize: '0.75rem',
-                                color: 'var(--nx-muted)',
-                                minWidth: '90px',
-                                flexShrink: 0,
-                              }}
-                            >
+                            <span className="nx-item-target-scope">
                               [{item.scope.targetId}]
                             </span>
-                            <span>
+                            <div className="nx-change-content">
                               {item.itemVersion && (
                                 <span className="nx-item-version">v{item.itemVersion}</span>
                               )}
@@ -137,7 +129,7 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
                                 <strong className="nx-change-subject">{item.subject}:</strong>
                               )}
                               <MarkdownRenderer content={item.description} />
-                            </span>
+                            </div>
                           </li>
                         ))}
                       </ul>

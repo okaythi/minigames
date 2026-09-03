@@ -5,95 +5,83 @@
 }
 
 .nx-updates-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .nx-updates-title {
-  font-family: var(--nx-font-sans);
+  font-family: var(--nx-font-display);
   font-size: 2.25rem;
   font-weight: 700;
-  color: var(--nx-ink);
+  color: var(--nx-graphite-deep);
   letter-spacing: -0.03em;
   margin: 0 0 8px;
 }
 
 .nx-updates-subtitle {
   font-size: 1.0625rem;
-  color: var(--nx-slate);
+  color: var(--nx-muted);
   margin: 0;
   line-height: 1.5;
 }
 
-/* ==========================================================================
-   Option 1: Integrated Controls Bar (Nixlabs Warm Orange)
-   ========================================================================== */
-
-.nx-updates-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 36px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--nx-line);
-}
-
+/* View Mode Switcher */
 .nx-updates-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
-/* Segmented View Mode Toggle */
 .nx-view-mode-toggle {
   display: inline-flex;
-  background: var(--nx-sand);
-  border: 1px solid var(--nx-line);
+  background: var(--nx-surface-sunken);
+  border: 1px solid var(--nx-rule);
   border-radius: var(--nx-radius-sm);
   padding: 3px;
-  gap: 3px;
+  gap: 2px;
 }
 
 .nx-view-mode-btn {
-  padding: 5px 14px;
+  padding: 4px 12px;
   border-radius: 4px;
   background: transparent;
   border: none;
-  font-family: var(--nx-font-sans);
+  font-family: var(--nx-font-body);
   font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--nx-slate);
+  font-weight: 600;
+  color: var(--nx-muted);
   cursor: pointer;
   transition: all 0.15s ease;
-  user-select: none;
 }
 
 .nx-view-mode-btn:hover {
-  color: var(--nx-ink);
+  color: var(--nx-graphite-deep);
 }
 
 .nx-view-mode-btn[data-active="true"] {
-  background: var(--nx-card);
-  color: var(--nx-ink);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(35, 35, 36, 0.08);
+  background: var(--nx-surface);
+  color: var(--nx-graphite-deep);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .nx-updates-count-indicator {
   font-family: var(--nx-font-mono);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--nx-slate);
-  letter-spacing: 0.02em;
+  color: var(--nx-muted);
 }
 
-/* Filter Pills */
+/* Filter pills (Option 1: Nixlabs Brand Warmth) */
 .nx-updates-filters {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: var(--nx-hairline);
 }
 
 .nx-updates-filter-btn {
@@ -102,39 +90,21 @@
   gap: 7px;
   padding: 6px 14px;
   border-radius: 9999px;
-  background: var(--nx-card);
-  border: 1px solid var(--nx-line);
-  color: var(--nx-slate);
-  font-family: var(--nx-font-sans);
+  background: var(--nx-surface-sunken);
+  border: 1px solid var(--nx-rule);
+  color: var(--nx-muted);
+  font-family: var(--nx-font-body);
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  user-select: none;
 }
 
 .nx-updates-filter-btn:hover {
-  color: var(--nx-ink);
-  border-color: var(--nx-line-strong);
-  background: var(--nx-sand);
+  color: var(--nx-graphite-deep);
+  border-color: var(--nx-graphite-tint);
 }
 
-.nx-filter-title {
-  line-height: 1;
-}
-
-.nx-filter-count {
-  font-family: var(--nx-font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 9999px;
-  background: var(--nx-sand);
-  color: var(--nx-slate);
-  line-height: 1.2;
-}
-
-/* Active State: Nixlabs Brand Warmth (Orange Accent) */
 .nx-updates-filter-btn[data-active="true"] {
   background: var(--nx-orange-tint);
   border-color: var(--nx-orange);
@@ -152,15 +122,23 @@
   flex-shrink: 0;
 }
 
+.nx-filter-count {
+  font-family: var(--nx-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--nx-sand);
+  color: var(--nx-muted);
+  line-height: 1.2;
+}
+
 .nx-updates-filter-btn[data-active="true"] .nx-filter-count {
   background: rgba(246, 130, 31, 0.22);
   color: var(--nx-orange-deep);
 }
 
-/* ==========================================================================
-   Releases Timeline
-   ========================================================================== */
-
+/* Releases timeline */
 .nx-releases-list {
   display: flex;
   flex-direction: column;
@@ -168,11 +146,11 @@
 }
 
 .nx-release-card {
-  background: var(--nx-card);
-  border: 1px solid var(--nx-line);
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-rule);
   border-radius: var(--nx-radius-lg);
   padding: 28px 32px;
-  box-shadow: 0 1px 3px rgba(35, 35, 36, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .nx-release-meta-row {
@@ -199,20 +177,20 @@
 .nx-release-date {
   font-family: var(--nx-font-mono);
   font-size: 0.8125rem;
-  color: var(--nx-slate);
+  color: var(--nx-muted);
 }
 
 .nx-release-title {
-  font-family: var(--nx-font-sans);
+  font-family: var(--nx-font-display);
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--nx-ink);
+  color: var(--nx-graphite-deep);
   margin: 0 0 16px;
   letter-spacing: -0.02em;
 }
 
 .nx-release-rationale {
-  background: var(--nx-sand);
+  background: var(--nx-surface-sunken);
   border-left: 3px solid var(--nx-orange);
   border-radius: 0 var(--nx-radius-sm) var(--nx-radius-sm) 0;
   padding: 14px 18px;
@@ -254,13 +232,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-family: var(--nx-font-sans);
+  font-family: var(--nx-font-display);
   font-size: 1.0625rem;
   font-weight: 600;
-  color: var(--nx-ink);
+  color: var(--nx-graphite-deep);
   margin: 0;
   padding-bottom: 6px;
-  border-bottom: 1px dashed var(--nx-line);
+  border-bottom: 1px dashed var(--nx-rule);
 }
 
 .nx-pillar-changes {
@@ -279,6 +257,29 @@
   font-size: 0.9375rem;
   line-height: 1.5;
   color: var(--nx-graphite);
+}
+
+.nx-change-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.nx-change-content .nx-markdown-body {
+  display: inline;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.nx-change-content .nx-markdown-body > .nx-md-p {
+  display: inline;
+  margin: 0;
+}
+
+.nx-change-content .nx-markdown-body > ul.nx-md-list,
+.nx-change-content .nx-markdown-body > ol.nx-md-list {
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 .nx-change-tag {
@@ -303,15 +304,15 @@
 }
 
 .nx-change-tag[data-tag="New"] {
-  background: rgba(31, 157, 91, 0.12);
-  color: var(--nx-green-deep);
-  border: 1px solid rgba(31, 157, 91, 0.25);
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+  border: 1px solid rgba(46, 125, 50, 0.25);
 }
 
 .nx-change-tag[data-tag="Fix"] {
-  background: rgba(31, 111, 209, 0.12);
-  color: var(--nx-blue-deep);
-  border: 1px solid rgba(31, 111, 209, 0.25);
+  background: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+  border: 1px solid rgba(25, 118, 210, 0.25);
 }
 
 .nx-change-tag[data-tag="Feature"] {
@@ -321,27 +322,34 @@
 }
 
 .nx-change-tag[data-tag="Polish"] {
-  background: var(--nx-sand);
-  color: var(--nx-slate);
-  border: 1px solid var(--nx-line);
+  background: var(--nx-surface-sunken);
+  color: var(--nx-muted);
+  border: 1px solid var(--nx-rule);
 }
 
 .nx-item-version {
   display: inline-flex;
   align-items: center;
   padding: 1px 5px;
-  background: var(--nx-sand);
-  border: 1px solid var(--nx-line);
+  background: var(--nx-surface-sunken);
+  border: 1px solid var(--nx-rule);
   border-radius: 3px;
   font-family: var(--nx-font-mono);
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--nx-slate);
+  color: var(--nx-muted);
   margin-right: 6px;
 }
 
 .nx-change-subject {
   font-weight: 600;
-  color: var(--nx-ink);
+  color: var(--nx-graphite-deep);
   margin-right: 4px;
+}
+
+.nx-item-target-scope {
+  font-family: var(--nx-font-mono);
+  font-size: 0.75rem;
+  color: var(--nx-muted);
+  flex-shrink: 0;
 }

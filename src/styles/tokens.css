@@ -33,9 +33,19 @@
   --nx-line: #e6e0d6;
   --nx-line-strong: #d5cec2;
 
+  /* Semantic aliases */
+  --nx-graphite-deep: var(--nx-ink);
+  --nx-graphite-tint: var(--nx-graphite);
+  --nx-muted: var(--nx-slate);
+  --nx-surface-sunken: var(--nx-sand);
+  --nx-surface: var(--nx-card);
+  --nx-rule: var(--nx-line);
+
   /* Type */
   --nx-font-sans: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
+  --nx-font-display: var(--nx-font-sans);
+  --nx-font-body: var(--nx-font-sans);
   --nx-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas,
     monospace;
   --nx-tracking-tight: -0.022em;
