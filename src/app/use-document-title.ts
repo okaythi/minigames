@@ -12,8 +12,6 @@ export function titleForRoute(route: Route): string {
   switch (route.name) {
     case 'home':
       return SITE_TITLE
-    case 'about':
-      return `About · ${SITE_TITLE}`
     case 'updates':
       return `Update Notes · ${SITE_TITLE}`
     case 'game':

@@ -11,7 +11,8 @@ interface PagesContext {
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
   const url = new URL(request.url)
-  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+  const raw = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+  const q = raw.startsWith('@') ? raw.slice(1).trim() : raw
 
   if (!q) {
     return jsonResponse(200, { ok: true, users: [] })

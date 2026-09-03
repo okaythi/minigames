@@ -14,7 +14,6 @@ export function SiteFooter() {
         <nav className="nx-footer-nav" aria-label="Footer">
           <Link to={ROUTES.home}>Games</Link>
           <Link to={ROUTES.updates}>Updates</Link>
-          <Link to={ROUTES.about}>About</Link>
           {featuredSlug !== null && <Link to={ROUTES.game(featuredSlug)}>Play now</Link>}
         </nav>
       </div>

@@ -7,7 +7,6 @@ export interface QueryParams {
 export type Route =
   | { readonly name: 'home'; readonly query: QueryParams }
   | { readonly name: 'game'; readonly slug: string; readonly query: QueryParams }
-  | { readonly name: 'about'; readonly query: QueryParams }
   | { readonly name: 'updates'; readonly query: QueryParams }
   | { readonly name: 'user-profile'; readonly username: string; readonly query: QueryParams }
   | { readonly name: 'user-friends'; readonly username: string; readonly query: QueryParams }

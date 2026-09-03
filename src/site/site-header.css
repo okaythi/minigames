@@ -14,7 +14,7 @@
 
 .nx-header-inner {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(220px, 460px) minmax(150px, 1fr);
+  grid-template-columns: minmax(140px, 1fr) minmax(260px, 540px) minmax(140px, 1fr);
   align-items: center;
   gap: 18px;
   height: var(--nx-header-height);
@@ -28,6 +28,16 @@
 .nx-header-search {
   justify-self: center;
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nx-header-search .nx-search-games {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 460px;
+  margin-inline: 0;
 }
 
 .nx-nav {

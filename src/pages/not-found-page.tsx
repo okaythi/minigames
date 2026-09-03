@@ -1,7 +1,6 @@
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { MANIFESTS } from '../games/registry'
-import './about-page.css'
 import './not-found-page.css'
 
 export function NotFoundPage({ path }: { readonly path: string }) {

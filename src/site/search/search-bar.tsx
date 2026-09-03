@@ -114,7 +114,7 @@ export function SearchBar({ manifests }: SearchBarProps) {
   }, [trimmed, results.length])
 
   return (
-    <div className="nx-search" ref={rootRef} data-open={showPanel ? 'true' : 'false'}>
+    <div className="nx-search nx-search-games" ref={rootRef} data-open={showPanel ? 'true' : 'false'}>
       <div className="nx-search-field">
         <svg className="nx-search-icon" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.6" />

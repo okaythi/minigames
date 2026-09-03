@@ -4,7 +4,6 @@ import type { Route } from './route-types'
 
 export const ROUTES = {
   home: '/',
-  about: '/about',
   updates: '/updates',
   settings: '/settings',
   adminUpdates: '/admin/updates',
@@ -21,10 +20,6 @@ export function parseRoute(pathname: string, search: string): Route {
 
   if (path === '/') {
     return { name: 'home', query: readQuery(search) }
-  }
-
-  if (path === '/about') {
-    return { name: 'about', query: readQuery(search) }
   }
 
   if (path === '/updates') {

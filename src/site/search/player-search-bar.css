@@ -1,0 +1,101 @@
+/**
+ * Player Search Bar
+ * Styled identical to Search games bar, 15% length of the games search bar at rest (69px vs 460px),
+ * expanding smoothly when focused to facilitate live typing.
+ */
+
+.nx-search-players {
+  position: relative;
+  width: 69px;
+  flex: 0 0 69px;
+  min-width: 69px;
+  margin-inline: 0;
+  transition:
+    width var(--nx-duration) var(--nx-ease),
+    flex-basis var(--nx-duration) var(--nx-ease);
+}
+
+.nx-search-players:focus-within,
+.nx-search-players[data-open='true'] {
+  width: 200px;
+  flex: 0 0 200px;
+}
+
+.nx-search-players .nx-search-input {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.nx-search-players .nx-search-panel {
+  right: 0;
+  left: auto;
+  min-width: 240px;
+  width: max(100%, 240px);
+}
+
+.nx-player-search-list {
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.nx-player-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--nx-radius);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nx-ink);
+  transition: background var(--nx-duration) var(--nx-ease);
+}
+
+.nx-player-search-item:hover,
+.nx-player-search-item[data-active='true'] {
+  background: var(--nx-orange-tint);
+}
+
+.nx-player-search-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+  background: var(--nx-orange);
+  color: var(--nx-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.nx-player-search-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-player-search-username {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--nx-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .nx-search-players:focus-within,
+  .nx-search-players[data-open='true'] {
+    width: min(200px, 45vw);
+    flex: 0 0 min(200px, 45vw);
+  }
+}

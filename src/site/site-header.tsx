@@ -5,6 +5,7 @@ import { ROUTES } from '../app/parse-route'
 import type { GameManifest } from '../games/types'
 import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
+import { PlayerSearchBar } from './search/player-search-bar'
 import { AuthPopover } from './auth-popover'
 import { TopBanner } from './top-banner'
 import { isStaff, isCmsEditor, subscribeAuth } from '../services/auth-api'
@@ -39,6 +40,7 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
 
           <div className="nx-header-search">
             <SearchBar manifests={manifests} />
+            <PlayerSearchBar />
           </div>
 
           <nav className="nx-nav" aria-label="Primary">
