@@ -1,17 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { AuthorPicker } from '../../../components/ui/author-picker'
+import { getCurrentUser } from '../../../services/auth-api'
 
 interface CreateDraftModalProps {
   readonly isOpen: boolean
   readonly onClose: () => void
-  readonly onSubmit: (input: { globalVersion: string; title: string; headline: string }) => Promise<void>
+  readonly onSubmit: (input: {
+    globalVersion: string
+    title: string
+    headline: string
+    authorUsername?: string | undefined
+  }) => Promise<void>
 }
 
 export function CreateDraftModal({ isOpen, onClose, onSubmit }: CreateDraftModalProps) {
   const [version, setVersion] = useState('')
   const [title, setTitle] = useState('')
   const [headline, setHeadline] = useState('')
+  const [authorUsername, setAuthorUsername] = useState('')
+  const [isAuthorValid, setIsAuthorValid] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      const me = getCurrentUser()
+      if (me?.username) {
+        setAuthorUsername(me.username)
+        setIsAuthorValid(true)
+      }
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -26,6 +45,10 @@ export function CreateDraftModal({ isOpen, onClose, onSubmit }: CreateDraftModal
       setError('Headline cannot exceed 80 characters.')
       return
     }
+    if (!isAuthorValid) {
+      setError('Please select a valid author from the search list (unselected authors are invalid).')
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -34,6 +57,7 @@ export function CreateDraftModal({ isOpen, onClose, onSubmit }: CreateDraftModal
         globalVersion: version.trim(),
         title: title.trim(),
         headline: headline.trim(),
+        authorUsername: authorUsername.trim() || undefined,
       })
       setVersion('')
       setTitle('')
@@ -86,6 +110,15 @@ export function CreateDraftModal({ isOpen, onClose, onSubmit }: CreateDraftModal
             maxLength={90}
           />
         </div>
+
+        <AuthorPicker
+          initialUsername={authorUsername}
+          onChange={(user, isValid) => {
+            setAuthorUsername(user?.username ?? '')
+            setIsAuthorValid(isValid)
+          }}
+          label="Author Attribution"
+        />
 
         {error && <div className="nx-form-error">⚠️ {error}</div>}
 

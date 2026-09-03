@@ -102,12 +102,18 @@ export function AdminUpdatesPage() {
     )
   }
 
-  const handleCreateDraft = async (input: { globalVersion: string; title: string; headline: string }) => {
+  const handleCreateDraft = async (input: {
+    globalVersion: string
+    title: string
+    headline: string
+    authorUsername?: string | undefined
+  }) => {
     const draftId = await createDraft({
       globalVersion: input.globalVersion,
       title: input.title,
       headline: input.headline,
       releaseDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      authorUsername: input.authorUsername,
     })
     setSelectedReleaseId(draftId)
     showFeedback('Draft release created successfully!')

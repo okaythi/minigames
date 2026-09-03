@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import type { ReleaseAggregate, UpdateReleaseMetaInput } from '../../../engine/updates/types'
+import { AuthorPicker } from '../../../components/ui/author-picker'
 
 interface ReleaseMetaFormProps {
   readonly release: ReleaseAggregate
@@ -12,10 +13,21 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
   const [headline, setHeadline] = useState(release.meta.headline)
   const [releaseDate, setReleaseDate] = useState(release.meta.releaseDate)
   const [authorUsername, setAuthorUsername] = useState(release.meta.authorUsername ?? '')
+  const [isAuthorValid, setIsAuthorValid] = useState(true)
   const [status, setStatus] = useState(release.meta.status)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    setGlobalVersion(release.meta.globalVersion)
+    setTitle(release.meta.title)
+    setHeadline(release.meta.headline)
+    setReleaseDate(release.meta.releaseDate)
+    setAuthorUsername(release.meta.authorUsername ?? '')
+    setIsAuthorValid(true)
+    setStatus(release.meta.status)
+  }, [release.meta])
 
   const headlineLength = headline.length
   const isHeadlineOverLimit = headlineLength > 80
@@ -24,6 +36,10 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
     e.preventDefault()
     if (isHeadlineOverLimit) {
       setError('Headline cannot exceed 80 characters.')
+      return
+    }
+    if (!isAuthorValid) {
+      setError('Please select a valid author from the search list (unselected authors are invalid).')
       return
     }
 
@@ -82,19 +98,14 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
           />
         </div>
 
-        <div className="nx-form-group">
-          <label className="nx-form-label" htmlFor="nx-author-user">
-            Author Attribution
-          </label>
-          <input
-            id="nx-author-user"
-            className="nx-form-input"
-            type="text"
-            placeholder="e.g. thy"
-            value={authorUsername}
-            onChange={(e) => setAuthorUsername(e.target.value)}
-          />
-        </div>
+        <AuthorPicker
+          initialUsername={authorUsername}
+          onChange={(user, isValid) => {
+            setAuthorUsername(user?.username ?? '')
+            setIsAuthorValid(isValid)
+          }}
+          label="Author Attribution"
+        />
 
         <div className="nx-form-group">
           <label className="nx-form-label" htmlFor="nx-release-status">

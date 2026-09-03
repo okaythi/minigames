@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReleaseAggregate } from '../../../engine/updates/types'
 import { MarkdownRenderer } from '../../../components/ui/rich-editor/markdown-renderer'
+import { ReleaseAuthorByline } from '../../../components/ui/release-author-byline'
 
 interface ReleasePreviewPaneProps {
   readonly release: ReleaseAggregate
@@ -145,6 +146,11 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
                 )}
               </div>
             )}
+
+            <ReleaseAuthorByline
+              author={release.meta.author}
+              authorUsername={release.meta.authorUsername}
+            />
           </article>
         )}
       </div>

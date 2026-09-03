@@ -276,6 +276,49 @@ export function statsDevPlugin(): Plugin {
           return
         }
 
+        if (url.startsWith('/api/users/search')) {
+          const urlObj = new URL(url, 'http://localhost')
+          const q = (urlObj.searchParams.get('q') ?? '').trim().toLowerCase()
+          const results: any[] = []
+
+          // Ensure dev user 'thy' is registered in devUsers
+          if (!devUsers.has('thy')) {
+            devUsers.set('thy', {
+              username: 'thy',
+              passwordHash: 'password',
+              playerId: 'dev-thy-id',
+              nickname: 'Lab Pioneer',
+              nicknameChangedCount: 0,
+              pfpUrl: null,
+              createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
+              legacyUser: true,
+              developer: true,
+              flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER | UserFlags.STAFF | UserFlags.CMS_EDITOR,
+            })
+          }
+
+          if (q) {
+            for (const u of devUsers.values()) {
+              if (
+                u.username.toLowerCase().includes(q) ||
+                (u.nickname && u.nickname.toLowerCase().includes(q))
+              ) {
+                results.push({
+                  username: u.username,
+                  nickname: u.nickname ?? undefined,
+                  pfpUrl: u.pfpUrl ?? null,
+                  flags: u.flags,
+                  developer: u.developer,
+                  legacyUser: u.legacyUser,
+                })
+              }
+            }
+          }
+
+          sendJson(res, 200, { ok: true, users: results }, null)
+          return
+        }
+
         if (url.startsWith('/api/users/')) {
           const rawParam = url.slice('/api/users/'.length).split('?')[0] ?? ''
           const targetUsername = rawParam.toLowerCase()

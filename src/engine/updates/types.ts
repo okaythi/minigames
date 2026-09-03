@@ -52,6 +52,15 @@ export interface ReleaseItem {
   readonly updatedAt: number
 }
 
+export interface ReleaseAuthor {
+  readonly username: string
+  readonly nickname?: string | undefined
+  readonly pfpUrl?: string | null | undefined
+  readonly flags?: number | undefined
+  readonly developer?: boolean | undefined
+  readonly legacyUser?: boolean | undefined
+}
+
 export interface ReleaseMeta {
   readonly id: ReleaseId
   readonly globalVersion: string
@@ -61,6 +70,7 @@ export interface ReleaseMeta {
   readonly status: ReleaseStatus
   readonly releaseDate: string
   readonly authorUsername?: string | undefined
+  readonly author?: ReleaseAuthor | undefined
   readonly publishedAt?: number | undefined
 }
 

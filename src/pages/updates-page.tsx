@@ -3,6 +3,7 @@ import { usePublishedUpdates } from '../engine/updates'
 import type { UpdateTag } from '../engine/updates'
 import { BrokenFlaskEmptyState } from '../components/ui/broken-flask-empty-state'
 import { MarkdownRenderer } from '../components/ui/rich-editor/markdown-renderer'
+import { ReleaseAuthorByline } from '../components/ui/release-author-byline'
 import './updates-page.css'
 
 
@@ -214,6 +215,11 @@ export function UpdatesPage() {
                   ))}
                 </div>
               )}
+
+              <ReleaseAuthorByline
+                author={release.meta.author}
+                authorUsername={release.meta.authorUsername}
+              />
             </article>
           ))
         )}

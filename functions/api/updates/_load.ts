@@ -1,7 +1,7 @@
 import { eq, inArray, desc, asc } from 'drizzle-orm'
 import type { DrizzleD1Database } from 'drizzle-orm/d1'
-import { updateReleases, updateRationales, updateItems } from '../../../src/db/schema'
-import type { ReleaseAggregate, ReleaseItem, ReleaseMeta, DeveloperRationale, TargetScopeType, UpdateTag, ReleaseStatus } from '../../../src/engine/updates/types'
+import { updateReleases, updateRationales, updateItems, users } from '../../../src/db/schema'
+import type { ReleaseAggregate, ReleaseAuthor, ReleaseItem, ReleaseMeta, DeveloperRationale, TargetScopeType, UpdateTag, ReleaseStatus } from '../../../src/engine/updates/types'
 import { asItemId, asReleaseId } from '../../../src/engine/updates/types'
 import { defaultProjections } from '../../../src/engine/updates/projections'
 
@@ -23,15 +23,48 @@ export async function loadReleaseAggregates(
   }
 
   const releaseIds = rows.map((r) => r.id)
+  const authorUsernames = Array.from(
+    new Set(
+      rows
+        .map((r) => r.authorUsername?.trim().toLowerCase())
+        .filter((u): u is string => Boolean(u)),
+    ),
+  )
 
-  const [allRationales, allItems] = await Promise.all([
+  const [allRationales, allItems, authorRows] = await Promise.all([
     db.select().from(updateRationales).where(inArray(updateRationales.releaseId, releaseIds)),
     db
       .select()
       .from(updateItems)
       .where(inArray(updateItems.releaseId, releaseIds))
       .orderBy(asc(updateItems.sortOrder)),
+    authorUsernames.length > 0
+      ? db
+          .select({
+            username: users.username,
+            nickname: users.nickname,
+            pfpR2Key: users.pfpR2Key,
+            flags: users.flags,
+            developer: users.developer,
+            legacyUser: users.legacyUser,
+          })
+          .from(users)
+          .where(inArray(users.username, authorUsernames))
+          .all()
+      : Promise.resolve([]),
   ])
+
+  const authorMap = new Map<string, ReleaseAuthor>()
+  for (const u of authorRows) {
+    authorMap.set(u.username.toLowerCase(), {
+      username: u.username,
+      nickname: u.nickname ?? undefined,
+      pfpUrl: u.pfpR2Key ? `/api/assets/pfp/${u.pfpR2Key}` : null,
+      flags: u.flags,
+      developer: u.developer === 1,
+      legacyUser: u.legacyUser === 1,
+    })
+  }
 
   const rationaleMap = new Map<string, DeveloperRationale>()
   for (const rat of allRationales) {
@@ -65,6 +98,10 @@ export async function loadReleaseAggregates(
   }
 
   return rows.map((row) => {
+    const author = row.authorUsername
+      ? authorMap.get(row.authorUsername.trim().toLowerCase())
+      : undefined
+
     const meta: ReleaseMeta = {
       id: asReleaseId(row.id),
       globalVersion: row.globalVersion,
@@ -73,6 +110,7 @@ export async function loadReleaseAggregates(
       status: row.status as ReleaseStatus,
       releaseDate: row.releaseDate,
       authorUsername: row.authorUsername ?? undefined,
+      author,
       publishedAt: row.publishedAt ?? undefined,
     }
 
@@ -90,14 +128,39 @@ export async function loadReleaseAggregateById(
   const row = await db.select().from(updateReleases).where(eq(updateReleases.id, releaseId)).get()
   if (!row) return null
 
-  const [ratRow, itemRows] = await Promise.all([
+  const [ratRow, itemRows, authorRow] = await Promise.all([
     db.select().from(updateRationales).where(eq(updateRationales.releaseId, releaseId)).get(),
     db
       .select()
       .from(updateItems)
       .where(eq(updateItems.releaseId, releaseId))
       .orderBy(asc(updateItems.sortOrder)),
+    row.authorUsername
+      ? db
+          .select({
+            username: users.username,
+            nickname: users.nickname,
+            pfpR2Key: users.pfpR2Key,
+            flags: users.flags,
+            developer: users.developer,
+            legacyUser: users.legacyUser,
+          })
+          .from(users)
+          .where(eq(users.username, row.authorUsername.trim().toLowerCase()))
+          .get()
+      : Promise.resolve(null),
   ])
+
+  const author: ReleaseAuthor | undefined = authorRow
+    ? {
+        username: authorRow.username,
+        nickname: authorRow.nickname ?? undefined,
+        pfpUrl: authorRow.pfpR2Key ? `/api/assets/pfp/${authorRow.pfpR2Key}` : null,
+        flags: authorRow.flags,
+        developer: authorRow.developer === 1,
+        legacyUser: authorRow.legacyUser === 1,
+      }
+    : undefined
 
   const meta: ReleaseMeta = {
     id: asReleaseId(row.id),
@@ -107,6 +170,7 @@ export async function loadReleaseAggregateById(
     status: row.status as ReleaseStatus,
     releaseDate: row.releaseDate,
     authorUsername: row.authorUsername ?? undefined,
+    author,
     publishedAt: row.publishedAt ?? undefined,
   }
 
