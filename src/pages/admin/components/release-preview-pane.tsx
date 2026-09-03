@@ -67,7 +67,6 @@ export function ReleasePreviewPane({ release }: ReleasePreviewPaneProps) {
 
             {release.rationale && (
               <section className="nx-release-rationale" aria-label="Developer notes">
-                <div className="nx-release-rationale-title">Developer Rationale</div>
                 <MarkdownRenderer content={release.rationale.content} />
               </section>
             )}

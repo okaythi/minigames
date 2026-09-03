@@ -104,18 +104,47 @@
   color: var(--nx-ink);
 }
 
-.nx-markdown-body .nx-md-list {
-  margin: 8px 0 12px 20px;
-  padding: 0;
+.nx-markdown-body ul.nx-md-list,
+.nx-markdown-body ol.nx-md-list {
+  margin: 8px 0 12px 24px;
+  padding-left: 6px;
 }
 
-.nx-markdown-body .nx-md-list li {
+.nx-markdown-body ul.nx-md-list {
+  list-style-type: disc;
+}
+
+.nx-markdown-body ul.nx-md-list > li {
   margin-bottom: 4px;
 }
 
-.nx-markdown-body .nx-md-task-list {
+.nx-markdown-body ul.nx-md-list > li::marker {
+  color: var(--nx-orange);
+}
+
+.nx-markdown-body ol.nx-md-list {
+  list-style-type: decimal;
+}
+
+.nx-markdown-body ol.nx-md-list > li {
+  margin-bottom: 4px;
+}
+
+.nx-markdown-body ol.nx-md-list > li::marker {
+  color: var(--nx-orange);
+  font-weight: 700;
+  font-family: var(--nx-font-mono);
+}
+
+.nx-markdown-body ul.nx-md-task-list {
   list-style: none;
+  list-style-type: none;
   margin-left: 0;
+  padding-left: 0;
+}
+
+.nx-markdown-body ul.nx-md-task-list > li::marker {
+  content: none;
 }
 
 .nx-markdown-body .nx-md-task-item {

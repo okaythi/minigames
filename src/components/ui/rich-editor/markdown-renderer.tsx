@@ -25,13 +25,13 @@ export function parseMarkdownToHtml(markdown: string): string {
   let codeBlockLines: string[] = []
   let inTable = false
   let tableHeaderParsed = false
-  let inList: 'ul' | 'ol' | null = null
+  let inList: 'ul' | 'ol' | 'task' | null = null
   let inCallout = false
   let inQuote = false
 
   function closeList() {
     if (inList) {
-      htmlParts.push(`</${inList}>`)
+      htmlParts.push(inList === 'ol' ? '</ol>' : '</ul>')
       inList = null
     }
   }
@@ -202,9 +202,9 @@ export function parseMarkdownToHtml(markdown: string): string {
     if (taskMatch) {
       closeCallout()
       closeQuote()
-      if (inList !== 'ul') {
+      if (inList !== 'task') {
         closeList()
-        inList = 'ul'
+        inList = 'task'
         htmlParts.push('<ul class="nx-md-list nx-md-task-list">')
       }
       const checked = taskMatch[1]!.toLowerCase() === 'x'
