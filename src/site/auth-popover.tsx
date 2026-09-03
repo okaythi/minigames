@@ -110,7 +110,7 @@ export function AuthPopover() {
           onClick={() => setIsOpen(!isOpen)}
           data-active={isOpen ? 'true' : undefined}
         >
-          Sign in
+          Sign In
         </button>
       )}
 

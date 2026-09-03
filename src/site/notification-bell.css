@@ -7,25 +7,29 @@
   position: relative;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .nx-notif-bell-btn {
   position: relative;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--nx-radius-sm, 6px);
-  padding: 6px 8px;
-  display: flex;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .nx-notif-bell-btn:hover {
-  background: var(--nx-paper);
-  border-color: var(--nx-line);
+  background: var(--nx-sand);
+  border-color: transparent;
 }
 
 .nx-notif-bell-icon {
@@ -35,8 +39,8 @@
 /* Red badge with off-white number */
 .nx-notif-badge {
   position: absolute;
-  top: 1px;
-  right: 1px;
+  top: -2px;
+  right: -2px;
   background: var(--nx-red);
   color: var(--nx-paper);
   font-family: var(--nx-font-sans);

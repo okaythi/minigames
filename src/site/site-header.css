@@ -14,7 +14,7 @@
 
 .nx-header-inner {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(260px, 540px) minmax(140px, 1fr);
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 18px;
   height: var(--nx-header-height);
@@ -23,14 +23,18 @@
 .nx-header-brand {
   justify-self: start;
   border-radius: var(--nx-radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nx-header-search {
   justify-self: center;
   width: 100%;
+  max-width: 540px;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .nx-header-search .nx-search-games {
@@ -45,38 +49,49 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.nx-nav-link {
+.nx-nav-link,
+button.nx-nav-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   height: 30px;
   padding: 0 11px;
   border-radius: 999px;
+  font-family: var(--nx-font-sans);
   font-size: 13.5px;
   font-weight: 500;
   color: var(--nx-slate);
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  letter-spacing: inherit;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition:
     color var(--nx-duration) var(--nx-ease),
     background-color var(--nx-duration) var(--nx-ease);
 }
 
-.nx-nav-link:hover {
+.nx-nav-link:hover,
+button.nx-nav-link:hover {
   color: var(--nx-ink);
   background: var(--nx-sand);
 }
 
-.nx-nav-link[data-active='true'] {
+.nx-nav-link[data-active='true'],
+button.nx-nav-link[data-active='true'] {
   color: var(--nx-ink);
   background: var(--nx-sand);
   box-shadow: inset 0 -1px 0 0 var(--nx-orange);
-}
-
-button.nx-nav-link {
-  background: none;
-  border: none;
-  font: inherit;
-  cursor: pointer;
 }
 
 .nx-nav-avatar-btn {
