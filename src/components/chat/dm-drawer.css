@@ -1,3 +1,10 @@
+/* ==========================================================================
+   Direct Messages & Chat Drawer
+   Colors tuned to README.md design tokens:
+   Cloudflare orange on warm off-white paper, hairline ornaments, no pure #fff.
+   ========================================================================== */
+
+/* Floating Chat Trigger Button */
 .nx-chat-trigger {
   position: fixed;
   bottom: 20px;
@@ -9,93 +16,326 @@
   background: var(--nx-card);
   color: var(--nx-ink);
   border: 1px solid var(--nx-line);
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   font-family: var(--nx-font-sans);
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 4px 14px rgba(35, 35, 36, 0.08);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .nx-chat-trigger:hover {
   border-color: var(--nx-orange);
   transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(35, 35, 36, 0.12);
 }
 
+/* Chat Main Drawer Panel */
 .nx-chat-panel {
   position: fixed;
   bottom: 68px;
   right: 20px;
   z-index: 900;
   width: 360px;
-  height: 480px;
+  height: 500px;
   max-width: calc(100vw - 40px);
-  max-height: calc(100vh - 100px);
-  background: var(--nx-card);
+  max-height: calc(100vh - 90px);
+  background: var(--nx-paper);
   border: 1px solid var(--nx-line);
-  border-radius: var(--nx-radius-lg, 12px);
+  border-radius: var(--nx-radius-lg, 14px);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 40px -12px rgba(35, 35, 36, 0.2), 0 2px 8px rgba(35, 35, 36, 0.06);
   overflow: hidden;
+  font-family: var(--nx-font-sans);
 }
 
+/* Chat Header */
 .nx-chat-header {
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--nx-line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--nx-paper);
+  background: var(--nx-card);
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.nx-chat-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  letter-spacing: -0.01em;
 }
 
 .nx-chat-partner {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--nx-ink);
+  min-width: 0;
 }
 
-.nx-chat-close-btn {
+.nx-chat-back-btn {
   background: transparent;
   border: none;
   font-size: 16px;
   cursor: pointer;
   color: var(--nx-slate);
-  padding: 4px;
+  padding: 4px 6px;
+  border-radius: var(--nx-radius-sm, 6px);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
+.nx-chat-back-btn:hover {
+  color: var(--nx-ink);
+  background: var(--nx-sand);
+}
+
+/* Recipient Profile Picture in Header */
+.nx-chat-header-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--nx-sand);
+  border: 1px solid var(--nx-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.nx-chat-header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-chat-header-username {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-chat-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--nx-slate);
+  padding: 4px 6px;
+  border-radius: var(--nx-radius-sm, 6px);
+  line-height: 1;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.nx-chat-close-btn:hover {
+  color: var(--nx-ink);
+  background: var(--nx-sand);
+}
+
+/* ==========================================================================
+   Conversations & Message List (Say NO to Flashbang White)
+   Warm paper surface with clean bordered cards
+   ========================================================================== */
 .nx-chat-convo-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  background: var(--nx-paper);
 }
 
+.nx-chat-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--nx-slate);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 4px 2px;
+}
+
+/* Conversation Item Card */
 .nx-chat-convo-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--nx-radius-sm, 6px);
-  background: transparent;
-  border: none;
+  padding: 9px 12px;
+  border-radius: var(--nx-radius, 10px);
+  background: var(--nx-card);
+  border: 1px solid var(--nx-line);
   width: 100%;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  box-sizing: border-box;
 }
 
 .nx-chat-convo-item:hover {
-  background: var(--nx-paper);
+  border-color: var(--nx-orange-glow);
+  background: #ffffff;
+  transform: translateY(-1px);
 }
 
+.nx-chat-convo-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--nx-sand);
+  border: 1px solid var(--nx-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nx-ink);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.nx-chat-convo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-chat-convo-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nx-chat-convo-top-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.nx-chat-convo-username {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--nx-ink);
+}
+
+.nx-chat-convo-nickname {
+  font-size: 11px;
+  color: var(--nx-slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-chat-convo-snippet {
+  font-size: 12px;
+  color: var(--nx-slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.nx-chat-convo-empty-snippet {
+  font-style: italic;
+  color: var(--nx-slate);
+  opacity: 0.8;
+}
+
+/* Orange Unread Indicator Dot */
+.nx-chat-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nx-orange);
+  flex-shrink: 0;
+  margin-left: 6px;
+  box-shadow: 0 0 0 2px var(--nx-card);
+}
+
+/* Empty State */
+.nx-chat-empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--nx-slate);
+}
+
+.nx-chat-empty-icon {
+  font-size: 28px;
+  opacity: 0.6;
+}
+
+.nx-chat-empty-text {
+  font-size: 12.5px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Friends Section in Message Drawer */
+.nx-chat-friend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--nx-radius-sm, 6px);
+  background: var(--nx-card);
+  border: 1px solid var(--nx-line);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.nx-chat-friend-item:hover {
+  border-color: var(--nx-orange-glow);
+  background: #ffffff;
+}
+
+.nx-chat-friend-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.nx-chat-friend-username {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--nx-ink);
+}
+
+.nx-chat-friend-nickname {
+  font-size: 11px;
+  color: var(--nx-slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Chat Body & Message Bubbles
+   ========================================================================== */
 .nx-chat-body {
   flex: 1;
   overflow-y: auto;
@@ -106,26 +346,41 @@
   background: var(--nx-paper);
 }
 
+.nx-chat-msg-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+}
+
+.nx-chat-msg-row[data-me="true"] {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.nx-chat-msg-row[data-me="false"] {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
 .nx-chat-msg {
-  max-width: 80%;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--nx-radius, 10px);
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
 }
 
 .nx-chat-msg[data-me="true"] {
-  align-self: flex-end;
   background: var(--nx-orange);
-  color: #fff;
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
 }
 
 .nx-chat-msg[data-me="false"] {
-  align-self: flex-start;
   background: var(--nx-card);
   border: 1px solid var(--nx-line);
   color: var(--nx-ink);
+  border-bottom-left-radius: 2px;
 }
 
 .nx-chat-msg[data-failed="true"] {
@@ -134,24 +389,346 @@
   color: var(--nx-red) !important;
 }
 
-.nx-chat-challenge-card {
-  border: 1px solid var(--nx-orange);
-  background: var(--nx-card);
-  color: var(--nx-ink);
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 4px;
+.nx-chat-msg-text {
+  word-break: break-word;
 }
 
+/* Challenge Embed Card inside Chat */
+.nx-chat-challenge-card {
+  border: 1px solid var(--nx-line);
+  background: var(--nx-card);
+  color: var(--nx-ink);
+  border-radius: var(--nx-radius-sm, 6px);
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.nx-chat-msg[data-me="true"] .nx-chat-challenge-card {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--nx-ink);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.nx-chat-challenge-title {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 2px;
+  color: var(--nx-ink);
+}
+
+.nx-chat-challenge-details {
+  font-size: 11.5px;
+  color: var(--nx-slate);
+}
+
+/* ==========================================================================
+   Tiny Grey Timestamps & (Sending | Sent) Indicators
+   ========================================================================== */
+.nx-chat-msg-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--nx-font-sans);
+  font-size: 10px;
+  color: var(--nx-slate);
+  margin-top: 3px;
+  padding: 0 4px;
+}
+
+.nx-chat-msg-time {
+  color: var(--nx-slate);
+}
+
+.nx-chat-msg-status[data-status="sending"] {
+  color: var(--nx-orange);
+  font-weight: 500;
+}
+
+.nx-chat-msg-status[data-status="sent"] {
+  color: var(--nx-slate);
+}
+
+.nx-chat-msg-status[data-status="failed"] {
+  color: var(--nx-red);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Dismissible Security Disclaimer
+   "Never share personal information or passwords in this chat."
+   ========================================================================== */
+.nx-chat-disclaimer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--nx-paper);
+  border-top: 1px solid var(--nx-line);
+  color: var(--nx-slate);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.nx-chat-disclaimer-text {
+  flex: 1;
+}
+
+.nx-chat-disclaimer-close {
+  background: transparent;
+  border: none;
+  color: var(--nx-slate);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.nx-chat-disclaimer-close:hover {
+  opacity: 1;
+  color: var(--nx-ink);
+}
+
+/* ==========================================================================
+   Rate Limit Cooldown Indicator
+   ========================================================================== */
 .nx-chat-queue-indicator {
   padding: 6px 12px;
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 11.5px;
+  background: var(--nx-orange-tint);
+  color: var(--nx-orange-deep);
+  font-size: 11px;
   font-family: var(--nx-font-mono);
   border-top: 1px solid var(--nx-line);
 }
 
+/* ==========================================================================
+   Re-styled Send Challenge Panel (Zero Native Browser Features)
+   Fully custom dropdown menu, custom numeric steppers, website fonts
+   ========================================================================== */
+.nx-challenge-panel {
+  padding: 12px;
+  background: var(--nx-card);
+  border-top: 1px solid var(--nx-line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--nx-font-sans);
+  animation: nx-panel-enter 0.15s ease-out;
+}
+
+@keyframes nx-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nx-challenge-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nx-challenge-panel-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--nx-ink);
+}
+
+.nx-challenge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.nx-challenge-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nx-slate);
+}
+
+/* Custom Dropdown (No native <select> / <option>) */
+.nx-custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.nx-custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--nx-paper);
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-sm, 6px);
+  font-family: var(--nx-font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--nx-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.nx-custom-select-trigger:hover {
+  border-color: var(--nx-orange);
+}
+
+.nx-custom-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-custom-select-arrow {
+  font-size: 11px;
+  color: var(--nx-slate);
+  transition: transform 0.15s ease;
+  margin-left: 6px;
+}
+
+.nx-custom-select-arrow.nx-open {
+  transform: rotate(180deg);
+}
+
+.nx-custom-select-options {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--nx-card);
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-sm, 6px);
+  box-shadow: 0 10px 24px -8px rgba(35, 35, 36, 0.25);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 950;
+}
+
+.nx-custom-select-option {
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--nx-ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color 0.15s ease;
+}
+
+.nx-custom-select-option:hover {
+  background: var(--nx-paper);
+}
+
+.nx-custom-select-option.nx-selected {
+  font-weight: 700;
+  color: var(--nx-orange);
+  background: var(--nx-orange-tint);
+}
+
+.nx-custom-select-check {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--nx-orange);
+}
+
+/* Custom Numeric Stepper Controls (No native <input type="number"> spinners) */
+.nx-challenge-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.nx-challenge-grid .nx-challenge-field {
+  flex: 1;
+}
+
+.nx-custom-stepper {
+  display: flex;
+  align-items: center;
+  background: var(--nx-paper);
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-sm, 6px);
+  overflow: hidden;
+}
+
+.nx-custom-stepper-btn {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nx-slate);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.nx-custom-stepper-btn:hover {
+  background: var(--nx-sand);
+  color: var(--nx-ink);
+}
+
+.nx-custom-stepper-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-family: var(--nx-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--nx-ink);
+  padding: 5px 2px;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.nx-custom-stepper-input::-webkit-outer-spin-button,
+.nx-custom-stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.nx-challenge-submit-btn {
+  background: var(--nx-orange);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--nx-radius-sm, 6px);
+  padding: 8px 12px;
+  font-family: var(--nx-font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  margin-top: 2px;
+}
+
+.nx-challenge-submit-btn:hover {
+  background: var(--nx-orange-deep);
+}
+
+/* ==========================================================================
+   Chat Bottom Input Bar
+   ========================================================================== */
 .nx-chat-input-bar {
   padding: 8px 10px;
   border-top: 1px solid var(--nx-line);
@@ -161,24 +738,61 @@
   background: var(--nx-card);
 }
 
+.nx-chat-challenge-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-sm, 6px);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--nx-slate);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.nx-chat-challenge-toggle-btn:hover {
+  border-color: var(--nx-orange);
+  background: var(--nx-paper);
+}
+
+.nx-chat-challenge-toggle-btn.nx-active {
+  border-color: var(--nx-orange);
+  background: var(--nx-orange-tint);
+}
+
 .nx-chat-input {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: var(--nx-radius-sm, 6px);
   border: 1px solid var(--nx-line);
+  font-family: var(--nx-font-sans);
   font-size: 13px;
   background: var(--nx-paper);
   color: var(--nx-ink);
   outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.nx-chat-input:focus {
+  border-color: var(--nx-orange);
 }
 
 .nx-chat-send-btn {
   background: var(--nx-orange);
-  color: #fff;
+  color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 7px 12px;
+  border-radius: var(--nx-radius-sm, 6px);
+  padding: 8px 14px;
+  font-family: var(--nx-font-sans);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.nx-chat-send-btn:hover {
+  background: var(--nx-orange-deep);
 }

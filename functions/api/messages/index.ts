@@ -1,12 +1,12 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { eq, or, and, desc, gte } from 'drizzle-orm'
+import { eq, or, and, desc, gte, isNull } from 'drizzle-orm'
 import { users, players, conversations, messages, friendships, challenges } from '../../../src/db/schema'
 import { hasFlag, UserFlags } from '../../../shared/flags'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
-import type { DirectMessage } from '../../../shared/auth-protocol'
+import type { DirectMessage, ConversationSummary } from '../../../shared/auth-protocol'
 
 interface PagesContext {
   readonly request: Request
@@ -55,6 +55,20 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       return jsonResponse(200, { ok: true, messages: [] })
     }
 
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    // Mark unread messages as read
+    await db
+      .update(messages)
+      .set({ readAt: nowSeconds })
+      .where(
+        and(
+          eq(messages.conversationId, convo.id),
+          eq(messages.recipientId, playerId),
+          isNull(messages.readAt),
+        ),
+      )
+      .run()
+
     const msgRows = await db
       .select()
       .from(messages)
@@ -89,6 +103,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
         metadata: m.metadata,
         readAt: m.readAt,
         createdAt: m.createdAt,
+        status: 'sent',
       }
     })
 
@@ -109,25 +124,66 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     : []
   const partnerMap = new Map(partners.map((p) => [p.playerId, p]))
 
-  const list = convos.map((c) => {
-    const partnerId = c.user1Id === playerId ? c.user2Id : c.user1Id
-    const p = partnerMap.get(partnerId)
-    return {
-      id: c.id,
-      lastMessageAt: c.lastMessageAt,
-      partner: p
-        ? {
+  const rawList = await Promise.all(
+    convos.map(async (c): Promise<ConversationSummary | null> => {
+      const partnerId = c.user1Id === playerId ? c.user2Id : c.user1Id
+      const p = partnerMap.get(partnerId)
+      if (!p) return null
+
+        const lastMsg = await db
+          .select()
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, c.id),
+              or(
+                and(eq(messages.senderId, playerId), eq(messages.deletedBySender, 0)),
+                and(eq(messages.recipientId, playerId), eq(messages.deletedByRecipient, 0)),
+              ),
+            ),
+          )
+          .orderBy(desc(messages.createdAt))
+          .limit(1)
+          .get()
+
+        const unreadRows = await db
+          .select({ id: messages.id })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, c.id),
+              eq(messages.recipientId, playerId),
+              eq(messages.deletedByRecipient, 0),
+              isNull(messages.readAt),
+            ),
+          )
+          .all()
+
+        return {
+          id: c.id,
+          lastMessageAt: c.lastMessageAt,
+          partner: {
             username: p.username,
             nickname: p.nickname,
             pfpUrl: p.pfpR2Key ? `/api/assets/pfp/${p.pfpR2Key}` : null,
             flags: p.flags,
-          }
-        : null,
-    }
-  }).filter((c) => c.partner !== null)
+          },
+          lastMessage: lastMsg
+            ? {
+                content: lastMsg.content,
+                senderUsername: lastMsg.senderId === playerId ? user.username : p.username,
+                createdAt: lastMsg.createdAt,
+              }
+            : null,
+          unreadCount: unreadRows.length,
+          hasUnread: unreadRows.length > 0,
+        }
+      }),
+    )
+    const list = rawList.filter((c): c is ConversationSummary => c !== null)
 
-  return jsonResponse(200, { ok: true, conversations: list })
-}
+    return jsonResponse(200, { ok: true, conversations: list })
+  }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
   const store = storeFor(env)
@@ -308,6 +364,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     content: body.content,
     metadata: challengeMetadataStr,
     createdAt: nowSeconds,
+    status: 'sent',
   }
 
   return jsonResponse(200, { ok: true, message: result })

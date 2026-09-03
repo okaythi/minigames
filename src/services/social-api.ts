@@ -1,4 +1,4 @@
-import type { FriendSummary, DirectMessage, PrivacySettings } from '../../shared/auth-protocol'
+import type { FriendSummary, DirectMessage, PrivacySettings, ConversationSummary } from '../../shared/auth-protocol'
 
 export async function getFriends(username?: string): Promise<{
   ok: boolean
@@ -59,7 +59,7 @@ export async function updatePrivacySettings(settings: Partial<PrivacySettings>):
   return data.privacy
 }
 
-export async function getConversations(): Promise<any[]> {
+export async function getConversations(): Promise<ConversationSummary[]> {
   const res = await fetch('/api/messages')
   if (!res.ok) return []
   const data = await res.json()

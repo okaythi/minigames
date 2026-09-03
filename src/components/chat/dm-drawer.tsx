@@ -6,15 +6,17 @@ import {
   sendMessage,
   getMyFriends,
 } from '../../services/social-api'
-import type { DirectMessage, FriendSummary } from '../../../shared/auth-protocol'
+import type { DirectMessage, FriendSummary, ConversationSummary } from '../../../shared/auth-protocol'
 import { MANIFESTS } from '../../games/registry'
-import { Link } from '../../app/link'
-import { ROUTES } from '../../app/parse-route'
+import { ChatMessageItem } from './chat-message-item'
+import { ChatDisclaimer } from './chat-disclaimer'
+import { CustomChallengePanel } from './custom-challenge-panel'
+import { ConversationCard } from './conversation-card'
 import './dm-drawer.css'
 
 export function DmDrawer() {
   const [isOpen, setIsOpen] = useState(false)
-  const [conversations, setConversations] = useState<any[]>([])
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [activePartner, setActivePartner] = useState<string | null>(null)
   const [messages, setMessages] = useState<DirectMessage[]>([])
   const [inputVal, setInputVal] = useState('')
@@ -33,7 +35,7 @@ export function DmDrawer() {
     const handleOpenChat = (e: any) => {
       setIsOpen(true)
       if (e.detail?.username) {
-        setActivePartner(e.detail.username)
+        handleSelectPartner(e.detail.username)
       }
     }
     window.addEventListener('nx-open-chat', handleOpenChat)
@@ -50,8 +52,19 @@ export function DmDrawer() {
     if (!activePartner) return
     let active = true
     const poll = () => {
-      getMessages(activePartner).then((msgs) => {
-        if (active) setMessages(msgs)
+      getMessages(activePartner).then((incomingMsgs) => {
+        if (!active) return
+        setMessages((currentMsgs) => {
+          // Retain pending sending messages that haven't arrived from server yet
+          const pendingSending = currentMsgs.filter(
+            (m) => m.status === 'sending' && !incomingMsgs.some((im) => im.id === m.id),
+          )
+          const mappedIncoming = incomingMsgs.map((m) => ({
+            ...m,
+            status: m.status ?? ('sent' as const),
+          }))
+          return [...mappedIncoming, ...pendingSending]
+        })
       })
     }
     poll()
@@ -81,56 +94,142 @@ export function DmDrawer() {
       const nextMsg = queue[0]
       if (!nextMsg) return
       setQueue((q) => q.slice(1))
-      void handleDirectSend(nextMsg)
+      void dispatchSendMessage(nextMsg)
     }
   }, [cooldown, queue, activePartner])
 
-  const handleDirectSend = async (text: string) => {
-    if (!activePartner) return
+  const handleSelectPartner = (username: string) => {
+    setActivePartner(username)
+    setShowChallengeModal(false)
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.partner.username.toLowerCase() === username.toLowerCase()
+          ? { ...c, hasUnread: false, unreadCount: 0 }
+          : c,
+      ),
+    )
+  }
+
+  const dispatchSendMessage = async (text: string, tempId?: string) => {
+    if (!activePartner || !currentUser) return
+
+    const messageTempId =
+      tempId ?? `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+
+    if (!tempId) {
+      // If no tempId provided, append optimistic message now
+      const optimisticMsg: DirectMessage = {
+        id: messageTempId,
+        conversationId: 'pending',
+        senderUsername: currentUser.username,
+        senderNickname: currentUser.nickname,
+        senderPfpUrl: currentUser.pfpUrl,
+        recipientUsername: activePartner,
+        messageType: 'text',
+        content: text,
+        createdAt: Math.floor(Date.now() / 1000),
+        status: 'sending',
+      }
+      setMessages((prev) => [...prev, optimisticMsg])
+    }
+
     const res = await sendMessage(activePartner, text)
     if (res.ok && res.message) {
-      setMessages((prev) => [...prev, res.message!])
+      const serverMsg: DirectMessage = {
+        ...res.message,
+        status: 'sent',
+      }
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageTempId ? serverMsg : m)),
+      )
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.partner.username.toLowerCase() === activePartner.toLowerCase()) {
+            return {
+              ...c,
+              lastMessageAt: serverMsg.createdAt,
+              lastMessage: {
+                content: serverMsg.content,
+                senderUsername: serverMsg.senderUsername,
+                createdAt: serverMsg.createdAt,
+              },
+            }
+          }
+          return c
+        }),
+      )
     } else {
       if (res.cooldown) {
         setCooldown(res.cooldown)
         setQueue((q) => [text, ...q])
+        setMessages((prev) => prev.filter((m) => m.id !== messageTempId))
       } else {
-        // Mark failed in red
-        const failedMsg: DirectMessage = {
-          id: `err_${Date.now()}`,
-          conversationId: 'error',
-          senderUsername: currentUser?.username ?? 'me',
-          senderNickname: currentUser?.nickname ?? null,
-          senderPfpUrl: currentUser?.pfpUrl ?? null,
-          recipientUsername: activePartner,
-          messageType: 'text',
-          content: `${text} (Failed: ${res.error || 'Unable to deliver message'})`,
-          createdAt: Math.floor(Date.now() / 1000),
-          failed: true,
-        }
-        setMessages((prev) => [...prev, failedMsg])
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageTempId
+              ? {
+                  ...m,
+                  failed: true,
+                  status: 'failed',
+                  content: `${text} (Failed: ${res.error || 'Unable to deliver message'})`,
+                }
+              : m,
+          ),
+        )
       }
     }
   }
 
   const handleSend = () => {
     const text = inputVal.trim()
-    if (!text || !activePartner) return
+    if (!text || !activePartner || !currentUser) return
     setInputVal('')
 
     if (cooldown > 0) {
       setQueue((prev) => [...prev, text])
-    } else {
-      void handleDirectSend(text)
+      return
     }
+
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const optimisticMsg: DirectMessage = {
+      id: tempId,
+      conversationId: 'pending',
+      senderUsername: currentUser.username,
+      senderNickname: currentUser.nickname,
+      senderPfpUrl: currentUser.pfpUrl,
+      recipientUsername: activePartner,
+      messageType: 'text',
+      content: text,
+      createdAt: Math.floor(Date.now() / 1000),
+      status: 'sending',
+    }
+
+    setMessages((prev) => [...prev, optimisticMsg])
+    void dispatchSendMessage(text, tempId)
   }
 
   const handleSendChallenge = async () => {
-    if (!activePartner) return
+    if (!activePartner || !currentUser) return
     setShowChallengeModal(false)
     const manifest = MANIFESTS.find((m) => m.slug === selectedGame)
     const title = manifest?.title ?? selectedGame
     const content = `⚔️ Challenge: Beat my score of ${targetScore} in ${title}!`
+
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const optimisticMsg: DirectMessage = {
+      id: tempId,
+      conversationId: 'pending',
+      senderUsername: currentUser.username,
+      senderNickname: currentUser.nickname,
+      senderPfpUrl: currentUser.pfpUrl,
+      recipientUsername: activePartner,
+      messageType: 'challenge',
+      content,
+      createdAt: Math.floor(Date.now() / 1000),
+      status: 'sending',
+    }
+
+    setMessages((prev) => [...prev, optimisticMsg])
 
     const res = await sendMessage(activePartner, content, 'challenge', {
       gameSlug: selectedGame,
@@ -139,25 +238,39 @@ export function DmDrawer() {
     })
 
     if (res.ok && res.message) {
-      setMessages((prev) => [...prev, res.message!])
-    } else {
-      const failedMsg: DirectMessage = {
-        id: `err_${Date.now()}`,
-        conversationId: 'error',
-        senderUsername: currentUser?.username ?? 'me',
-        senderNickname: currentUser?.nickname ?? null,
-        senderPfpUrl: currentUser?.pfpUrl ?? null,
-        recipientUsername: activePartner,
-        messageType: 'text',
-        content: `Challenge failed: ${res.error || 'Could not send challenge'}`,
-        createdAt: Math.floor(Date.now() / 1000),
-        failed: true,
+      const serverMsg: DirectMessage = {
+        ...res.message,
+        status: 'sent',
       }
-      setMessages((prev) => [...prev, failedMsg])
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? serverMsg : m)),
+      )
+    } else {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? {
+                ...m,
+                failed: true,
+                status: 'failed',
+                content: `Challenge failed: ${res.error || 'Could not send challenge'}`,
+              }
+            : m,
+        ),
+      )
     }
   }
 
   if (!currentUser) return null
+
+  // Resolve recipient avatar
+  const activeConvo = conversations.find(
+    (c) => c.partner.username.toLowerCase() === activePartner?.toLowerCase(),
+  )
+  const activeFriend = friends.find(
+    (f) => f.username.toLowerCase() === activePartner?.toLowerCase(),
+  )
+  const recipientPfp = activeConvo?.partner.pfpUrl ?? activeFriend?.pfpUrl ?? null
 
   return (
     <>
@@ -178,16 +291,23 @@ export function DmDrawer() {
               <div className="nx-chat-partner">
                 <button
                   type="button"
-                  className="nx-chat-close-btn"
+                  className="nx-chat-back-btn"
                   onClick={() => setActivePartner(null)}
-                  style={{ marginRight: '4px' }}
+                  aria-label="Back to messages list"
                 >
                   ←
                 </button>
-                <span>@{activePartner}</span>
+                <div className="nx-chat-header-avatar">
+                  {recipientPfp ? (
+                    <img src={recipientPfp} alt={activePartner} />
+                  ) : (
+                    <span>{activePartner.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className="nx-chat-header-username">@{activePartner}</span>
               </div>
             ) : (
-              <strong style={{ fontSize: '14px', color: 'var(--nx-ink)' }}>Messages</strong>
+              <strong className="nx-chat-header-title">Messages</strong>
             )}
             <button
               type="button"
@@ -202,58 +322,51 @@ export function DmDrawer() {
           {!activePartner ? (
             <div className="nx-chat-convo-list">
               {conversations.length > 0 ? (
-                conversations.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="nx-chat-convo-item"
-                    onClick={() => setActivePartner(c.partner.username)}
-                  >
-                    <div className="nx-friend-sidebar-avatar" style={{ width: '28px', height: '28px' }}>
-                      {c.partner.pfpUrl ? (
-                        <img src={c.partner.pfpUrl} alt={c.partner.username} />
-                      ) : (
-                        c.partner.username.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--nx-ink)' }}>
-                        @{c.partner.username}
-                      </div>
-                      {c.partner.nickname && (
-                        <div style={{ fontSize: '11px', color: 'var(--nx-slate)' }}>
-                          {c.partner.nickname}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))
+                <>
+                  <div className="nx-chat-section-title">Recent Conversations</div>
+                  {conversations.map((c) => (
+                    <ConversationCard
+                      key={c.id}
+                      conversation={c}
+                      onClick={() => handleSelectPartner(c.partner.username)}
+                    />
+                  ))}
+                </>
               ) : (
-                <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--nx-slate)', fontSize: '12.5px' }}>
-                  No messages yet. Pick a friend to start chatting!
+                <div className="nx-chat-empty-state">
+                  <span className="nx-chat-empty-icon">✉️</span>
+                  <p className="nx-chat-empty-text">
+                    No messages yet. Pick a friend below to start chatting!
+                  </p>
                 </div>
               )}
 
               {friends.length > 0 && (
                 <>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--nx-slate)', padding: '12px 10px 4px', textTransform: 'uppercase' }}>
-                    Friends
-                  </div>
+                  <div className="nx-chat-section-title">Friends</div>
                   {friends.map((f) => (
                     <button
                       key={f.username}
                       type="button"
-                      className="nx-chat-convo-item"
-                      onClick={() => setActivePartner(f.username)}
+                      className="nx-chat-friend-item"
+                      onClick={() => handleSelectPartner(f.username)}
                     >
-                      <div className="nx-friend-sidebar-avatar" style={{ width: '28px', height: '28px' }}>
-                        {f.pfpUrl ? <img src={f.pfpUrl} alt={f.username} /> : f.username.charAt(0).toUpperCase()}
-                        <div className="nx-friend-presence-dot" data-state={f.presence.state} />
+                      <div className="nx-friend-sidebar-avatar">
+                        {f.pfpUrl ? (
+                          <img src={f.pfpUrl} alt={f.username} />
+                        ) : (
+                          f.username.charAt(0).toUpperCase()
+                        )}
+                        <div
+                          className="nx-friend-presence-dot"
+                          data-state={f.presence.state}
+                        />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--nx-ink)' }}>
-                          @{f.username}
-                        </div>
+                      <div className="nx-chat-friend-details">
+                        <span className="nx-chat-friend-username">@{f.username}</span>
+                        {f.nickname && (
+                          <span className="nx-chat-friend-nickname">{f.nickname}</span>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -264,42 +377,16 @@ export function DmDrawer() {
             <>
               <div className="nx-chat-body">
                 {messages.map((m) => {
-                  const isMe = m.senderUsername.toLowerCase() === currentUser.username.toLowerCase()
-                  const challengeMeta = m.metadata ? (() => { try { return JSON.parse(m.metadata) } catch { return null } })() : null
-
+                  const isMe =
+                    m.senderUsername.toLowerCase() === currentUser.username.toLowerCase()
                   return (
-                    <div
+                    <ChatMessageItem
                       key={m.id}
-                      className="nx-chat-msg"
-                      data-me={isMe ? 'true' : 'false'}
-                      data-failed={m.failed ? 'true' : undefined}
-                    >
-                      <div>{m.content}</div>
-
-                      {challengeMeta && (
-                        <div className="nx-chat-challenge-card">
-                          <div style={{ fontWeight: 700, fontSize: '12.5px', marginBottom: '4px' }}>
-                            ⚔️ Challenge: {challengeMeta.gameSlug}
-                          </div>
-                          <div style={{ fontSize: '11.5px', color: 'var(--nx-slate)' }}>
-                            Target: <strong>{challengeMeta.targetScore}</strong>
-                            {challengeMeta.bountyCandy > 0 && ` • 🍬 ${challengeMeta.bountyCandy} Candy`}
-                          </div>
-                          {!isMe && challengeMeta.status === 'pending' && (
-                            <Link
-                              to={`${ROUTES.game(challengeMeta.gameSlug)}?challengeId=${challengeMeta.challengeId}`}
-                              className="nx-game-challenge-btn"
-                              style={{ marginTop: '8px', fontSize: '11px', padding: '4px 8px' }}
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Play Challenge</span>
-                              <span>→</span>
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
+                      message={m}
+                      isMe={isMe}
+                      onPlayChallenge={() => setIsOpen(false)}
+                    />
+                  );
                 })}
                 <div ref={messagesEndRef} />
               </div>
@@ -310,53 +397,28 @@ export function DmDrawer() {
                 </div>
               )}
 
+              <ChatDisclaimer recipientUsername={activePartner} />
+
               {showChallengeModal && (
-                <div style={{ padding: '10px', background: 'var(--nx-paper)', borderTop: '1px solid var(--nx-line)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: '12px' }}>Send Game Challenge</strong>
-                    <button type="button" className="nx-chat-close-btn" onClick={() => setShowChallengeModal(false)}>✕</button>
-                  </div>
-                  <select
-                    value={selectedGame}
-                    onChange={(e) => setSelectedGame(e.target.value)}
-                    style={{ padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--nx-line)' }}
-                  >
-                    {MANIFESTS.map((m) => (
-                      <option key={m.slug} value={m.slug}>{m.title}</option>
-                    ))}
-                  </select>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <label style={{ flex: 1, fontSize: '11px' }}>
-                      Target Score:
-                      <input
-                        type="number"
-                        value={targetScore}
-                        onChange={(e) => setTargetScore(Number(e.target.value))}
-                        style={{ width: '100%', padding: '3px 5px', fontSize: '12px' }}
-                      />
-                    </label>
-                    <label style={{ flex: 1, fontSize: '11px' }}>
-                      Candy Bounty:
-                      <input
-                        type="number"
-                        value={bountyCandy}
-                        onChange={(e) => setBountyCandy(Number(e.target.value))}
-                        style={{ width: '100%', padding: '3px 5px', fontSize: '12px' }}
-                      />
-                    </label>
-                  </div>
-                  <button type="button" className="nx-chat-send-btn" onClick={handleSendChallenge}>
-                    Issue Challenge ⚔️
-                  </button>
-                </div>
+                <CustomChallengePanel
+                  selectedGame={selectedGame}
+                  onSelectGame={setSelectedGame}
+                  targetScore={targetScore}
+                  onChangeTargetScore={setTargetScore}
+                  bountyCandy={bountyCandy}
+                  onChangeBountyCandy={setBountyCandy}
+                  onSendChallenge={handleSendChallenge}
+                  onClose={() => setShowChallengeModal(false)}
+                />
               )}
 
               <footer className="nx-chat-input-bar">
                 <button
                   type="button"
+                  className={`nx-chat-challenge-toggle-btn ${showChallengeModal ? 'nx-active' : ''}`}
                   title="Challenge Friend"
+                  aria-label="Challenge Friend"
                   onClick={() => setShowChallengeModal(!showChallengeModal)}
-                  style={{ background: 'transparent', border: 'none', fontSize: '16px', cursor: 'pointer' }}
                 >
                   ⚔️
                 </button>
@@ -371,7 +433,11 @@ export function DmDrawer() {
                   }}
                   maxLength={500}
                 />
-                <button type="button" className="nx-chat-send-btn" onClick={handleSend}>
+                <button
+                  type="button"
+                  className="nx-chat-send-btn"
+                  onClick={handleSend}
+                >
                   Send
                 </button>
               </footer>

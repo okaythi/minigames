@@ -100,6 +100,25 @@ export interface DirectMessage {
   readAt?: number | null
   createdAt: number
   failed?: boolean
+  status?: 'sending' | 'sent' | 'failed'
+}
+
+export interface ConversationSummary {
+  id: string
+  lastMessageAt: number
+  partner: {
+    username: string
+    nickname: string | null
+    pfpUrl: string | null
+    flags: number
+  }
+  lastMessage: {
+    content: string
+    senderUsername: string
+    createdAt: number
+  } | null
+  unreadCount: number
+  hasUnread: boolean
 }
 
 export interface ChallengeMetadata {
