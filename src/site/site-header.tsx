@@ -7,6 +7,7 @@ import { BrandLockup } from './brand-lockup'
 import { SearchBar } from './search/search-bar'
 import { PlayerSearchBar } from './search/player-search-bar'
 import { AuthPopover } from './auth-popover'
+import { NotificationBell } from './notification-bell'
 import { TopBanner } from './top-banner'
 import { isStaff, isCmsEditor, subscribeAuth } from '../services/auth-api'
 import './site-header.css'
@@ -59,6 +60,7 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
                 CMS Tool
               </Link>
             )}
+            <NotificationBell />
             <AuthPopover />
           </nav>
         </div>

@@ -119,6 +119,7 @@ export interface ConversationSummary {
   } | null
   unreadCount: number
   hasUnread: boolean
+  isFirstEverMessage: boolean
 }
 
 export interface ChallengeMetadata {

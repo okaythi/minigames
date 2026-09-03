@@ -8,6 +8,8 @@ import {
 } from '../../services/social-api'
 import type { DirectMessage, FriendSummary, ConversationSummary } from '../../../shared/auth-protocol'
 import { MANIFESTS } from '../../games/registry'
+import { Link } from '../../app/link'
+import { ROUTES } from '../../app/parse-route'
 import { ChatMessageItem } from './chat-message-item'
 import { ChatDisclaimer } from './chat-disclaimer'
 import { CustomChallengePanel } from './custom-challenge-panel'
@@ -29,7 +31,26 @@ export function DmDrawer() {
   const [friends, setFriends] = useState<FriendSummary[]>([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const currentUser = getCurrentUser()
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
 
   useEffect(() => {
     const handleOpenChat = (e: any) => {
@@ -55,15 +76,15 @@ export function DmDrawer() {
       getMessages(activePartner).then((incomingMsgs) => {
         if (!active) return
         setMessages((currentMsgs) => {
-          // Retain pending sending messages that haven't arrived from server yet
-          const pendingSending = currentMsgs.filter(
-            (m) => m.status === 'sending' && !incomingMsgs.some((im) => im.id === m.id),
+          // Retain pending sending messages and local failed/error messages that aren't on server
+          const localOnly = currentMsgs.filter(
+            (m) => (m.status === 'sending' || m.failed) && !incomingMsgs.some((im) => im.id === m.id),
           )
           const mappedIncoming = incomingMsgs.map((m) => ({
             ...m,
             status: m.status ?? ('sent' as const),
           }))
-          return [...mappedIncoming, ...pendingSending]
+          return [...mappedIncoming, ...localOnly]
         })
       })
     }
@@ -164,6 +185,13 @@ export function DmDrawer() {
         setQueue((q) => [text, ...q])
         setMessages((prev) => prev.filter((m) => m.id !== messageTempId))
       } else {
+        const isTestAccountError =
+          res.error === 'This account cannot receive messages.' ||
+          res.error?.includes('test account')
+        const failedContent = isTestAccountError
+          ? 'This account cannot receive messages.'
+          : `${text} (Failed: ${res.error || 'Unable to deliver message'})`
+
         setMessages((prev) =>
           prev.map((m) =>
             m.id === messageTempId
@@ -171,7 +199,7 @@ export function DmDrawer() {
                   ...m,
                   failed: true,
                   status: 'failed',
-                  content: `${text} (Failed: ${res.error || 'Unable to deliver message'})`,
+                  content: failedContent,
                 }
               : m,
           ),
@@ -246,6 +274,13 @@ export function DmDrawer() {
         prev.map((m) => (m.id === tempId ? serverMsg : m)),
       )
     } else {
+      const isTestAccountError =
+        res.error === 'This account cannot receive messages.' ||
+        res.error?.includes('test account')
+      const failedContent = isTestAccountError
+        ? 'This account cannot receive messages.'
+        : `Challenge failed: ${res.error || 'Could not send challenge'}`
+
       setMessages((prev) =>
         prev.map((m) =>
           m.id === tempId
@@ -253,7 +288,7 @@ export function DmDrawer() {
                 ...m,
                 failed: true,
                 status: 'failed',
-                content: `Challenge failed: ${res.error || 'Could not send challenge'}`,
+                content: failedContent,
               }
             : m,
         ),
@@ -272,20 +307,33 @@ export function DmDrawer() {
   )
   const recipientPfp = activeConvo?.partner.pfpUrl ?? activeFriend?.pfpUrl ?? null
 
+  const totalUnread = conversations.reduce(
+    (sum, c) => sum + (c.unreadCount ?? (c.hasUnread ? 1 : 0)),
+    0,
+  )
+
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
-        className="nx-chat-trigger"
+        className={`nx-chat-trigger ${totalUnread > 0 ? 'nx-has-unread' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Open messages"
       >
-        <span>💬</span>
+        <span className="nx-chat-trigger-icon-wrap">
+          <span>💬</span>
+          {totalUnread > 0 && (
+            <span className="nx-chat-tray-badge" aria-label={`${totalUnread} unread messages`}>
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </span>
+          )}
+        </span>
         <span>Chat</span>
       </button>
 
       {isOpen && (
-        <aside className="nx-chat-panel" aria-label="Direct messages panel">
+        <aside ref={panelRef} className="nx-chat-panel" aria-label="Direct messages panel">
           <header className="nx-chat-header">
             {activePartner ? (
               <div className="nx-chat-partner">
@@ -297,13 +345,17 @@ export function DmDrawer() {
                 >
                   ←
                 </button>
-                <div className="nx-chat-header-avatar">
+                <Link
+                  to={ROUTES.userProfile(activePartner)}
+                  className="nx-chat-header-avatar nx-chat-header-avatar-link"
+                  title={`View @${activePartner}'s profile`}
+                >
                   {recipientPfp ? (
                     <img src={recipientPfp} alt={activePartner} />
                   ) : (
                     <span>{activePartner.charAt(0).toUpperCase()}</span>
                   )}
-                </div>
+                </Link>
                 <span className="nx-chat-header-username">@{activePartner}</span>
               </div>
             ) : (

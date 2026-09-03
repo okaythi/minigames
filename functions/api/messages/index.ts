@@ -159,6 +159,24 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
           )
           .all()
 
+        const partnerMsgRows = await db
+          .select({ id: messages.id })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, c.id),
+              eq(messages.senderId, partnerId),
+            ),
+          )
+          .all()
+
+        const isFirstEverMessage =
+          unreadRows.length > 0 &&
+          partnerMsgRows.length === 1 &&
+          lastMsg !== undefined &&
+          lastMsg !== null &&
+          lastMsg.senderId === partnerId
+
         return {
           id: c.id,
           lastMessageAt: c.lastMessageAt,
@@ -177,6 +195,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
             : null,
           unreadCount: unreadRows.length,
           hasUnread: unreadRows.length > 0,
+          isFirstEverMessage,
         }
       }),
     )
@@ -220,7 +239,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
   }
 
   if (hasFlag(recipient.flags, UserFlags.TEST_ACCOUNT)) {
-    return badRequest('cannot message a test account')
+    return jsonResponse(400, { ok: false, error: 'This account cannot receive messages.', isTestAccount: true })
   }
 
   // Block check: If either user blocked the other, immediately fail
