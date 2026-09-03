@@ -30,6 +30,17 @@ export function DmDrawer() {
   const currentUser = getCurrentUser()
 
   useEffect(() => {
+    const handleOpenChat = (e: any) => {
+      setIsOpen(true)
+      if (e.detail?.username) {
+        setActivePartner(e.detail.username)
+      }
+    }
+    window.addEventListener('nx-open-chat', handleOpenChat)
+    return () => window.removeEventListener('nx-open-chat', handleOpenChat)
+  }, [])
+
+  useEffect(() => {
     if (!isOpen || !currentUser) return
     getConversations().then(setConversations)
     getMyFriends().then((res) => setFriends(res.friends || []))

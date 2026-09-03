@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { login, register, logout, getMe, subscribeAuth } from '../services/auth-api'
+import { openChat } from '../services/social-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { useRouter } from '../app/router'
@@ -154,6 +155,18 @@ export function AuthPopover() {
                 >
                   <span className="nx-user-menu-item-icon">👤</span>
                   <span>My Profile</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="nx-user-menu-item"
+                  onClick={() => {
+                    setIsOpen(false)
+                    openChat()
+                  }}
+                >
+                  <span className="nx-user-menu-item-icon">💬</span>
+                  <span>Messages</span>
                 </button>
 
                 <button

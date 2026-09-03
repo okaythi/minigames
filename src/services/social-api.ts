@@ -122,3 +122,8 @@ export async function pingPresence(
     // Ignore ping errors
   }
 }
+
+export function openChat(username?: string) {
+  window.dispatchEvent(new CustomEvent('nx-open-chat', { detail: { username } }))
+}
+

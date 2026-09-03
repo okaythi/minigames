@@ -10,6 +10,7 @@ import { DeveloperBadge } from '../components/ui/developer-badge'
 import { BadgeTooltip } from '../components/ui/badge-tooltip'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
+import { openChat, sendFriendAction, getMyFriends } from '../services/social-api'
 import './user-profile.css'
 
 interface UserProfilePageProps {
@@ -70,6 +71,46 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
     })
   }
 
+  const [friendStatus, setFriendStatus] = useState<
+    'none' | 'pending_sent' | 'pending_received' | 'accepted'
+  >('none')
+  const [friendLoading, setFriendLoading] = useState(false)
+
+  const isOwner = currentUser?.username.toLowerCase() === profile?.username?.toLowerCase()
+
+  useEffect(() => {
+    if (!currentUser || isOwner || !profile) return
+    getMyFriends()
+      .then((res) => {
+        const u = profile.username.toLowerCase()
+        if (res.friends.some((f) => f.username.toLowerCase() === u)) {
+          setFriendStatus('accepted')
+        } else if (res.pendingOutgoing.some((f) => f.username.toLowerCase() === u)) {
+          setFriendStatus('pending_sent')
+        } else if (res.pendingIncoming.some((f) => f.username.toLowerCase() === u)) {
+          setFriendStatus('pending_received')
+        } else {
+          setFriendStatus('none')
+        }
+      })
+      .catch(() => {})
+  }, [currentUser, isOwner, profile])
+
+  const handleFriendAction = async () => {
+    if (!profile || friendLoading) return
+    setFriendLoading(true)
+    try {
+      const action = friendStatus === 'pending_received' ? 'accept' : 'send'
+      const res = await sendFriendAction(profile.username, action)
+      if (res.ok) {
+        if (res.status === 'accepted') setFriendStatus('accepted')
+        else setFriendStatus('pending_sent')
+      }
+    } finally {
+      setFriendLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="nx-profile-page" style={{ textAlign: 'center', padding: '80px var(--nx-gutter)' }}>
@@ -96,7 +137,6 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
     )
   }
 
-  const isOwner = currentUser?.username.toLowerCase() === profile.username.toLowerCase()
   const joinDateText = formatJoinDate(profile.createdOn)
 
   // Find best game to challenge (only games where user has an established personal best)
@@ -184,17 +224,52 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                 <span>Edit Profile</span>
               </button>
             ) : (
-              bestGame && (
-                <Link
-                  to={ROUTES.game(bestGame.slug)}
-                  className="nx-passport-btn"
-                  data-primary="true"
-                  onClick={() => getAchievementBus().unlock('social_gauntlet_thrown')}
-                >
-                  <span>⚔️</span>
-                  <span>Challenge Record</span>
-                </Link>
-              )
+              <>
+                {currentUser && (
+                  <>
+                    <button
+                      type="button"
+                      className="nx-passport-btn"
+                      onClick={handleFriendAction}
+                      disabled={friendLoading || friendStatus === 'accepted'}
+                      title="Manage Friendship"
+                    >
+                      <span>{friendStatus === 'accepted' ? '✓' : friendStatus === 'pending_sent' ? '⏳' : '👥'}</span>
+                      <span>
+                        {friendStatus === 'accepted'
+                          ? 'Friends'
+                          : friendStatus === 'pending_sent'
+                          ? 'Request Sent'
+                          : friendStatus === 'pending_received'
+                          ? 'Accept Request'
+                          : 'Add Friend'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="nx-passport-btn"
+                      onClick={() => openChat(profile.username)}
+                      title="Send Direct Message"
+                    >
+                      <span>💬</span>
+                      <span>Message</span>
+                    </button>
+                  </>
+                )}
+
+                {bestGame && (
+                  <Link
+                    to={ROUTES.game(bestGame.slug)}
+                    className="nx-passport-btn"
+                    data-primary="true"
+                    onClick={() => getAchievementBus().unlock('social_gauntlet_thrown')}
+                  >
+                    <span>⚔️</span>
+                    <span>Challenge Record</span>
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>
