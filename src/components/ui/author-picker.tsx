@@ -184,35 +184,13 @@ export function AuthorPicker({
           {selectedAuthor.nickname && (
             <span className="nx-author-chip-nickname">({selectedAuthor.nickname})</span>
           )}
-          <div className="nx-author-chip-badges">
-            {hasFlag(selectedAuthor.flags ?? 0, UserFlags.STAFF) && (
+          {hasFlag(Number(selectedAuthor.flags ?? 0), UserFlags.STAFF) && (
+            <div className="nx-author-chip-badges">
               <BadgeTooltip label={FLAGS_METADATA[UserFlags.STAFF]?.name ?? 'Staff'}>
                 <DeveloperBadge size={14} title="" />
               </BadgeTooltip>
-            )}
-            {hasFlag(selectedAuthor.flags ?? 0, UserFlags.USER_DEVELOPER) &&
-              !hasFlag(selectedAuthor.flags ?? 0, UserFlags.STAFF) && (
-                <BadgeTooltip label={FLAGS_METADATA[UserFlags.USER_DEVELOPER]?.name ?? 'Labs Developer'}>
-                  <DeveloperBadge size={14} title="" />
-                </BadgeTooltip>
-              )}
-            {(hasFlag(selectedAuthor.flags ?? 0, UserFlags.USER_PIONEER) || selectedAuthor.legacyUser) && (
-              <BadgeTooltip label={FLAGS_METADATA[UserFlags.USER_PIONEER]?.name ?? 'Labs Pioneer'}>
-                <span className="nx-badge-icon nx-badge-pioneer" role="img" aria-label="Labs Pioneer">
-                  ⚡
-                </span>
-              </BadgeTooltip>
-            )}
-            {hasFlag(selectedAuthor.flags ?? 0, UserFlags.CMS_EDITOR) && (
-              <BadgeTooltip label={FLAGS_METADATA[UserFlags.CMS_EDITOR]?.name ?? 'Update Notes Editor'}>
-                <span className="nx-badge-icon nx-badge-editor" role="img" aria-label="Update Notes Editor">
-                  <svg viewBox="0 0 16 16" width={13} height={13} fill="currentColor" aria-hidden="true">
-                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-9.5 9.5a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l9.5-9.5zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-                  </svg>
-                </span>
-              </BadgeTooltip>
-            )}
-          </div>
+            </div>
+          )}
           <span className="nx-author-chip-status">✓ Selected</span>
         </div>
       )}
@@ -232,9 +210,7 @@ export function AuthorPicker({
       {isOpen && results.length > 0 && (
         <ul className="nx-author-dropdown-list" role="listbox">
           {results.map((u) => {
-            const isStaff = hasFlag(u.flags ?? 0, UserFlags.STAFF)
-            const isPioneer = hasFlag(u.flags ?? 0, UserFlags.USER_PIONEER) || u.legacyUser
-            const isCmsEditor = hasFlag(u.flags ?? 0, UserFlags.CMS_EDITOR)
+            const isStaff = hasFlag(Number(u.flags ?? 0), UserFlags.STAFF)
 
             return (
               <li
@@ -259,34 +235,13 @@ export function AuthorPicker({
                       <span className="nx-author-dropdown-nick">{u.nickname}</span>
                     )}
                   </div>
-                  <div className="nx-author-dropdown-badges">
-                    {isStaff && (
+                  {isStaff && (
+                    <div className="nx-author-dropdown-badges">
                       <BadgeTooltip label={FLAGS_METADATA[UserFlags.STAFF]?.name ?? 'Staff'}>
                         <DeveloperBadge size={14} title="" />
                       </BadgeTooltip>
-                    )}
-                    {hasFlag(u.flags ?? 0, UserFlags.USER_DEVELOPER) && !isStaff && (
-                      <BadgeTooltip label={FLAGS_METADATA[UserFlags.USER_DEVELOPER]?.name ?? 'Labs Developer'}>
-                        <DeveloperBadge size={14} title="" />
-                      </BadgeTooltip>
-                    )}
-                    {isPioneer && (
-                      <BadgeTooltip label={FLAGS_METADATA[UserFlags.USER_PIONEER]?.name ?? 'Labs Pioneer'}>
-                        <span className="nx-badge-icon nx-badge-pioneer" role="img" aria-label="Labs Pioneer">
-                          ⚡
-                        </span>
-                      </BadgeTooltip>
-                    )}
-                    {isCmsEditor && (
-                      <BadgeTooltip label={FLAGS_METADATA[UserFlags.CMS_EDITOR]?.name ?? 'Update Notes Editor'}>
-                        <span className="nx-badge-icon nx-badge-editor" role="img" aria-label="Update Notes Editor">
-                          <svg viewBox="0 0 16 16" width={13} height={13} fill="currentColor" aria-hidden="true">
-                            <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-9.5 9.5a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l9.5-9.5zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-                          </svg>
-                        </span>
-                      </BadgeTooltip>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </li>
             )
