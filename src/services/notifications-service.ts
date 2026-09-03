@@ -124,10 +124,17 @@ export function useNotifications(): NotificationsSnapshot {
   )
 }
 
-// Auto-refresh interval when window is focused
+// Auto-refresh notifications responsibly
 if (typeof window !== 'undefined') {
   void refreshNotifications()
   window.addEventListener('focus', () => void refreshNotifications())
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void refreshNotifications()
+  })
   window.addEventListener('nx:auth-change', () => void refreshNotifications())
-  setInterval(() => void refreshNotifications(), 10000)
+  setInterval(() => {
+    if (!document.hidden && getCurrentUser()) {
+      void refreshNotifications()
+    }
+  }, 45000)
 }

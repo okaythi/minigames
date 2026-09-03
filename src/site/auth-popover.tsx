@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
-import { login, register, logout, getMe, subscribeAuth } from '../services/auth-api'
+import { login, register, logout, getMe, getCurrentUser, subscribeAuth } from '../services/auth-api'
 import { openChat } from '../services/social-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
@@ -11,7 +11,7 @@ import './auth-popover.css'
 
 export function AuthPopover() {
   const [isOpen, setIsOpen] = useState(false)
-  const [user, setUser] = useState<UserProfileResponse | null>(null)
+  const [user, setUser] = useState<UserProfileResponse | null>(getCurrentUser())
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -21,9 +21,12 @@ export function AuthPopover() {
   const { navigate } = useRouter()
 
   useEffect(() => {
-    void getMe().then(setUser)
+    setUser(getCurrentUser())
+    void getMe().then((res) => {
+      if (res) setUser(res)
+    })
     return subscribeAuth(() => {
-      void getMe().then(setUser)
+      setUser(getCurrentUser())
     })
   }, [])
 

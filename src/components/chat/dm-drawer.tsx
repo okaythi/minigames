@@ -70,9 +70,10 @@ export function DmDrawer() {
   }, [isOpen, currentUser])
 
   useEffect(() => {
-    if (!activePartner) return
+    if (!activePartner || !isOpen || !currentUser) return
     let active = true
     const poll = () => {
+      if (document.hidden) return
       getMessages(activePartner).then((incomingMsgs) => {
         if (!active) return
         setMessages((currentMsgs) => {
@@ -89,12 +90,12 @@ export function DmDrawer() {
       })
     }
     poll()
-    const timer = setInterval(poll, 3000)
+    const timer = setInterval(poll, 6000)
     return () => {
       active = false
       clearInterval(timer)
     }
-  }, [activePartner])
+  }, [activePartner, isOpen, currentUser])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -12,7 +12,19 @@ let cachedCurrentUser: UserProfileResponse | null = null
 const authListeners = new Set<() => void>()
 
 function setCachedUser(user: UserProfileResponse | null) {
+  const prev = cachedCurrentUser
   cachedCurrentUser = user
+  if (
+    (prev === null && user === null) ||
+    (prev !== null &&
+      user !== null &&
+      prev.username === user.username &&
+      prev.nickname === user.nickname &&
+      prev.pfpUrl === user.pfpUrl &&
+      prev.flags === user.flags)
+  ) {
+    return
+  }
   for (const listener of authListeners) {
     listener()
   }
@@ -81,16 +93,38 @@ export async function logout() {
   window.location.reload()
 }
 
-export async function getMe(): Promise<UserProfileResponse | null> {
-  const res = await fetch('/api/users/me')
-  if (!res.ok) {
-    setCachedUser(null)
-    return null
+let getMePromise: Promise<UserProfileResponse | null> | null = null
+let lastMeFetchTime = 0
+const MIN_GET_ME_INTERVAL_MS = 2000
+
+export async function getMe(force = false): Promise<UserProfileResponse | null> {
+  const now = Date.now()
+  if (!force && cachedCurrentUser && now - lastMeFetchTime < MIN_GET_ME_INTERVAL_MS) {
+    return cachedCurrentUser
   }
-  const data = await res.json()
-  const profile = data.profile ?? null
-  setCachedUser(profile)
-  return profile
+  if (getMePromise) return getMePromise
+
+  getMePromise = (async () => {
+    try {
+      lastMeFetchTime = Date.now()
+      const res = await fetch('/api/users/me')
+      if (!res.ok) {
+        setCachedUser(null)
+        return null
+      }
+      const data = await res.json()
+      const profile = data.profile ?? null
+      setCachedUser(profile)
+      return profile
+    } catch {
+      setCachedUser(null)
+      return null
+    } finally {
+      getMePromise = null
+    }
+  })()
+
+  return getMePromise
 }
 
 // Preload user in browser context

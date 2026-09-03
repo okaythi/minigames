@@ -19,6 +19,7 @@ function updateActivity() {
 
 async function sendHeartbeat() {
   if (!getCurrentUser()) return
+  if (typeof document !== 'undefined' && document.hidden) return
   const now = Date.now()
   if (!isIdle && now - lastActivityTime > IDLE_THRESHOLD_MS) {
     isIdle = true
