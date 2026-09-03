@@ -1,11 +1,11 @@
-﻿.nx-updates-page {
+.nx-updates-page {
   max-width: 860px;
   margin: 0 auto;
   padding: 40px 24px 80px;
 }
 
 .nx-updates-header {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .nx-updates-title {
@@ -22,6 +22,48 @@
   color: var(--nx-muted);
   margin: 0;
   line-height: 1.5;
+}
+
+/* View Mode Switcher (By Game vs By Category) */
+.nx-updates-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.nx-view-mode-toggle {
+  display: inline-flex;
+  background: var(--nx-surface-sunken);
+  border: 1px solid var(--nx-rule);
+  border-radius: var(--nx-radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.nx-view-mode-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  font-family: var(--nx-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--nx-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nx-view-mode-btn:hover {
+  color: var(--nx-graphite-deep);
+}
+
+.nx-view-mode-btn[data-active="true"] {
+  background: var(--nx-surface);
+  color: var(--nx-graphite-deep);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* Filter pills */
@@ -53,7 +95,7 @@
   border-color: var(--nx-graphite-tint);
 }
 
-.nx-updates-filter-btn[data-active=\"true\"] {
+.nx-updates-filter-btn[data-active="true"] {
   background: var(--nx-graphite-deep);
   border-color: var(--nx-graphite-deep);
   color: #ffffff;
@@ -150,6 +192,9 @@
 }
 
 .nx-pillar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-family: var(--nx-font-display);
   font-size: 1.0625rem;
   font-weight: 600;
@@ -192,34 +237,48 @@
   line-height: 1.2;
 }
 
-.nx-change-tag[data-tag=\"Balance\"] {
+.nx-change-tag[data-tag="Balance"] {
   background: rgba(246, 130, 31, 0.12);
   color: var(--nx-orange-deep);
   border: 1px solid rgba(246, 130, 31, 0.25);
 }
 
-.nx-change-tag[data-tag=\"New\"] {
+.nx-change-tag[data-tag="New"] {
   background: rgba(46, 125, 50, 0.12);
   color: #2e7d32;
   border: 1px solid rgba(46, 125, 50, 0.25);
 }
 
-.nx-change-tag[data-tag=\"Fix\"] {
+.nx-change-tag[data-tag="Fix"] {
   background: rgba(25, 118, 210, 0.12);
   color: #1976d2;
   border: 1px solid rgba(25, 118, 210, 0.25);
 }
 
-.nx-change-tag[data-tag=\"Feature\"] {
+.nx-change-tag[data-tag="Feature"] {
   background: rgba(123, 31, 162, 0.12);
   color: #7b1fa2;
   border: 1px solid rgba(123, 31, 162, 0.25);
 }
 
-.nx-change-tag[data-tag=\"Polish\"] {
+.nx-change-tag[data-tag="Polish"] {
   background: var(--nx-surface-sunken);
   color: var(--nx-muted);
   border: 1px solid var(--nx-rule);
+}
+
+.nx-item-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  background: var(--nx-surface-sunken);
+  border: 1px solid var(--nx-rule);
+  border-radius: 3px;
+  font-family: var(--nx-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--nx-muted);
+  margin-right: 6px;
 }
 
 .nx-change-subject {

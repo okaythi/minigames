@@ -3,7 +3,7 @@ import { getMe } from '../services/auth-api'
 import { fetchAllStats } from '../services/stats/stats-api'
 import { useDismissible } from '../services/storage/dismissibles-store'
 import { getMigrationTimeRemaining } from './migration-countdown'
-import { LATEST_UPDATE } from '../data/updates'
+import { useLatestRelease } from '../engine/updates'
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import './top-banner.css'
@@ -14,19 +14,23 @@ import './top-banner.css'
  * Priority 1: 28-day countdown warning for anonymous players with active stats.
  * Priority 2: Update notes announcement CTA leading directly to /updates.
  *
- * Integrated with the enterprise-grade dismissibles store (€0, <1µs latency).
+ * Integrated with the enterprise-grade dismissibles store (€0, <1µs latency)
+ * and the reactive Update Notes Engine.
  */
 export function TopBanner() {
   const [hasAnonymousStats, setHasAnonymousStats] = useState(false)
   const [isRegistered, setIsRegistered] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(getMigrationTimeRemaining)
 
+  const { latestRelease } = useLatestRelease()
+  const latestVersion = latestRelease?.meta.globalVersion ?? '0.2.0'
+
   // Dismissals
   const [migrationDismissed, dismissMigration] = useDismissible('migration_countdown_banner', {
     ttlMs: 24 * 60 * 60 * 1000, // 24-hour snooze
   })
   const [updateDismissed, dismissUpdate] = useDismissible('update_notes_cta', {
-    version: LATEST_UPDATE.version,
+    version: latestVersion,
   })
 
   // Periodically refresh countdown
@@ -99,11 +103,11 @@ export function TopBanner() {
   }
 
   // Priority 2: Update Notes Announcement CTA
-  if (!updateDismissed) {
+  if (latestRelease && !updateDismissed) {
     return (
       <aside className="nx-top-banner" data-kind="update" role="status">
         <div className="nx-top-banner-inner">
-          <span>🚀 <strong>Update {LATEST_UPDATE.version}:</strong> {LATEST_UPDATE.headline}</span>
+          <span>🚀 <strong>Update {latestRelease.meta.globalVersion}:</strong> {latestRelease.meta.headline}</span>
           <Link to={ROUTES.updates} className="nx-top-banner-cta">
             Read Patch Notes →
           </Link>

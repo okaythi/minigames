@@ -1,37 +1,70 @@
 import { useState, useMemo } from 'react'
-import { UPDATE_RELEASES } from '../data/updates'
+import { usePublishedUpdates } from '../engine/updates'
+import type { UpdateTag } from '../engine/updates'
 import './updates-page.css'
 
-export function UpdatesPage() {
-  const [selectedGame, setSelectedGame] = useState<string>('all')
+type ViewMode = 'by-game' | 'by-tag'
 
-  // Collect distinct game slugs and titles
+const ALL_TAGS: readonly UpdateTag[] = [
+  'Balance',
+  'New',
+  'Fix',
+  'Feature',
+  'Polish',
+]
+
+export function UpdatesPage() {
+  const { releases, loading } = usePublishedUpdates()
+  const [viewMode, setViewMode] = useState<ViewMode>('by-game')
+  const [selectedFilter, setSelectedFilter] = useState<string>('all')
+
+  // Collect distinct game slugs from all release pillars
   const gameOptions = useMemo(() => {
     const map = new Map<string, string>()
-    map.set('all', 'All Updates')
-    for (const release of UPDATE_RELEASES) {
+    map.set('all', 'All Games')
+    for (const release of releases) {
       for (const pillar of release.pillars) {
         if (!map.has(pillar.gameSlug)) {
           map.set(pillar.gameSlug, pillar.gameTitle)
         }
       }
     }
-    return Array.from(map.entries()).map(([slug, title]) => ({ slug, title }))
+    return Array.from(map.entries()).map(([slug, title]) => ({ id: slug, title }))
+  }, [releases])
+
+  // Collect tag options
+  const tagOptions = useMemo(() => {
+    return [
+      { id: 'all', title: 'All Categories' },
+      ...ALL_TAGS.map((tag) => ({ id: tag, title: tag })),
+    ]
   }, [])
 
-  // Filter releases and their pillars
+  // Filter releases according to active viewMode and selectedFilter
   const filteredReleases = useMemo(() => {
-    if (selectedGame === 'all') {
-      return UPDATE_RELEASES
-    }
-    return UPDATE_RELEASES.map((release) => {
-      const matchingPillars = release.pillars.filter((p) => p.gameSlug === selectedGame)
-      return {
-        ...release,
-        pillars: matchingPillars,
+    if (viewMode === 'by-game') {
+      if (selectedFilter === 'all') {
+        return releases
       }
-    }).filter((release) => release.pillars.length > 0)
-  }, [selectedGame])
+      return releases
+        .map((rel) => ({
+          ...rel,
+          pillars: rel.pillars.filter((p) => p.gameSlug === selectedFilter),
+        }))
+        .filter((rel) => rel.pillars.length > 0)
+    }
+
+    // viewMode === 'by-tag'
+    if (selectedFilter === 'all') {
+      return releases
+    }
+    return releases
+      .map((rel) => ({
+        ...rel,
+        tagGroups: rel.tagGroups.filter((tg) => tg.tag === selectedFilter),
+      }))
+      .filter((rel) => rel.tagGroups.length > 0)
+  }, [releases, viewMode, selectedFilter])
 
   return (
     <div className="nx-updates-page">
@@ -42,15 +75,46 @@ export function UpdatesPage() {
         </p>
       </header>
 
-      {/* Pillar filter pills */}
-      <nav className="nx-updates-filters" aria-label="Filter updates by game">
-        {gameOptions.map((opt) => (
+      {/* Toolbar with View Mode Switcher */}
+      <div className="nx-updates-toolbar">
+        <nav className="nx-view-mode-toggle" aria-label="View mode switcher">
           <button
-            key={opt.slug}
+            type="button"
+            className="nx-view-mode-btn"
+            data-active={viewMode === 'by-game' ? 'true' : undefined}
+            onClick={() => {
+              setViewMode('by-game')
+              setSelectedFilter('all')
+            }}
+          >
+            By Game
+          </button>
+          <button
+            type="button"
+            className="nx-view-mode-btn"
+            data-active={viewMode === 'by-tag' ? 'true' : undefined}
+            onClick={() => {
+              setViewMode('by-tag')
+              setSelectedFilter('all')
+            }}
+          >
+            By Category
+          </button>
+        </nav>
+      </div>
+
+      {/* Dynamic Filter Pills */}
+      <nav
+        className="nx-updates-filters"
+        aria-label={viewMode === 'by-game' ? 'Filter updates by game' : 'Filter updates by tag'}
+      >
+        {(viewMode === 'by-game' ? gameOptions : tagOptions).map((opt) => (
+          <button
+            key={opt.id}
             type="button"
             className="nx-updates-filter-btn"
-            data-active={selectedGame === opt.slug ? 'true' : undefined}
-            onClick={() => setSelectedGame(opt.slug)}
+            data-active={selectedFilter === opt.id ? 'true' : undefined}
+            onClick={() => setSelectedFilter(opt.id)}
           >
             {opt.title}
           </button>
@@ -59,46 +123,96 @@ export function UpdatesPage() {
 
       {/* Releases List */}
       <div className="nx-releases-list">
-        {filteredReleases.map((release) => (
-          <article key={release.version} className="nx-release-card">
-            <div className="nx-release-meta-row">
-              <span className="nx-release-version">v{release.version}</span>
-              <time className="nx-release-date">{release.date}</time>
-            </div>
+        {loading && releases.length === 0 ? (
+          <p style={{ color: 'var(--nx-muted)' }}>Loading update history...</p>
+        ) : filteredReleases.length === 0 ? (
+          <p style={{ color: 'var(--nx-muted)' }}>No updates match the selected filter.</p>
+        ) : (
+          filteredReleases.map((release) => (
+            <article key={release.meta.id} className="nx-release-card">
+              <div className="nx-release-meta-row">
+                <span className="nx-release-version">v{release.meta.globalVersion}</span>
+                <time className="nx-release-date">{release.meta.releaseDate}</time>
+              </div>
 
-            <h2 className="nx-release-title">{release.title}</h2>
+              <h2 className="nx-release-title">{release.meta.title}</h2>
 
-            {release.developerRationale && (
-              <section className="nx-release-rationale" aria-label="Developer notes">
-                <div className="nx-release-rationale-title">Developer Rationale</div>
-                <p className="nx-release-rationale-text">{release.developerRationale}</p>
-              </section>
-            )}
+              {release.rationale && (
+                <section className="nx-release-rationale" aria-label="Developer notes">
+                  <div className="nx-release-rationale-title">Developer Rationale</div>
+                  <p className="nx-release-rationale-text">{release.rationale.content}</p>
+                </section>
+              )}
 
-            <div className="nx-release-pillars">
-              {release.pillars.map((pillar) => (
-                <div key={pillar.gameSlug} className="nx-pillar-block">
-                  <h3 className="nx-pillar-header">{pillar.gameTitle}</h3>
-                  <ul className="nx-pillar-changes">
-                    {pillar.changes.map((change, idx) => (
-                      <li key={idx} className="nx-change-item">
-                        <span className="nx-change-tag" data-tag={change.tag}>
-                          {change.tag}
-                        </span>
-                        <span>
-                          {change.subject && (
-                            <strong className="nx-change-subject">{change.subject}:</strong>
-                          )}
-                          {change.description}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              {viewMode === 'by-game' ? (
+                <div className="nx-release-pillars">
+                  {release.pillars.map((pillar) => (
+                    <div key={pillar.gameSlug} className="nx-pillar-block">
+                      <h3 className="nx-pillar-header">{pillar.gameTitle}</h3>
+                      <ul className="nx-pillar-changes">
+                        {pillar.items.map((item) => (
+                          <li key={item.id} className="nx-change-item">
+                            <span className="nx-change-tag" data-tag={item.tag}>
+                              {item.tag}
+                            </span>
+                            <span>
+                              {item.itemVersion && (
+                                <span className="nx-item-version">v{item.itemVersion}</span>
+                              )}
+                              {item.subject && (
+                                <strong className="nx-change-subject">{item.subject}:</strong>
+                              )}
+                              {item.description}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </article>
-        ))}
+              ) : (
+                <div className="nx-release-pillars">
+                  {release.tagGroups.map((group) => (
+                    <div key={group.tag} className="nx-pillar-block">
+                      <div className="nx-pillar-header">
+                        <span>{group.tag} Updates</span>
+                        <span className="nx-change-tag" data-tag={group.tag}>
+                          {group.items.length}
+                        </span>
+                      </div>
+                      <ul className="nx-pillar-changes">
+                        {group.items.map((item) => (
+                          <li key={item.id} className="nx-change-item">
+                            <span
+                              style={{
+                                fontFamily: 'var(--nx-font-mono)',
+                                fontSize: '0.75rem',
+                                color: 'var(--nx-muted)',
+                                minWidth: '90px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              [{item.scope.targetId}]
+                            </span>
+                            <span>
+                              {item.itemVersion && (
+                                <span className="nx-item-version">v{item.itemVersion}</span>
+                              )}
+                              {item.subject && (
+                                <strong className="nx-change-subject">{item.subject}:</strong>
+                              )}
+                              {item.description}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))
+        )}
       </div>
     </div>
   )
