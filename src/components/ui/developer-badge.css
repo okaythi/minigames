@@ -5,14 +5,7 @@
   vertical-align: middle;
   color: var(--nx-orange);
   line-height: 1;
-  cursor: help;
   position: relative;
-  transition: transform 0.15s ease, filter 0.15s ease;
-}
-
-.nx-dev-badge:hover {
-  transform: scale(1.12);
-  filter: drop-shadow(0 0 4px rgba(246, 130, 31, 0.45));
 }
 
 .nx-dev-badge-tag {
