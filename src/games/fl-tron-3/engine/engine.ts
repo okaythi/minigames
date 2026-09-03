@@ -18,11 +18,22 @@ export class TronEngine {
   private accumulator = 0
   private isPaused = false
   public isStarted = false
+  private startingLevel: DifficultyLevel = 1
   private achievements: TronAchievementTracker | null
   private roundElapsedSeconds = 0
   private lastP1TurnTime = 0
   private lastP1TurboTime = 0
   private aiCrashedIntoP1Trail = false
+
+  private isCheating(): boolean {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { __tronLevelSelectEnabled?: boolean }
+      if (win.__tronLevelSelectEnabled) {
+        return true
+      }
+    }
+    return false
+  }
 
   public constructor(
     public readonly deps: { readonly current: GameRuntimeDeps },
@@ -72,6 +83,7 @@ export class TronEngine {
         ? (window as unknown as { __tronSelectedStartingLevel: DifficultyLevel }).__tronSelectedStartingLevel
         : 1
     const targetLevel = startingLevel ?? defaultLvl
+    this.startingLevel = targetLevel
     this.isStarted = true
     this.audio.unlock()
     this.audio.play('ui')
@@ -98,8 +110,11 @@ export class TronEngine {
       this.setupRound()
     } else {
       this.state.phase = 'victory'
-      const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
-      this.deps.current.finishRun(finalScore)
+      const isFullRun = this.startingLevel === 1 && !this.isCheating()
+      if (isFullRun) {
+        const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
+        this.deps.current.finishRun(finalScore, { won: true })
+      }
       this.achievements?.onCampaignComplete(this.state.elapsedRunSeconds)
       this.publish()
     }
@@ -482,8 +497,11 @@ export class TronEngine {
         if (this.state.level >= RULES.totalLevels) {
           this.state.phase = 'victory'
           this.audio.play('level_clear')
-          const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
-          this.deps.current.finishRun(finalScore)
+          const isFullRun = this.startingLevel === 1 && !this.isCheating()
+          if (isFullRun) {
+            const finalScore = Math.floor(1000000 - this.state.elapsedRunSeconds * 1000)
+            this.deps.current.finishRun(finalScore, { won: true })
+          }
           this.achievements?.onCampaignComplete(this.state.elapsedRunSeconds)
         } else {
           this.state.phase = 'intermission'
@@ -492,7 +510,7 @@ export class TronEngine {
       } else if (this.state.aiRoundWins >= RULES.roundsToWinLevel) {
         // AI won the match
         this.state.phase = 'game_over'
-        this.deps.current.finishRun(this.state.level)
+        // Failed run: does not complete a full campaign run; does not record clear time or highscore
       } else {
         // Next round in the same level
         this.state.roundNumber += 1

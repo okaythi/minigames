@@ -30,7 +30,7 @@ export function formatRunTimeComponents(totalSeconds: number): { mmss: string; m
 }
 
 export function formatTronScore(score: number | null): string {
-  if (score === null || score <= 1000) return '--'
+  if (score === null || score <= 1000) return '—'
   const elapsedSeconds = (1000000 - score) / 1000
   return formatRunTime(elapsedSeconds)
 }
@@ -41,7 +41,7 @@ export function toGameSnapshot(
   isMuted: boolean,
   isStarted = true,
 ): GameSnapshot {
-  let status: GameRunStatus = 'running'
+  let status: GameRunStatus = 'ready'
   if (!isStarted) {
     status = 'ready'
   } else if (state.phase === 'victory' || state.phase === 'game_over') {
@@ -64,12 +64,11 @@ export function toGameSnapshot(
   const isWin = state.phase === 'victory'
   
   // Score formula:
-  // If won, score = 1000000 - (milliseconds elapsed). Faster time = higher score.
-  // If not won, score = level (1-5).
-  // Thus any win beats any loss, and faster wins beat slower wins.
+  // Full run victory: score = 1000000 - (milliseconds elapsed). Faster time = higher score.
+  // Incomplete run: score = 0 (only full runs receive a completion score / time).
   const rawScore = isWin
     ? Math.floor(1000000 - state.elapsedRunSeconds * 1000)
-    : state.level
+    : 0
 
   const tiles: readonly GameStatTile[] = [
     {
@@ -105,16 +104,11 @@ export function toGameSnapshot(
     const note = isWin
       ? `Victory! All 6 levels cleared in ${timeFormatted}.`
       : `Eliminated on Level ${state.level} (${aiConfig.name}).`
-    const isRecord = bestLevel === null || rawScore > bestLevel
+    const isRecord = isWin && (bestLevel === null || bestLevel <= 1000 || rawScore > bestLevel)
     let beatBestBy: number | null = null
     
-    if (isRecord && bestLevel !== null) {
-      // If previous best was also a win, we show how many seconds faster they were.
-      if (bestLevel > 1000 && isWin) {
-        beatBestBy = (rawScore - bestLevel) / 1000 // difference in seconds
-      } else {
-        beatBestBy = rawScore - bestLevel // generic raw difference if mixing metrics
-      }
+    if (isRecord && bestLevel !== null && bestLevel > 1000 && isWin) {
+      beatBestBy = (rawScore - bestLevel) / 1000 // difference in seconds
     }
 
     runSummary = {

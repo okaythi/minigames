@@ -27,9 +27,13 @@ export function readLocalCounters(slug: string): LocalCounters {
     return cached
   }
   const stored = localStore.read<Partial<LocalCounters>>(keyFor(slug), {})
+  let best = typeof stored.best === 'number' && Number.isFinite(stored.best) ? Math.floor(stored.best) : null
+  if (slug === 'fl-tron-3' && best !== null && best <= 1000) {
+    best = null
+  }
   const counters: LocalCounters = {
     plays: typeof stored.plays === 'number' && stored.plays >= 0 ? Math.floor(stored.plays) : 0,
-    best: typeof stored.best === 'number' && Number.isFinite(stored.best) ? Math.floor(stored.best) : null,
+    best,
     candy: typeof stored.candy === 'number' && stored.candy >= 0 ? Math.floor(stored.candy) : 0,
   }
   cache.set(slug, counters)
@@ -55,6 +59,9 @@ export const registerPlay = (slug: string): LocalCounters => {
 }
 
 export const registerScore = (slug: string, score: number): LocalCounters => {
+  if (slug === 'fl-tron-3' && score <= 1000) {
+    return readLocalCounters(slug)
+  }
   const current = readLocalCounters(slug)
   return patchLocalCounters(slug, { best: current.best === null ? score : Math.max(current.best, score) })
 }

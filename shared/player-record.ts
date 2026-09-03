@@ -41,6 +41,10 @@ export function applyPlayerEvent(
     }
   }
 
+  if (game === 'fl-tron-3' && event.score <= 1000) {
+    return null
+  }
+
   const score = wholeCount(event.score, MAX_SCORE)
   if (score === null) {
     return null
@@ -176,7 +180,9 @@ export function parsePlayerRecord(value: unknown): PlayerRecord | null {
     for (const [slug, entry] of Object.entries(gamesRaw)) {
       const parsed = parsePlayerGameRecord(entry)
       if (parsed !== null) {
-        games[slug] = parsed
+        games[slug] = slug === 'fl-tron-3' && parsed.highscore !== null && parsed.highscore <= 1000
+          ? { ...parsed, highscore: null }
+          : parsed
       }
     }
   }

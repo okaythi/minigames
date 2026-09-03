@@ -11,7 +11,7 @@ interface GameRow {
 
 const toRecord = (row: GameRow): GameStatsRecord => ({
   plays: row.plays,
-  highscore: row.highscore,
+  highscore: row.slug === 'fl-tron-3' && row.highscore !== null && row.highscore <= 1000 ? null : row.highscore,
   updatedAt: row.updated_at,
 })
 
@@ -45,6 +45,10 @@ export async function bumpGames(
       )
       .bind(game, now)
       .run()
+    return
+  }
+  if (game === 'fl-tron-3' && event.score <= 1000) {
+    // Only full runs (> 1000 clear time score) set the FL Tron world record
     return
   }
   await db

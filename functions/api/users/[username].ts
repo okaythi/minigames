@@ -56,11 +56,16 @@ export const onRequestGet = async ({ env, params }: PagesContext): Promise<Respo
   for (const [slug, title] of Object.entries(KNOWN_GAMES)) {
     const pg = playerGameMap.get(slug)
     const gs = globalStatsMap.get(slug)
-    const userBest = pg?.highscore ?? null
-    const globalBest = gs?.highscore ?? null
+    let userBest = pg?.highscore ?? null
+    let globalBest = gs?.highscore ?? null
     const plays = pg?.plays ?? 0
     const candy = pg?.candy ?? 0
     const updatedAt = pg?.updatedAt ?? user.createdOn
+
+    if (slug === 'fl-tron-3') {
+      if (userBest !== null && userBest <= 1000) userBest = null
+      if (globalBest !== null && globalBest <= 1000) globalBest = null
+    }
 
     let isRecordHolder = false
     if (userBest !== null && userBest > 0 && globalBest !== null && userBest >= globalBest) {

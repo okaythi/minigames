@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPublicProfile, getMe } from '../services/auth-api'
-import type { UserPublicProfileResponse, UserProfileResponse } from '../../shared/auth-protocol'
+import type { UserPublicProfileResponse, UserProfileResponse, UserGameStat } from '../../shared/auth-protocol'
 import { MANIFESTS } from '../games/registry'
 import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
@@ -102,11 +102,19 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
   const localCandy = readGlobalCandy(MANIFESTS.map((m) => m.slug))
   const displayedCandy = isOwner ? Math.max(profile.totalCandy, localCandy) : profile.totalCandy
 
-  // Find best game to challenge
-  const bestGame = Object.values(profile.games).reduce((best, curr) => {
-    if (!best) return curr
-    return (curr.highscore ?? 0) > (best.highscore ?? 0) ? curr : best
-  }, Object.values(profile.games)[0])
+  // Find best game to challenge (only games where user has an established personal best)
+  const hasPb = (game: UserGameStat): boolean => {
+    if (game.highscore === null) return false
+    if (game.slug === 'fl-tron-3') return game.highscore > 1000
+    return game.highscore > 0
+  }
+  const gamesWithPb = Object.values(profile.games).filter(hasPb)
+  const bestGame = gamesWithPb.length > 0
+    ? gamesWithPb.reduce((best, curr) => {
+        if (!best) return curr
+        return (curr.highscore ?? 0) > (best.highscore ?? 0) ? curr : best
+      }, gamesWithPb[0])
+    : null
 
   return (
     <div className="nx-profile-page">
@@ -238,81 +246,110 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
           ================================================================== */}
       <div className="nx-profile-grid">
         {/* Left Column (65%): Competitive Showcase */}
-        <div className="nx-profile-main-col">
-          <div className="nx-profile-section-title">
-            <span>Competitive Showcase</span>
-            <span className="nx-profile-section-badge">{MANIFESTS.length} Arcade Titles</span>
-          </div>
+        {(() => {
+          const showcasedGames = MANIFESTS.filter((manifest) => {
+            const gameStat = profile.games[manifest.slug]
+            const userBest = gameStat?.highscore ?? null
+            if (userBest === null) return false
+            if (manifest.slug === 'fl-tron-3') return userBest > 1000
+            return userBest > 0
+          }).slice(0, 3)
 
-          <div className="nx-showcase-list">
-            {MANIFESTS.map((manifest) => {
-              const gameStat = profile.games[manifest.slug]
-              const userBest = gameStat?.highscore ?? null
-              const globalRecord = gameStat?.globalHighscore ?? null
-              const plays = gameStat?.plays ?? 0
-              const isRecord = gameStat?.isRecordHolder ?? false
-              const percentile = gameStat?.percentile ?? 'Top 50%'
+          return (
+            <div className="nx-profile-main-col">
+              <div className="nx-profile-section-title">
+                <span>Competitive Showcase</span>
+                <span className="nx-profile-section-badge">
+                  {showcasedGames.length} {showcasedGames.length === 1 ? 'Arcade Title' : 'Arcade Titles'}
+                </span>
+              </div>
 
-              return (
-                <div key={manifest.slug} className="nx-game-showcase-card">
-                  <div className="nx-game-card-cover">
-                    <img src={manifest.cover} alt={manifest.title} />
-                  </div>
+              <div className="nx-showcase-list">
+                {showcasedGames.length > 0 ? (
+                  showcasedGames.map((manifest) => {
+                    const gameStat = profile.games[manifest.slug]
+                    const userBest = gameStat?.highscore ?? null
+                    const globalRecord = gameStat?.globalHighscore ?? null
+                    const plays = gameStat?.plays ?? 0
+                    const isRecord = gameStat?.isRecordHolder ?? false
+                    const percentile = gameStat?.percentile ?? 'Top 50%'
 
-                  <div className="nx-game-card-content">
-                    <div className="nx-game-card-header">
-                      <div className="nx-game-card-title-group">
-                        <h3 className="nx-game-card-title">{manifest.title}</h3>
-                        <p className="nx-game-card-tagline">{manifest.tagline}</p>
-                      </div>
+                    const formattedBest = userBest !== null
+                      ? (manifest.formatScore ? manifest.formatScore(userBest) : userBest.toLocaleString())
+                      : '—'
+                    const formattedGlobal = (globalRecord !== null && (manifest.slug !== 'fl-tron-3' || globalRecord > 1000))
+                      ? (manifest.formatScore ? manifest.formatScore(globalRecord) : globalRecord.toLocaleString())
+                      : '—'
 
-                      {isRecord && (
-                        <div className="nx-record-holder-badge">
-                          <span>🏆</span>
-                          <span>WORLD RECORD</span>
+                    return (
+                      <div key={manifest.slug} className="nx-game-showcase-card">
+                        <div className="nx-game-card-cover">
+                          <img src={manifest.cover} alt={manifest.title} />
                         </div>
-                      )}
-                    </div>
 
-                    <div className="nx-game-metrics-row">
-                      <div className="nx-metric-block">
-                        <span className="nx-metric-label">Personal Best</span>
-                        <span className="nx-metric-value">
-                          {userBest !== null ? userBest.toLocaleString() : '—'}
-                        </span>
+                        <div className="nx-game-card-content">
+                          <div className="nx-game-card-header">
+                            <div className="nx-game-card-title-group">
+                              <h3 className="nx-game-card-title">{manifest.title}</h3>
+                              <p className="nx-game-card-tagline">{manifest.tagline}</p>
+                            </div>
+
+                            {isRecord && (
+                              <div className="nx-record-holder-badge">
+                                <span>🏆</span>
+                                <span>WORLD RECORD</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="nx-game-metrics-row">
+                            <div className="nx-metric-block">
+                              <span className="nx-metric-label">Personal Best</span>
+                              <span className="nx-metric-value">{formattedBest}</span>
+                            </div>
+
+                            <div className="nx-metric-block">
+                              <span className="nx-metric-label">World Record</span>
+                              <span className="nx-metric-value">{formattedGlobal}</span>
+                            </div>
+
+                            <div className="nx-metric-percentile">
+                              {percentile}
+                            </div>
+                          </div>
+
+                          <div className="nx-game-card-footer">
+                            <span className="nx-game-runs-count">
+                              {plays} {plays === 1 ? 'Run Played' : 'Runs Played'}
+                            </span>
+
+                            <Link
+                              to={ROUTES.game(manifest.slug)}
+                              className="nx-game-challenge-btn"
+                            >
+                              <span>{isOwner ? 'Play Again' : 'Challenge PB'}</span>
+                              <span>→</span>
+                            </Link>
+                          </div>
+                        </div>
                       </div>
-
-                      <div className="nx-metric-block">
-                        <span className="nx-metric-label">World Record</span>
-                        <span className="nx-metric-value">
-                          {globalRecord !== null ? globalRecord.toLocaleString() : '—'}
-                        </span>
-                      </div>
-
-                      <div className="nx-metric-percentile">
-                        {percentile}
-                      </div>
-                    </div>
-
-                    <div className="nx-game-card-footer">
-                      <span className="nx-game-runs-count">
-                        {plays} {plays === 1 ? 'Run Played' : 'Runs Played'}
-                      </span>
-
-                      <Link
-                        to={ROUTES.game(manifest.slug)}
-                        className="nx-game-challenge-btn"
-                      >
-                        <span>{isOwner ? 'Play Again' : 'Challenge PB'}</span>
-                        <span>→</span>
-                      </Link>
-                    </div>
+                    )
+                  })
+                ) : (
+                  <div className="nx-showcase-empty">
+                    <div className="nx-showcase-empty-icon">🎮</div>
+                    <h4 className="nx-showcase-empty-title">No Personal Bests Yet</h4>
+                    <p className="nx-showcase-empty-desc">
+                      {isOwner
+                        ? 'Play games in the arcade and complete runs to establish personal bests and showcase your records here.'
+                        : 'This player has not established any personal bests yet.'}
+                    </p>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Right Column (35%): Retention & Social Sidebar */}
         <aside className="nx-social-sidebar">

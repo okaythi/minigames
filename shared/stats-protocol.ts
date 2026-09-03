@@ -108,6 +108,7 @@ export function applyStatsEvent(
   record: GameStatsRecord,
   event: StatsEvent,
   now: number,
+  game?: string,
 ): GameStatsRecord {
   // A visit only touches the players table, never a game's counters.
   if (event.type === 'visit') {
@@ -121,6 +122,9 @@ export function applyStatsEvent(
     return { ...record, plays: record.plays + 1, updatedAt: now }
   }
   if (!Number.isFinite(event.score) || event.score < 0) {
+    return record
+  }
+  if (game === 'fl-tron-3' && event.score <= 1000) {
     return record
   }
   const score = Math.floor(event.score)

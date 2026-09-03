@@ -70,7 +70,10 @@ export async function readPlayer(db: D1Database, playerId: string): Promise<Play
   ])
   const perGame: Record<string, PlayerGameRecord> = {}
   for (const entry of games.results) {
-    perGame[entry.slug] = { highscore: entry.highscore, candy: entry.candy, completedDifficulties: [] }
+    const highscore = (entry.slug === 'fl-tron-3' && entry.highscore !== null && entry.highscore <= 1000)
+      ? null
+      : entry.highscore
+    perGame[entry.slug] = { highscore, candy: entry.candy, completedDifficulties: [] }
   }
   const completedDifficulties = readCompletedDifficulties(difficultyRows.results.map((entry) => entry.difficulty))
   if (completedDifficulties.length > 0) {
@@ -124,7 +127,7 @@ export async function bumpPlayer(
     return
   }
   if (event.type === 'score') {
-    if (game.length > 0) {
+    if (game.length > 0 && (game !== 'fl-tron-3' || event.score > 1000)) {
       await db
         .prepare(
           `INSERT INTO player_games (player_id, slug, highscore, candy, updated_at, plays)
@@ -136,14 +139,16 @@ export async function bumpPlayer(
         .bind(playerId, game, event.score, now)
         .run()
     }
-    await db
-      .prepare(
-        `UPDATE players
-           SET highscore = MAX(COALESCE(highscore, 0), ?2), last_seen = ?3
-         WHERE id = ?1`,
-      )
-      .bind(playerId, event.score, now)
-      .run()
+    if (game !== 'fl-tron-3' || event.score > 1000) {
+      await db
+        .prepare(
+          `UPDATE players
+             SET highscore = MAX(COALESCE(highscore, 0), ?2), last_seen = ?3
+           WHERE id = ?1`,
+        )
+        .bind(playerId, event.score, now)
+        .run()
+    }
     if (game === 'pong' && event.won === true && typeof event.difficulty === 'string') {
       await db
         .prepare(

@@ -142,7 +142,7 @@ export function statsStoreFrom(memory: StatsMemory, distributed: boolean): Stats
         if (game.length > 0) {
           memory.games.set(
             game,
-            applyStatsEvent(memory.games.get(game) ?? EMPTY_STATS_RECORD, event, Date.now()),
+            applyStatsEvent(memory.games.get(game) ?? EMPTY_STATS_RECORD, event, Date.now(), game),
           )
         }
       }
