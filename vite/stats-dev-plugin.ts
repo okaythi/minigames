@@ -159,7 +159,7 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000),
               legacyUser: true,
               developer: username === 'thy',
-              flags: UserFlags.USER_PIONEER | (username === 'thy' ? UserFlags.USER_DEVELOPER : UserFlags.NONE),
+              flags: UserFlags.USER_PIONEER | (username === 'thy' ? (UserFlags.USER_DEVELOPER | UserFlags.STAFF | UserFlags.CMS_EDITOR) : UserFlags.NONE),
             }
             devUsers.set(username, newUser)
             devPlayerToUsername.set(playerId, username)
@@ -218,7 +218,7 @@ export function statsDevPlugin(): Plugin {
                 createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
                 legacyUser: true,
                 developer: true,
-                flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER,
+                flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER | UserFlags.STAFF | UserFlags.CMS_EDITOR,
               }
               devUsers.set('thy', user)
               devPlayerToUsername.set(identity.id, 'thy')
@@ -291,7 +291,7 @@ export function statsDevPlugin(): Plugin {
               createdOn: Math.floor(Date.now() / 1000) - 86400 * 30,
               legacyUser: true,
               developer: true,
-              flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER,
+              flags: UserFlags.USER_DEVELOPER | UserFlags.USER_PIONEER | UserFlags.STAFF | UserFlags.CMS_EDITOR,
             }
             devUsers.set('thy', user)
           }

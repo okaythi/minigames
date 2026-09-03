@@ -1,0 +1,33 @@
+.nx-badge-tooltip-host {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.nx-badge-tooltip-bubble {
+  /* Follows the cursor via inline left/top style (fixed positioning) */
+  position: fixed;
+  transform: translate(12px, -110%);
+  pointer-events: none;
+  z-index: 9999;
+
+  /* Pill appearance */
+  background: var(--nx-ink);
+  color: var(--nx-bg);
+  font-family: var(--nx-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+
+  /* Subtle fade-in */
+  animation: nx-badge-tooltip-in 0.1s ease;
+}
+
+@keyframes nx-badge-tooltip-in {
+  from { opacity: 0; transform: translate(12px, calc(-110% + 4px)); }
+  to   { opacity: 1; transform: translate(12px, -110%); }
+}

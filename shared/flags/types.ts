@@ -45,5 +45,6 @@ export type MaxFourWords<T extends string> =
 
 
 export interface FlagDefinition<TDesc extends string = string> {
+  readonly name: string
   readonly description: MaxFourWords<TDesc>
 }

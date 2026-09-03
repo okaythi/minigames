@@ -20,13 +20,12 @@ export function DeveloperBadge({
   size = 18,
   className = '',
   withTag = false,
-  title = 'Develops games for our Lab.',
+  title,
 }: DeveloperBadgeProps) {
   const icon = (
     <span
       className={`nx-dev-badge ${className}`.trim()}
-      title={title}
-      aria-label={title}
+      {...(title ? { title, 'aria-label': title } : { 'aria-label': 'Staff badge' })}
       role="img"
       style={{ '--nx-dev-badge-size': `${size}px` } as CSSProperties}
     >
