@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReleaseAggregate } from '../../../engine/updates/types'
 import { MarkdownRenderer } from '../../../components/ui/rich-editor/markdown-renderer'
 import { ReleaseAuthorByline } from '../../../components/ui/release-author-byline'
+import '../../updates-page.css'
 
 interface ReleasePreviewPaneProps {
   readonly release: ReleaseAggregate

@@ -266,6 +266,7 @@
 
 .nx-change-content .nx-markdown-body {
   display: inline;
+  display: contents;
   color: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -274,6 +275,12 @@
 .nx-change-content .nx-markdown-body > .nx-md-p {
   display: inline;
   margin: 0;
+}
+
+.nx-change-content .nx-markdown-body > .nx-md-p + .nx-md-p,
+.nx-change-content .nx-markdown-body > .nx-md-p:not(:first-child) {
+  display: block;
+  margin-top: 6px;
 }
 
 .nx-change-content .nx-markdown-body > ul.nx-md-list,

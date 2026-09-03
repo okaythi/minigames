@@ -284,6 +284,9 @@ function parseInline(text: string): string {
   result = result.replace(/==([^=]+)==/g, '<mark class="nx-md-mark">$1</mark>')
   result = result.replace(/&lt;mark&gt;([\s\S]*?)&lt;\/mark&gt;/g, '<mark class="nx-md-mark">$1</mark>')
 
+  // Line breaks: <br> or <br/>
+  result = result.replace(/&lt;br\s*\/?&gt;/gi, '<br />')
+
   // Inline Code: `code`
   result = result.replace(/`([^`]+)`/g, '<code class="nx-md-inline-code">$1</code>')
 
