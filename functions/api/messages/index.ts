@@ -1,12 +1,16 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { eq, or, and, desc, gte, isNull } from 'drizzle-orm'
+import { eq, or, and, desc, gte, isNull, inArray } from 'drizzle-orm'
 import { users, players, conversations, messages, friendships, challenges } from '../../../src/db/schema'
 import { hasFlag, UserFlags } from '../../../shared/flags'
 import { readJsonBody } from '../stats/body'
-import { badRequest, jsonResponse } from '../stats/respond'
+import { jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
-import type { DirectMessage, ConversationSummary } from '../../../shared/auth-protocol'
+import type {
+  DirectMessageWire as DirectMessage,
+  ConversationSummaryWire as ConversationSummary,
+  ChatSendCode,
+} from '../../../shared/chat-protocol'
 
 interface PagesContext {
   readonly request: Request
@@ -17,13 +21,13 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
   const store = storeFor(env)
   const { playerId } = await identifyPlayer(request, store)
   if (!playerId) {
-    return badRequest('unauthorized')
+    return jsonResponse(401, { ok: false, code: 'unauthorized', error: 'unauthorized' })
   }
 
   const db = drizzle(env.NIXLABS_DB)
   const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
   if (!user) {
-    return badRequest('unauthorized')
+    return jsonResponse(401, { ok: false, code: 'unauthorized', error: 'unauthorized' })
   }
 
   const url = new URL(request.url)
@@ -103,7 +107,6 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
         metadata: m.metadata,
         readAt: m.readAt,
         createdAt: m.createdAt,
-        status: 'sent',
       }
     })
 
@@ -120,7 +123,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
 
   const partnerIds = convos.map((c) => (c.user1Id === playerId ? c.user2Id : c.user1Id))
   const partners = partnerIds.length > 0
-    ? await db.select().from(users).all()
+    ? await db.select().from(users).where(inArray(users.playerId, partnerIds)).all()
     : []
   const partnerMap = new Map(partners.map((p) => [p.playerId, p]))
 
@@ -204,21 +207,24 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     return jsonResponse(200, { ok: true, conversations: list })
   }
 
+const reject = (status: number, code: ChatSendCode, error: string, extra: Record<string, unknown> = {}): Response =>
+  jsonResponse(status, { ok: false, code, error, ...extra })
+
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
   const store = storeFor(env)
   const { playerId: senderPlayerId } = await identifyPlayer(request, store)
   if (!senderPlayerId) {
-    return badRequest('unauthorized')
+    return reject(401, 'unauthorized', 'unauthorized')
   }
 
   const db = drizzle(env.NIXLABS_DB)
   const sender = await db.select().from(users).where(eq(users.playerId, senderPlayerId)).get()
   if (!sender) {
-    return badRequest('unauthorized')
+    return reject(401, 'unauthorized', 'unauthorized')
   }
 
   if (hasFlag(sender.flags, UserFlags.USER_MESSAGES_BLOCKED)) {
-    return jsonResponse(403, { ok: false, error: 'Your messaging privileges have been suspended.' })
+    return reject(403, 'sender_suspended', 'Your messaging privileges have been suspended.')
   }
 
   const body = (await readJsonBody(request)) as {
@@ -226,20 +232,28 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     content?: string
     messageType?: 'text' | 'challenge'
     challengeData?: { gameSlug: string; targetScore: number; bountyCandy?: number }
+    clientMessageId?: string
   } | null
 
   if (!body?.recipientUsername || !body.content) {
-    return badRequest('recipientUsername and content are required')
+    return reject(400, 'bad_payload', 'recipientUsername and content are required')
   }
+
+  const clientMessageId =
+    typeof body.clientMessageId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.clientMessageId)
+      ? body.clientMessageId
+      : null
 
   const targetUsername = body.recipientUsername.toLowerCase()
   const recipient = await db.select().from(users).where(eq(users.username, targetUsername)).get()
   if (!recipient) {
-    return badRequest('recipient not found')
+    return reject(400, 'recipient_not_found', 'recipient not found')
   }
 
+  // TEST_ACCOUNT accepts no DMs by policy. The CODE is the contract; the UI
+  // copy lives client-side, per conversation, and never as a shared string.
   if (hasFlag(recipient.flags, UserFlags.TEST_ACCOUNT)) {
-    return jsonResponse(400, { ok: false, error: 'This account cannot receive messages.', isTestAccount: true })
+    return reject(400, 'recipient_unreachable', 'This account cannot receive messages.')
   }
 
   // Block check: If either user blocked the other, immediately fail
@@ -258,7 +272,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     .get()
 
   if (blockCheck) {
-    return jsonResponse(403, { ok: false, error: 'You cannot message this player.' })
+    return reject(403, 'blocked', 'You cannot message this player.')
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000)
@@ -275,11 +289,11 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
 
   const msgsLastSec = recentMsgs.filter((m) => m.createdAt >= oneSecAgo).length
   if (msgsLastSec >= 1) {
-    return jsonResponse(429, { ok: false, error: 'Rate limit: 1 msg/sec', cooldown: 1 })
+    return reject(429, 'rate_limited', 'Rate limit: 1 msg/sec', { cooldown: 1 })
   }
 
   if (recentMsgs.length >= 8) {
-    return jsonResponse(429, { ok: false, error: 'Rate limit: 8 msgs/10s', cooldown: 5 })
+    return reject(429, 'rate_limited', 'Rate limit: 8 msgs/10s', { cooldown: 5 })
   }
 
   // Handle Challenge Bounty escrow if challenge
@@ -289,7 +303,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     if (bounty > 0) {
       const senderPlayer = await db.select().from(players).where(eq(players.id, senderPlayerId)).get()
       if (!senderPlayer || senderPlayer.candy < bounty) {
-        return jsonResponse(400, { ok: false, error: 'Insufficient candy for this bounty.' })
+        return reject(400, 'insufficient_bounty', 'Insufficient candy for this bounty.')
       }
       await db
         .update(players)
@@ -321,7 +335,12 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       status: 'pending',
       challengerUsername: sender.username,
       challengedUsername: recipient.username,
+      ...(clientMessageId !== null ? { clientMessageId } : {}),
     })
+  } else if (clientMessageId !== null) {
+    // Echo slot for plain messages: the client reconciles its optimistic copy
+    // against this id, so it can never double-render nor lose an ack.
+    challengeMetadataStr = JSON.stringify({ clientMessageId })
   }
 
   // Find or create conversation
@@ -382,9 +401,15 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     messageType: (body.messageType || 'text') as 'text' | 'challenge',
     content: body.content,
     metadata: challengeMetadataStr,
+    readAt: null,
     createdAt: nowSeconds,
-    status: 'sent',
   }
 
-  return jsonResponse(200, { ok: true, message: result })
+  // The conversation stamp lets the client re-sort its list and re-badge
+  // without a follow-up GET — one request, whole interaction.
+  return jsonResponse(200, {
+    ok: true,
+    message: result,
+    conversation: { id: convo.id, lastMessageAt: nowSeconds },
+  })
 }

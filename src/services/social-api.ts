@@ -1,13 +1,11 @@
-import type { FriendSummary, DirectMessage, PrivacySettings, ConversationSummary } from '../../shared/auth-protocol'
+import type { FriendSummary, PrivacySettings } from '../../shared/auth-protocol'
 
 /**
- * Short-lived shared cache for cheap snapshot reads (friends, conversations,
- * public profiles). Multiple surfaces want the same list on the same tick —
- * the notification poller, the DM drawer, the bell, the profile page. Instead
- * of each hitting the edge separately (each hit = 1 Functions invocation),
- * they coalesce into one in-flight request and share its result briefly.
- * Mutating actions invalidate the cache, so freshness is never lost where it
- * matters. GETs of a conversation's messages are intentionally NOT cached.
+ * Short-lived shared cache for the friends snapshot. Multiple surfaces want
+ * it on the same tick (notifications, drawer, profile page), and every edge
+ * request is billed — so they coalesce into one in-flight fetch. The chat
+ * domain (conversations, messages) lives in `src/engine/chat` and caches
+ * there; friend data is cached here.
  */
 const SOCIAL_SNAPSHOT_TTL_MS = 10_000
 
@@ -108,39 +106,8 @@ export async function updatePrivacySettings(settings: Partial<PrivacySettings>):
   return data.privacy
 }
 
-export async function getConversations(): Promise<ConversationSummary[]> {
-  const conversations = await sharedSnapshot('conversations', async () => {
-    const res = await fetch('/api/messages')
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.conversations ?? []) as ConversationSummary[]
-  })
-  return conversations
-}
 
-export async function getMessages(recipientUsername: string): Promise<DirectMessage[]> {
-  const res = await fetch(`/api/messages?recipient=${encodeURIComponent(recipientUsername)}`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.messages ?? []
-}
 
-export async function sendMessage(
-  recipientUsername: string,
-  content: string,
-  messageType: 'text' | 'challenge' = 'text',
-  challengeData?: { gameSlug: string; targetScore: number; bountyCandy?: number },
-): Promise<{ ok: boolean; message?: DirectMessage; error?: string; cooldown?: number }> {
-  const res = await fetch('/api/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipientUsername, content, messageType, challengeData }),
-  })
-  if (res.ok) {
-    invalidateSocialCache()
-  }
-  return res.json()
-}
 
 export async function getChallenge(id: string): Promise<any> {
   const res = await fetch(`/api/challenges/resolve?id=${encodeURIComponent(id)}`)

@@ -10,11 +10,16 @@ import { AchievementToast } from './components/achievements/achievement-toast'
 import { SyncStatusPill } from './components/ui/sync-status-pill'
 import { DmDrawer } from './components/chat/dm-drawer'
 import { initPresenceTracker } from './services/presence-service'
+import { initChatSubsystem } from './services/chat-boot'
 import './site/app-shell.css'
 
 export function App() {
   useEffect(() => {
     return initPresenceTracker()
+  }, [])
+
+  useEffect(() => {
+    return initChatSubsystem()
   }, [])
 
   return (

@@ -1,7 +1,7 @@
-import type { ConversationSummary } from '../../../shared/auth-protocol'
+import type { ConversationView } from '../../engine/chat'
 
 interface ConversationCardProps {
-  readonly conversation: ConversationSummary
+  readonly conversation: ConversationView
   readonly isSelected?: boolean
   readonly onClick: () => void
 }
@@ -29,30 +29,28 @@ export function ConversationCard({
   isSelected,
   onClick,
 }: ConversationCardProps) {
-  const { partner, lastMessage, hasUnread, unreadCount } = conversation
-  const showUnreadDot = Boolean(hasUnread || (unreadCount && unreadCount > 0))
+  const { partner, nickname, pfpUrl, lastMessage, unreadCount } = conversation
+  const showUnreadDot = unreadCount > 0
 
   return (
     <button
       type="button"
       className={`nx-chat-convo-item ${isSelected ? 'nx-selected' : ''}`}
       onClick={onClick}
-      aria-label={`Chat with @${partner.username}`}
+      aria-label={`Chat with @${partner}`}
     >
       <div className="nx-chat-convo-avatar">
-        {partner.pfpUrl ? (
-          <img src={partner.pfpUrl} alt={partner.username} />
+        {pfpUrl ? (
+          <img src={pfpUrl} alt={partner} />
         ) : (
-          <span>{partner.username.charAt(0).toUpperCase()}</span>
+          <span>{partner.charAt(0).toUpperCase()}</span>
         )}
       </div>
 
       <div className="nx-chat-convo-details">
         <div className="nx-chat-convo-top-row">
-          <span className="nx-chat-convo-username">@{partner.username}</span>
-          {partner.nickname && (
-            <span className="nx-chat-convo-nickname">{partner.nickname}</span>
-          )}
+          <span className="nx-chat-convo-username">@{partner}</span>
+          {nickname && <span className="nx-chat-convo-nickname">{nickname}</span>}
         </div>
 
         <div className="nx-chat-convo-snippet">

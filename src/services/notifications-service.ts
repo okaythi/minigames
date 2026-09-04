@@ -1,8 +1,17 @@
 import { useSyncExternalStore } from 'react'
-import { getMyFriends, getConversations, sendFriendAction, type PresencePingResult } from './social-api'
+import { getMyFriends, sendFriendAction, type PresencePingResult } from './social-api'
 import { getCurrentUser, subscribeAuth } from './auth-api'
-import type { FriendSummary, ConversationSummary } from '../../shared/auth-protocol'
+import { chatEngine } from '../engine/chat/instance'
+import type { FriendSummary } from '../../shared/auth-protocol'
 
+/**
+ * The notifications engine. Its only job is the bell badge: friend requests
+ * (social domain) + new-message pings (chat domain, read through the chat
+ * engine's list source — this file never fetches conversations itself, and
+ * the chat engine never renders a bell). Presence heartbeats carry raw
+ * counts; full snapshots are rebuilt only when a count changes, so idle tabs
+ * cost zero requests on this path.
+ */
 export interface MessageNotificationItem {
   readonly conversationId: string
   readonly username: string
@@ -34,10 +43,10 @@ function notifyListeners(): void {
 }
 
 /**
- * Refreshes the bell snapshot. Every successful refresh costs up to two
- * Functions invocations, so it is deliberately single-flight and throttled:
- * burst triggers (boot, focus, tab-visible, ping deltas) coalesce. Mutating
- * actions pass `force` to bypass the throttle.
+ * Every successful refresh costs at most two edge requests (friends + chat
+ * list, each shared + single-flight downstream), so it is throttled: burst
+ * triggers (boot, focus, tab-visible, ping deltas) coalesce. Mutating
+ * actions pass `force`.
  */
 const MIN_REFRESH_INTERVAL_MS = 15_000
 let lastRefreshAt = 0
@@ -53,31 +62,33 @@ export async function refreshNotifications(force = false): Promise<void> {
     return
   }
 
-  if (refreshInflight) return refreshInflight
+  if (refreshInflight !== null) return refreshInflight
   const now = Date.now()
   if (!force && now - lastRefreshAt < MIN_REFRESH_INTERVAL_MS) return
 
   refreshInflight = (async () => {
     lastRefreshAt = Date.now()
     try {
-      // getMyFriends/getConversations are themselves single-flight + briefly
-      // cached in social-api, so concurrent consumers (drawer, bell, profile)
-      // share one request per endpoint instead of each firing their own.
       const [friendsRes, convos] = await Promise.all([
         getMyFriends(),
-        getConversations(),
+        chatEngine.refreshConversations(force),
       ])
 
       const friendRequests = friendsRes.pendingIncoming || []
 
       const messageNotifications: MessageNotificationItem[] = convos
-        .filter((c: ConversationSummary) => c.isFirstEverMessage && !dismissedMsgUsers.has(c.partner.username.toLowerCase()))
-        .map((c: ConversationSummary) => ({
-          conversationId: c.id,
-          username: c.partner.username,
-          nickname: c.partner.nickname,
-          pfpUrl: c.partner.pfpUrl,
-          lastMessageSnippet: c.lastMessage?.content,
+        .filter(
+          ({ wire, unreadCount }) =>
+            wire.isFirstEverMessage &&
+            unreadCount > 0 &&
+            !dismissedMsgUsers.has(wire.partner.username.toLowerCase()),
+        )
+        .map(({ wire }) => ({
+          conversationId: wire.id,
+          username: wire.partner.username,
+          nickname: wire.partner.nickname,
+          pfpUrl: wire.partner.pfpUrl,
+          lastMessageSnippet: wire.lastMessage?.content,
         }))
 
       currentSnapshot = {
@@ -97,9 +108,9 @@ export async function refreshNotifications(force = false): Promise<void> {
 }
 
 /**
- * The presence heartbeat replies with raw badge counts. Only when a count
- * actually changes do we pay for the full snapshot refresh — this replaces
- * the old unconditional 45s double-fetch.
+ * Presence heartbeat piggyback: only when a count actually changes do we
+ * refresh. The chat engine also learns about new messages here — it is the
+ * single place ping counts are interpreted.
  */
 let lastPingCounts: PresencePingResult | null = null
 
@@ -111,6 +122,7 @@ export function applyPingCounts(counts: PresencePingResult | null): void {
     lastPingCounts.newMessages !== counts.newMessages
   lastPingCounts = counts
   if (changed) {
+    chatEngine.applyNewMessageHint(counts.newMessages)
     void refreshNotifications()
   }
 }
@@ -167,11 +179,9 @@ export function useNotifications(): NotificationsSnapshot {
   )
 }
 
-// Wiring. There is deliberately no fixed-interval notification poll: presence
-// heartbeats already ping the edge while the tab is visible and logged in, and
-// their response carries the badge counts (see applyPingCounts). Full list
-// refreshes only happen when those counts change or the user comes back to the
-// tab — each one is throttled + single-flight.
+// Boot wiring. No fixed-interval poll: the presence heartbeat (which already
+// exists for online status) is the carrier; focus/visibility just re-arm the
+// throttled refresh.
 if (typeof window !== 'undefined') {
   if (getCurrentUser()) {
     void refreshNotifications()
