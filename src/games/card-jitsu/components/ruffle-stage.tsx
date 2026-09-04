@@ -38,6 +38,7 @@ export function RuffleStage({ session }: RuffleStageProps) {
 
   useEffect(() => {
     let cancelled = false
+    let cleanedUp = false
     let playerElement: (HTMLElement & {
       readonly load: (options: { url: string; allowScriptAccess?: boolean }) => Promise<void>
       readonly dispatchAirtowerMessage?: (action: string, resObj: unknown) => void
@@ -138,17 +139,21 @@ export function RuffleStage({ session }: RuffleStageProps) {
     void initRuffle()
 
     return () => {
+      if (cleanedUp) return
+      cleanedUp = true
       cancelled = true
       session.setBridge(() => {})
-      if (window.onFlashAirtowerSend) {
-        window.onFlashAirtowerSend = () => {}
-      }
+      window.onFlashAirtowerSend = () => {}
+      window.onFlashGameScore = () => {}
       if (playerElement) {
         try {
-          playerElement.remove()
+          if (playerElement.parentElement?.contains(playerElement)) {
+            playerElement.remove()
+          }
         } catch {
           // Ignore DOM removal errors
         }
+        playerElement = null
       }
     }
   }, [session])
