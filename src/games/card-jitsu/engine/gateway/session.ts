@@ -4,41 +4,41 @@ import type {
   ClashResult,
   MatchStats,
   NinjaBelt,
+  NinjaElement,
   SenseiDifficulty,
   WinConditionResult,
 } from '../../types'
-import { createSenseiDeck, createStarterDeck } from '../deck/cards'
+import { ALL_CARDS, createSenseiDeck, createStarterDeck } from '../deck/cards'
 import {
   type ActiveEffects,
-  checkWinCondition,
+  doesCardBeat,
   INITIAL_EFFECTS,
   resolveClash,
 } from '../deck/rules'
-import { decideSenseiCard } from '../ai/sensei-ai'
 
 export const BELT_TO_RANK: Record<NinjaBelt, number> = {
-  white: 0,
-  yellow: 1,
-  orange: 2,
-  green: 3,
-  blue: 4,
-  red: 5,
-  purple: 6,
-  brown: 7,
-  black: 8,
+  white: 1,
+  yellow: 2,
+  orange: 3,
+  green: 4,
+  blue: 5,
+  red: 6,
+  purple: 7,
+  brown: 8,
+  black: 9,
 }
 
-export const RANK_TO_BELT: readonly NinjaBelt[] = [
-  'white',
-  'yellow',
-  'orange',
-  'green',
-  'blue',
-  'red',
-  'purple',
-  'brown',
-  'black',
-]
+export const RANK_TO_BELT: Record<number, NinjaBelt> = {
+  1: 'white',
+  2: 'yellow',
+  3: 'orange',
+  4: 'green',
+  5: 'blue',
+  6: 'red',
+  7: 'purple',
+  8: 'brown',
+  9: 'black',
+}
 
 export interface SessionConfig {
   readonly difficulty: SenseiDifficulty
@@ -50,11 +50,15 @@ export interface SessionConfig {
   readonly onBeltAwarded?: (newBelt: NinjaBelt) => void
 }
 
+export interface DealtCard {
+  readonly dealtId: number
+  readonly card: CardData
+}
+
 export class CardJitsuSession {
   private phase: CardJitsuPhase = 'dialogue'
   private round = 1
   private nextDealtId = 1
-  private roomId = 100
 
   private playerDeck: CardData[] = []
   private senseiDeck: CardData[] = []
@@ -63,10 +67,13 @@ export class CardJitsuSession {
   private playerDealtMap = new Map<number, CardData>()
   private senseiDealtMap = new Map<number, CardData>()
 
+  // Maps playerDealtId -> senseiDealtId paired at deal time (Houdini parity)
+  private senseiMoveMap = new Map<number, number>()
+
   private playerWonCards: CardData[] = []
   private senseiWonCards: CardData[] = []
-  private playerWonDealtIds: number[] = []
-  private senseiWonDealtIds: number[] = []
+  private playerWonDealtCards: DealtCard[] = []
+  private senseiWonDealtCards: DealtCard[] = []
 
   private playerHistory: CardData[] = []
   private playerSelectedCard: CardData | null = null
@@ -76,13 +83,13 @@ export class CardJitsuSession {
   private matchWinner: 'player' | 'sensei' | null = null
 
   private config: SessionConfig
-  private flashBridge: ((action: string, resObj: unknown) => void) | null = null
+  private flashBridge: ((msg: string) => void) | null = null
 
   constructor(config: SessionConfig) {
     this.config = config
   }
 
-  public setBridge(bridge: (action: string, resObj: unknown) => void): void {
+  public setBridge(bridge: (msg: string) => void): void {
     this.flashBridge = bridge
   }
 
@@ -122,8 +129,8 @@ export class CardJitsuSession {
     this.nextDealtId = 1
     this.playerWonCards = []
     this.senseiWonCards = []
-    this.playerWonDealtIds = []
-    this.senseiWonDealtIds = []
+    this.playerWonDealtCards = []
+    this.senseiWonDealtCards = []
     this.playerHistory = []
     this.playerSelectedCard = null
     this.senseiSelectedCard = null
@@ -133,6 +140,7 @@ export class CardJitsuSession {
 
     this.playerDealtMap.clear()
     this.senseiDealtMap.clear()
+    this.senseiMoveMap.clear()
 
     this.playerDeck = createStarterDeck()
     this.senseiDeck = createSenseiDeck()
@@ -149,10 +157,8 @@ export class CardJitsuSession {
     action: string,
     args: readonly unknown[],
     _type: string,
-    roomId: number,
+    _roomId: number,
   ): void {
-    if (roomId > 0) this.roomId = roomId
-
     if (action === 'gz') {
       this.handleGetGame()
     } else if (action === 'uz') {
@@ -160,7 +166,7 @@ export class CardJitsuSession {
     } else if (action === 'zm') {
       const subAction = String(args[0] ?? '')
       if (subAction === 'deal') {
-        this.handleDealInitialHands()
+        this.handleDeal()
       } else if (subAction === 'pick') {
         const pickedDealtId = Number(args[1] ?? 0)
         this.handlePickCard(pickedDealtId)
@@ -172,156 +178,283 @@ export class CardJitsuSession {
   }
 
   private handleGetGame(): void {
-    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 0
-    this.sendToFlash('gz', [this.roomId, 2, 2])
-    this.sendToFlash('jz', [this.roomId, 1, 'Ninja', 1, beltRank])
+    this.startMatch()
+    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 1
+    this.sendToFlash('gz', [2, 2])
+    this.sendToFlash('jz', [1, 'Ninja', 1, beltRank])
   }
 
   private handleUpdateGame(): void {
-    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 0
+    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 1
     this.sendToFlash('uz', [
-      this.roomId,
       '0|Sensei|14|10',
       `1|Ninja|1|${beltRank}`,
     ])
-    this.sendToFlash('sz', [this.roomId])
+    this.sendToFlash('sz', [])
   }
 
-  private handleDealInitialHands(): void {
-    this.startMatch()
+  private handleDeal(): void {
+    const cardsNeeded = 5 - this.playerDealtMap.size
+    if (cardsNeeded <= 0) return
 
     const playerDealtStrings: string[] = []
     const senseiDealtStrings: string[] = []
 
-    for (let i = 0; i < 5; i++) {
-      const playerCard = this.playerDeck.shift()
-      if (playerCard) {
-        const dId = this.nextDealtId++
-        this.playerDealtMap.set(dId, playerCard)
-        playerDealtStrings.push(this.formatCardString(dId, playerCard))
-      }
+    const usedSenseiColors = new Set<string>()
+    for (const c of this.senseiDealtMap.values()) {
+      usedSenseiColors.add(c.color)
+    }
 
-      const senseiCard = this.senseiDeck.shift()
-      if (senseiCard) {
-        const dId = this.nextDealtId++
-        this.senseiDealtMap.set(dId, senseiCard)
-        senseiDealtStrings.push(this.formatCardString(dId, senseiCard))
+    for (let i = 0; i < cardsNeeded; i++) {
+      let playerCard = this.playerDeck.shift()
+      if (!playerCard) {
+        this.playerDeck = createStarterDeck()
+        playerCard = this.playerDeck.shift()!
+      }
+      const pDealtId = this.nextDealtId++
+      this.playerDealtMap.set(pDealtId, playerCard)
+      playerDealtStrings.push(this.formatCardString(pDealtId, playerCard))
+
+      // Select paired Sensei card at deal time
+      const senseiCard = this.selectSenseiCardForDeal(playerCard, usedSenseiColors)
+      usedSenseiColors.add(senseiCard.color)
+      const sDealtId = this.nextDealtId++
+      this.senseiDealtMap.set(sDealtId, senseiCard)
+      senseiDealtStrings.push(this.formatCardString(sDealtId, senseiCard))
+
+      // Pair them: when player plays pDealtId, Sensei will play sDealtId
+      this.senseiMoveMap.set(pDealtId, sDealtId)
+    }
+
+    // Houdini: send deal 0 (Sensei) then deal 1 (Player)
+    this.sendToFlash('zm', ['deal', 0, ...senseiDealtStrings])
+    this.sendToFlash('zm', ['deal', 1, ...playerDealtStrings])
+    this.phase = 'choosing'
+    this.notify()
+  }
+
+  private selectSenseiCardForDeal(playerCard: CardData, usedColors: Set<string>): CardData {
+    const canBeatSensei = (BELT_TO_RANK[this.config.playerBelt] ?? 1) >= 9
+    const difficulty = this.config.difficulty
+
+    let shouldCounter = false
+    let shouldLose = false
+
+    if (difficulty === 'ninja') {
+      shouldCounter = !canBeatSensei || Math.random() < 0.5
+    } else if (difficulty === 'hard') {
+      shouldCounter = Math.random() < 0.8
+    } else if (difficulty === 'medium') {
+      shouldCounter = Math.random() < 0.5
+    } else if (difficulty === 'easy') {
+      const roll = Math.random()
+      if (roll < 0.2) {
+        shouldCounter = true
+      } else if (roll < 0.6) {
+        shouldLose = true
       }
     }
 
-    // Seat 0 = Sensei, Seat 1 = Player
-    this.sendToFlash('zm', [this.roomId, 'deal', 0, ...senseiDealtStrings])
-    this.sendToFlash('zm', [this.roomId, 'deal', 1, ...playerDealtStrings])
-    this.phase = 'choosing'
-    this.notify()
+    if (shouldCounter) {
+      const counter = this.findMatchingSenseiCard(
+        (c) => doesCardBeat(c, playerCard),
+        usedColors,
+      )
+      if (counter) return counter
+    } else if (shouldLose) {
+      const losing = this.findMatchingSenseiCard(
+        (c) => doesCardBeat(playerCard, c),
+        usedColors,
+      )
+      if (losing) return losing
+    }
+
+    // Default: draw from senseiDeck or fallback to ALL_CARDS
+    const fallback =
+      this.senseiDeck.shift() ??
+      ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)]!
+    return fallback
+  }
+
+  private findMatchingSenseiCard(
+    predicate: (c: CardData) => boolean,
+    usedColors: Set<string>,
+  ): CardData | null {
+    // 1. Try from senseiDeck with unused color
+    const deckIdxUnused = this.senseiDeck.findIndex(
+      (c) => predicate(c) && !usedColors.has(c.color),
+    )
+    if (deckIdxUnused >= 0) {
+      return this.senseiDeck.splice(deckIdxUnused, 1)[0]!
+    }
+    // 2. Try from senseiDeck with any color
+    const deckIdx = this.senseiDeck.findIndex(predicate)
+    if (deckIdx >= 0) {
+      return this.senseiDeck.splice(deckIdx, 1)[0]!
+    }
+    // 3. Try from ALL_CARDS with unused color
+    const allMatchingUnused = ALL_CARDS.filter(
+      (c) => predicate(c) && !usedColors.has(c.color),
+    )
+    if (allMatchingUnused.length > 0) {
+      return allMatchingUnused[Math.floor(Math.random() * allMatchingUnused.length)]!
+    }
+    // 4. Try from ALL_CARDS any color
+    const allMatching = ALL_CARDS.filter(predicate)
+    if (allMatching.length > 0) {
+      return allMatching[Math.floor(Math.random() * allMatching.length)]!
+    }
+    return null
   }
 
   private handlePickCard(playerDealtId: number): void {
     const playerCard = this.playerDealtMap.get(playerDealtId)
     if (!playerCard) return
 
-    this.playerSelectedCard = playerCard
-    this.playerHistory.push(playerCard)
+    const senseiDealtId = this.senseiMoveMap.get(playerDealtId)
+    if (senseiDealtId === undefined) return
+    const senseiCard = this.senseiDealtMap.get(senseiDealtId)
+    if (!senseiCard) return
+
+    // Remove played cards from hands
     this.playerDealtMap.delete(playerDealtId)
-
-    // Sensei AI Decision
-    const senseiHand = Array.from(this.senseiDealtMap.values())
-    const senseiChosenCard = decideSenseiCard({
-      difficulty: this.config.difficulty,
-      playerBelt: this.config.playerBelt,
-      senseiHand,
-      playerCard,
-      senseiWonCards: this.senseiWonCards,
-      playerWonCards: this.playerWonCards,
-      playerHistory: this.playerHistory,
-    })
-
-    // Locate dealt ID for sensei card, or synthesize for dynamic cheat counter
-    let senseiDealtId: number | null = null
-    for (const [dId, c] of this.senseiDealtMap.entries()) {
-      if (c.id === senseiChosenCard.id) {
-        senseiDealtId = dId
-        break
-      }
-    }
-    if (senseiDealtId === null) {
-      senseiDealtId = this.nextDealtId++
-    }
     this.senseiDealtMap.delete(senseiDealtId)
-    this.senseiSelectedCard = senseiChosenCard
+    this.senseiMoveMap.delete(playerDealtId)
 
-    // Reveal choices to both clients
-    this.sendToFlash('zm', [this.roomId, 'pick', 0, senseiDealtId])
-    this.sendToFlash('zm', [this.roomId, 'pick', 1, playerDealtId])
+    this.playerSelectedCard = playerCard
+    this.senseiSelectedCard = senseiCard
+    this.playerHistory.push(playerCard)
 
-    // Resolve Clash
+    // 1. Reveal choices (pick 0, pick 1)
+    this.sendToFlash('zm', ['pick', 0, senseiDealtId])
+    this.sendToFlash('zm', ['pick', 1, playerDealtId])
+
     this.phase = 'clashing'
-    const clash = resolveClash(playerCard, senseiChosenCard, this.activeEffects)
+
+    // 2. Resolve clash
+    const clash = resolveClash(playerCard, senseiCard, this.activeEffects)
     this.lastClash = clash
 
+    // 3. On-played powers (1, 16, 17, 18) - sent for both players regardless of outcome
+    const ON_PLAYED = new Set([1, 16, 17, 18])
+    if (playerCard.powerId && ON_PLAYED.has(playerCard.powerId)) {
+      this.sendToFlash('zm', ['power', 1, 0, playerCard.powerId])
+    }
+    if (senseiCard.powerId && ON_PLAYED.has(senseiCard.powerId)) {
+      this.sendToFlash('zm', ['power', 0, 1, senseiCard.powerId])
+    }
+
     let winnerSeat = -1
+    let winningCard: CardData | null = null
+
     if (clash.winner === 'player') {
       winnerSeat = 1
+      winningCard = playerCard
       this.playerWonCards.push(playerCard)
-      this.playerWonDealtIds.push(playerDealtId)
+      this.playerWonDealtCards.push({ dealtId: playerDealtId, card: playerCard })
     } else if (clash.winner === 'sensei') {
       winnerSeat = 0
-      this.senseiWonCards.push(senseiChosenCard)
-      this.senseiWonDealtIds.push(senseiDealtId)
+      winningCard = senseiCard
+      this.senseiWonCards.push(senseiCard)
+      this.senseiWonDealtCards.push({ dealtId: senseiDealtId, card: senseiCard })
     }
 
-    // Power Card packet if triggered
-    if (clash.powerTriggered) {
-      const sender = winnerSeat >= 0 ? winnerSeat : 1
-      const receiver = sender === 1 ? 0 : 1
-      this.sendToFlash('zm', [this.roomId, 'power', sender, receiver, clash.powerTriggered])
+    // 4. On-scored powers (winner's card only)
+    if (winnerSeat !== -1 && winningCard && winningCard.powerId && !ON_PLAYED.has(winningCard.powerId)) {
+      const affectsOwnPlayer = winningCard.powerId === 2 // AffectsOwnPlayer
+      const loserSeat = winnerSeat === 1 ? 0 : 1
+      const sender = winnerSeat
+      const recipient = affectsOwnPlayer ? winnerSeat : loserSeat
+      this.sendToFlash('zm', ['power', sender, recipient, winningCard.powerId])
     }
 
-    // Judge packet
-    this.sendToFlash('zm', [this.roomId, 'judge', winnerSeat])
+    // 5. Winning combination check
+    const pWin = this.getWinningDealtIds(this.playerWonDealtCards)
+    const sWin = this.getWinningDealtIds(this.senseiWonDealtCards)
 
-    // Check Win Condition
-    const pWin = checkWinCondition(this.playerWonCards)
-    const sWin = checkWinCondition(this.senseiWonCards)
-
-    if (pWin.won) {
+    if (pWin !== null) {
       this.matchWinner = 'player'
       this.phase = 'game-over'
-      this.sendToFlash('czo', [this.roomId, 0, 1, ...this.playerWonDealtIds.slice(-3)])
+      this.sendToFlash('czo', [0, 1, ...pWin])
       this.handleMatchWonByPlayer()
       this.config.onGameOver?.('player')
-    } else if (sWin.won) {
+    } else if (sWin !== null) {
       this.matchWinner = 'sensei'
       this.phase = 'game-over'
-      this.sendToFlash('czo', [this.roomId, 0, 0, ...this.senseiWonDealtIds.slice(-3)])
+      this.sendToFlash('czo', [0, 0, ...sWin])
       this.config.onGameOver?.('sensei')
-    } else {
-      // Replenish 1 card to each player
-      const nextPlayerCard = this.playerDeck.shift() ?? createStarterDeck()[0]!
-      const pId = this.nextDealtId++
-      this.playerDealtMap.set(pId, nextPlayerCard)
+    }
 
-      const nextSenseiCard = this.senseiDeck.shift() ?? createSenseiDeck()[0]!
-      const sId = this.nextDealtId++
-      this.senseiDealtMap.set(sId, nextSenseiCard)
+    // 6. Judge packet (sent AFTER czo/cza)
+    this.sendToFlash('zm', ['judge', winnerSeat])
 
-      this.sendToFlash('zm', [this.roomId, 'deal', 0, this.formatCardString(sId, nextSenseiCard)])
-      this.sendToFlash('zm', [this.roomId, 'deal', 1, this.formatCardString(pId, nextPlayerCard)])
+    if (pWin === null && sWin === null) {
       this.round++
       this.phase = 'choosing'
     }
 
     this.notify()
-    this.config.onClashDone?.(clash, pWin.won ? pWin : sWin)
+    this.config.onClashDone?.(
+      clash,
+      pWin !== null
+        ? { won: true, triadType: 'different-elements', winningCards: this.playerWonCards }
+        : sWin !== null
+          ? { won: true, triadType: 'different-elements', winningCards: this.senseiWonCards }
+          : { won: false },
+    )
+  }
+
+  private getWinningDealtIds(
+    wonDealtCards: readonly DealtCard[],
+  ): number[] | null {
+    // Group by element
+    const byElem: Record<NinjaElement, DealtCard[]> = {
+      fire: [],
+      water: [],
+      snow: [],
+    }
+    for (const item of wonDealtCards) {
+      byElem[item.card.element].push(item)
+    }
+
+    // 1. Check same-element 3 different colors
+    for (const element of ['fire', 'water', 'snow'] as const) {
+      const cards = byElem[element]
+      const colorCards: DealtCard[] = []
+      const colors = new Set<string>()
+      for (const item of cards) {
+        if (!colors.has(item.card.color)) {
+          colors.add(item.card.color)
+          colorCards.push(item)
+          if (colorCards.length === 3) {
+            return colorCards.map((c) => c.dealtId)
+          }
+        }
+      }
+    }
+
+    // 2. Check different elements 3 different colors (1 fire, 1 water, 1 snow)
+    for (const f of byElem.fire) {
+      for (const w of byElem.water) {
+        if (f.card.color === w.card.color) continue
+        for (const s of byElem.snow) {
+          if (s.card.color === f.card.color || s.card.color === w.card.color) continue
+          return [f.dealtId, w.dealtId, s.dealtId]
+        }
+      }
+    }
+
+    return null
   }
 
   private handleMatchWonByPlayer(): void {
-    const currentRank = BELT_TO_RANK[this.config.playerBelt] ?? 0
-    if (currentRank < 8) {
-      const nextBelt = RANK_TO_BELT[currentRank + 1]
+    const currentRank = BELT_TO_RANK[this.config.playerBelt] ?? 1
+    if (currentRank < 9) {
+      const nextRank = currentRank + 1
+      const nextBelt = RANK_TO_BELT[nextRank]
       if (nextBelt) {
         this.config = { ...this.config, playerBelt: nextBelt }
-        this.sendToFlash('cza', [this.roomId, currentRank + 1])
+        this.sendToFlash('cza', [nextRank])
         this.config.onBeltAwarded?.(nextBelt)
       }
     }
@@ -333,9 +466,10 @@ export class CardJitsuSession {
     return `${dealtId}|${card.id}|${elem}|${card.value}|${col}|${card.powerId}`
   }
 
-  private sendToFlash(action: string, resObj: unknown): void {
+  private sendToFlash(action: string, args: readonly unknown[]): void {
+    const packet = `%xt%${action}%-1%${args.map(String).join('%')}%`
     if (this.flashBridge) {
-      this.flashBridge(action, resObj)
+      this.flashBridge(packet)
     }
   }
 
@@ -346,7 +480,9 @@ export class CardJitsuSession {
   public forceWin(): void {
     this.matchWinner = 'player'
     this.phase = 'game-over'
-    this.sendToFlash('czo', [this.roomId, 0, 1, 1, 2, 3])
+    const fallbackIds = this.playerWonDealtCards.map((c) => c.dealtId).slice(-3)
+    const ids = fallbackIds.length === 3 ? fallbackIds : [1, 2, 3]
+    this.sendToFlash('czo', [0, 1, ...ids])
     this.handleMatchWonByPlayer()
     this.config.onGameOver?.('player')
     this.notify()
@@ -355,7 +491,9 @@ export class CardJitsuSession {
   public forceLoss(): void {
     this.matchWinner = 'sensei'
     this.phase = 'game-over'
-    this.sendToFlash('czo', [this.roomId, 0, 0, 1, 2, 3])
+    const fallbackIds = this.senseiWonDealtCards.map((c) => c.dealtId).slice(-3)
+    const ids = fallbackIds.length === 3 ? fallbackIds : [1, 2, 3]
+    this.sendToFlash('czo', [0, 0, ...ids])
     this.config.onGameOver?.('sensei')
     this.notify()
   }

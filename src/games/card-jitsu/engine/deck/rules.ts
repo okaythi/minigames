@@ -27,6 +27,16 @@ export function doesElementBeat(a: NinjaElement, b: NinjaElement): boolean {
 }
 
 /**
+ * Checks if card A beats card B (element priority, then higher value).
+ */
+export function doesCardBeat(a: CardData, b: CardData): boolean {
+  if (a.element !== b.element) {
+    return doesElementBeat(a.element, b.element)
+  }
+  return a.value > b.value
+}
+
+/**
  * Resolves a round clash between the player's card and Sensei's card.
  */
 export function resolveClash(

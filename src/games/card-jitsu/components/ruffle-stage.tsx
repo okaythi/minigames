@@ -7,7 +7,7 @@ interface RuffleStageProps {
 }
 
 type RufflePlayerElement = HTMLElement & {
-  readonly load: (options: { url: string; allowScriptAccess?: boolean }) => Promise<void>
+  readonly load: (options: Record<string, unknown>) => Promise<void>
   readonly dispatchAirtowerMessage?: (action: string, resObj: unknown) => void
   readonly remove: () => void
 }
@@ -116,32 +116,42 @@ export function RuffleStage({ session }: RuffleStageProps) {
           throw new Error('RufflePlayer was not initialized')
         }
 
-        // Configure Ruffle runtime
-        window.RufflePlayer.config = {
-          publicPath: '/games/card-jitsu/ruffle/',
-          polyfills: false,
-          autoplay: 'on',
-          unmuteOverlay: 'hidden',
-          letterbox: 'on',
-          warnOnUnsupportedContent: false,
-          quality: 'high',
-        }
-
         const ruffle = window.RufflePlayer.newest()
         const player = ruffle.createPlayer()
         playerElement = player
 
         // Fill the stage container. Ruffle's shadow root defaults the host to a
-        // fixed 550x400 inline-block; sizing it here (Ruffle turns width/height
-        // attributes into `:host` rules resolved against our flex container) is
-        // more reliable than relying on outer-document CSS alone.
+        // fixed 550x400 inline-block; sizing it here is reliable.
         player.setAttribute('width', '100%')
         player.setAttribute('height', '100%')
 
+        const pending: string[] = []
+        const flush = () => {
+          while (pending.length && typeof player.dispatchAirtowerMessage === 'function') {
+            const raw = pending.shift()!
+            console.log('[Card-Jitsu Bridge -> Flash Raw]', raw)
+            // Parse XT packet: %xt%<action>%-1%<args...>%
+            const parts = raw.split('%')
+            if (parts.length >= 4 && parts[1] === 'xt') {
+              const action = parts[2]!
+              const resObj = parts.slice(3, -1)
+              try {
+                console.log('[Card-Jitsu dispatchAirtowerMessage]', action, resObj)
+                player.dispatchAirtowerMessage(action, resObj)
+              } catch (bridgeError) {
+                console.warn('[Card-Jitsu Ruffle] dispatch error', action, bridgeError)
+              }
+            }
+          }
+        }
+
         // Connect global ExternalInterface hooks
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
+          console.log('[Card-Jitsu Flash -> Host]', { ext, action, args, type, roomId })
           if (cancelled) return
+          flush()
           session.handleFlashPacket(ext, action, args, type, roomId)
+          flush()
         }
 
         window.onFlashGameScore = (_score) => {
@@ -149,31 +159,35 @@ export function RuffleStage({ session }: RuffleStageProps) {
         }
 
         // Bridge outgoing TypeScript virtual SmartFox packets to Flash.
-        // Guarded by `cancelled` + connectivity so we never poke a destroyed
-        // Ruffle instance ("Ruffle Instance ID does not exist").
-        session.setBridge((action, resObj) => {
+        // Queue instead of silently dropping before addCallback attaches.
+        session.setBridge((msg: string) => {
           if (cancelled || !player.isConnected) return
-          if (typeof player.dispatchAirtowerMessage !== 'function') return
-          const payload = Array.isArray(resObj) ? [...resObj] : [resObj]
-          // Support both direct indexing and CP dataObj property
-          ;(payload as unknown as { dataObj: unknown }).dataObj = payload
-          try {
-            player.dispatchAirtowerMessage(action, payload)
-          } catch (bridgeError) {
-            console.warn('[Card-Jitsu Ruffle] dropped packet', action, bridgeError)
-          }
+          pending.push(msg)
+          flush()
         })
 
         // Mount player into the React-free host node.
         host.replaceChildren(player)
 
-        // Load Disney Card-Jitsu bootstrap
+        // Load Disney Card-Jitsu bootstrap with exact forceScale/forceAlign & logging
         await player.load({
           url: '/games/card-jitsu/card_bootstrap.swf',
           allowScriptAccess: true,
+          publicPath: '/games/card-jitsu/ruffle/',
+          polyfills: false,
+          autoplay: 'on',
+          unmuteOverlay: 'hidden',
+          letterbox: 'on',
+          scale: 'showAll',
+          forceScale: true,   // ignore Stage.scaleMode from the SWF
+          salign: '',         // center
+          forceAlign: true,   // ignore Stage.align = "TL"
+          quality: 'high',
+          logLevel: 'info',
         })
 
         if (cancelled) return
+        flush()
         setLoading(false)
       } catch (err) {
         // Errors raised after unmount (e.g. a load() rejected because the
