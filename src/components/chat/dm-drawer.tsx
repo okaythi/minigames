@@ -229,9 +229,13 @@ export function DmDrawer() {
                   </div>
                 )}
                 {active.messages.map((view) => {
+                  // Outbound envelopes are always ours — the optimistic wire
+                  // currently copies the partner as senderUsername, which
+                  // would otherwise flash the bubble on the left until ack.
                   const isMe =
-                    view.wire !== null &&
-                    view.wire.senderUsername.toLowerCase() === currentUser.username.toLowerCase()
+                    view.outbound !== null ||
+                    (view.wire !== null &&
+                      view.wire.senderUsername.toLowerCase() === currentUser.username.toLowerCase())
                   const envelopeId = view.outbound?.clientMessageId
                   return (
                     <ChatMessageItem
