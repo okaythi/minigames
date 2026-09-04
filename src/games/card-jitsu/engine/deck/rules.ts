@@ -14,27 +14,38 @@ export const INITIAL_EFFECTS: ActiveEffects = {
   lockedElement: null,
 }
 
-/**
- * Checks if element A beats element B.
- * Fire burns Snow, Snow freezes Water, Water douses Fire.
- */
-export function doesElementBeat(a: NinjaElement, b: NinjaElement): boolean {
-  return (
-    (a === 'fire' && b === 'snow') ||
-    (a === 'snow' && b === 'water') ||
-    (a === 'water' && b === 'fire')
-  )
+export const RULE_SET: Record<NinjaElement, NinjaElement> = {
+  f: 's',
+  w: 'f',
+  s: 'w',
+}
+
+const ELEMENT_NAMES: Record<NinjaElement, string> = {
+  f: 'Fire',
+  w: 'Water',
+  s: 'Snow',
 }
 
 /**
+ * Checks if element A beats element B.
+ * Fire burns Snow (f beats s), Snow freezes Water (s beats w), Water douses Fire (w beats f).
+ */
+export function doesElementBeat(a: NinjaElement, b: NinjaElement): boolean {
+  return RULE_SET[a] === b
+}
+
+/**
+ * Houdini's beats_card logic:
  * Checks if card A beats card B (element priority, then higher value).
  */
-export function doesCardBeat(a: CardData, b: CardData): boolean {
-  if (a.element !== b.element) {
-    return doesElementBeat(a.element, b.element)
+export function beatsCard(cardCheck: CardData, cardPlay: CardData): boolean {
+  if (cardCheck.element !== cardPlay.element) {
+    return RULE_SET[cardCheck.element] === cardPlay.element
   }
-  return a.value > b.value
+  return cardCheck.value > cardPlay.value
 }
+
+export const doesCardBeat = beatsCard
 
 /**
  * Resolves a round clash between the player's card and Sensei's card.
@@ -60,7 +71,7 @@ export function resolveClash(
       winner: 'player',
       reason: 'element',
       powerTriggered,
-      message: `${capitalize(pElem)} triumphs over ${capitalize(sElem)}!`,
+      message: `${ELEMENT_NAMES[pElem]} triumphs over ${ELEMENT_NAMES[sElem]}!`,
     }
   }
 
@@ -72,7 +83,7 @@ export function resolveClash(
       winner: 'sensei',
       reason: 'element',
       powerTriggered,
-      message: `Sensei's ${capitalize(sElem)} conquers ${capitalize(pElem)}!`,
+      message: `Sensei's ${ELEMENT_NAMES[sElem]} conquers ${ELEMENT_NAMES[pElem]}!`,
     }
   }
 
@@ -120,24 +131,20 @@ export function resolveClash(
 
 /**
  * Evaluates whether a player has satisfied the 3-card Card-Jitsu victory condition.
- * 
- * Rules:
- * 1. 3 cards of DIFFERENT elements (1 Fire + 1 Water + 1 Snow), all 3 in DIFFERENT colors.
- * 2. 3 cards of the SAME element, all 3 in DIFFERENT colors.
  */
 export function checkWinCondition(wonCards: readonly CardData[]): WinConditionResult {
   // Check Triad of Same Element (3 same elements, distinct colors)
   const byElement: Record<NinjaElement, CardData[]> = {
-    fire: [],
-    water: [],
-    snow: [],
+    f: [],
+    w: [],
+    s: [],
   }
 
   for (const card of wonCards) {
     byElement[card.element].push(card)
   }
 
-  for (const element of ['fire', 'water', 'snow'] as const) {
+  for (const element of ['f', 'w', 's'] as const) {
     const cards = byElement[element]
     if (cards.length >= 3) {
       // Find 3 distinct colors
@@ -160,9 +167,9 @@ export function checkWinCondition(wonCards: readonly CardData[]): WinConditionRe
   }
 
   // Check Triad of Different Elements (1 Fire + 1 Water + 1 Snow, all distinct colors)
-  const fires = byElement['fire']
-  const waters = byElement['water']
-  const snows = byElement['snow']
+  const fires = byElement['f']
+  const waters = byElement['w']
+  const snows = byElement['s']
 
   if (fires.length > 0 && waters.length > 0 && snows.length > 0) {
     for (const f of fires) {
@@ -181,8 +188,4 @@ export function checkWinCondition(wonCards: readonly CardData[]): WinConditionRe
   }
 
   return { won: false }
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }

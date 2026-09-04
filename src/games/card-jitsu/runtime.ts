@@ -4,6 +4,7 @@ import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
 import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
 import { CardJitsuSession } from './engine/gateway/session'
+import { DefaultCardStore } from './engine/deck/cards'
 import type { CardJitsuPhase, MatchStats, NinjaBelt, SenseiDifficulty } from './types'
 
 export interface CardJitsuRuntimeExtended extends GameRuntime {
@@ -54,6 +55,7 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
     mode: 'MODE_SEN',
     playerNick,
     playerColor: 6,
+    cardStore: new DefaultCardStore(),
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase

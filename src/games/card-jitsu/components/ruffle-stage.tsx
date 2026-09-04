@@ -30,6 +30,7 @@ declare global {
       roomId: number,
     ) => void
     onFlashGameScore?: (score: number) => void
+    stopMusic?: () => void
     shimLog?: (...args: unknown[]) => void
   }
 }
@@ -92,8 +93,18 @@ export function RuffleStage({ session }: RuffleStageProps) {
    * therefore rendered as *siblings* of this host, never inside it.
    */
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const handleUserInteraction = () => {
+    const audio = audioRef.current
+    if (audio && audio.paused) {
+      audio.play().catch(() => {
+        // Ignored if browser requires stronger user gesture
+      })
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -173,6 +184,13 @@ export function RuffleStage({ session }: RuffleStageProps) {
           // Handled via session onGameOver
         }
 
+        window.stopMusic = () => {
+          console.log('[Card-Jitsu Audio] stopMusic called from Flash')
+          if (audioRef.current) {
+            audioRef.current.pause()
+          }
+        }
+
         // Mount player into the React-free host node.
         host.replaceChildren(player)
 
@@ -220,6 +238,10 @@ export function RuffleStage({ session }: RuffleStageProps) {
       session.setBridge(() => {})
       window.onFlashAirtowerSend = () => {}
       window.onFlashGameScore = () => {}
+      window.stopMusic = () => {}
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
 
       const player = playerElement
       playerElement = null
@@ -238,7 +260,17 @@ export function RuffleStage({ session }: RuffleStageProps) {
   }, [session])
 
   return (
-    <div className="nx-card-jitsu-stage-container">
+    <div
+      className="nx-card-jitsu-stage-container"
+      onPointerDown={handleUserInteraction}
+    >
+      <audio
+        ref={audioRef}
+        id="ninja-music"
+        loop
+        preload="auto"
+        src="/games/card-jitsu/music/ninja-training.mp3"
+      />
       <div className="nx-card-jitsu-ruffle-stage">
         {/* Imperatively managed by Ruffle — keep this element childless in JSX. */}
         <div className="nx-card-jitsu-ruffle-host" ref={hostRef} />

@@ -1,5 +1,5 @@
-import type { CardData, NinjaBelt, NinjaElement, SenseiDifficulty } from '../../types'
-import { doesElementBeat, checkWinCondition } from '../deck/rules'
+import type { CardColor, CardData, NinjaBelt, NinjaElement, SenseiDifficulty } from '../../types'
+import { checkWinCondition, doesElementBeat } from '../deck/rules'
 
 export interface SenseiDecisionContext {
   readonly difficulty: SenseiDifficulty
@@ -11,6 +11,14 @@ export interface SenseiDecisionContext {
   readonly playerHistory: readonly CardData[]
 }
 
+const COUNTER_ELEMENT: Record<NinjaElement, NinjaElement> = {
+  f: 'w',
+  w: 's',
+  s: 'f',
+}
+
+const ALL_ELEMENTS: readonly NinjaElement[] = ['f', 'w', 's']
+const ALL_COLORS: readonly CardColor[] = ['r', 'b', 'g', 'y', 'o', 'p']
 
 /**
  * Sensei AI Decision Engine.
@@ -50,16 +58,11 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
       }
 
       // If no counter in current hand, Sensei uses an elemental mastery card
-      const counterElement: Record<NinjaElement, NinjaElement> = {
-        fire: 'water',
-        water: 'snow',
-        snow: 'fire',
-      }
       return {
         id: 9999,
-        element: counterElement[playerCard.element],
+        element: COUNTER_ELEMENT[playerCard.element],
         value: Math.min(12, playerCard.value + 2),
-        color: 'red',
+        color: 'r',
         powerId: 0,
         name: 'Sensei Mastery Counter',
         description: 'Sensei anticipated your exact motion',
@@ -99,17 +102,17 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
   // Priority B: Block Check (Is the player 1 card away from winning?)
   // Identify elements that would give the player a victory
   const threatElements: NinjaElement[] = []
-  for (const element of ['fire', 'water', 'snow'] as const) {
+  for (const element of ALL_ELEMENTS) {
     const mockCard: CardData = {
       id: -1,
       element,
       value: 10,
-      color: 'yellow',
+      color: 'y',
       powerId: 0,
     }
     // Check multiple colors to see if any gives player the win
-    for (const color of ['red', 'blue', 'green', 'yellow', 'orange', 'purple'] as const) {
-      const testCard = { ...mockCard, color }
+    for (const color of ALL_COLORS) {
+      const testCard: CardData = { ...mockCard, color }
       if (checkWinCondition([...playerWonCards, testCard]).won) {
         threatElements.push(element)
         break
@@ -120,16 +123,7 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
   // If there are threat elements, find cards that counter them
   if (threatElements.length > 0) {
     for (const threat of threatElements) {
-      // Element that beats the threat:
-      // threat == 'fire' -> countered by 'water'
-      // threat == 'water' -> countered by 'snow'
-      // threat == 'snow' -> countered by 'fire'
-      const counterElement: Record<NinjaElement, NinjaElement> = {
-        fire: 'water',
-        water: 'snow',
-        snow: 'fire',
-      }
-      const desired = counterElement[threat]
+      const desired = COUNTER_ELEMENT[threat]
       const matchingCards = senseiHand.filter((c) => c.element === desired)
       if (matchingCards.length > 0) {
         // Play highest value of this countering element
@@ -140,12 +134,12 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
 
   // Priority C: Player History Analysis (Predict player's favored element)
   if (playerHistory.length >= 2) {
-    const elementCounts: Record<NinjaElement, number> = { fire: 0, water: 0, snow: 0 }
+    const elementCounts: Record<NinjaElement, number> = { f: 0, w: 0, s: 0 }
     for (const card of playerHistory.slice(-4)) {
       elementCounts[card.element]++
     }
     // Find most played element
-    let mostPlayed: NinjaElement = 'fire'
+    let mostPlayed: NinjaElement = 'f'
     let maxCount = -1
     for (const [elem, count] of Object.entries(elementCounts) as [NinjaElement, number][]) {
       if (count > maxCount) {
@@ -154,12 +148,7 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
       }
     }
 
-    const counterElement: Record<NinjaElement, NinjaElement> = {
-      fire: 'water',
-      water: 'snow',
-      snow: 'fire',
-    }
-    const desired = counterElement[mostPlayed]
+    const desired = COUNTER_ELEMENT[mostPlayed]
     const counterCards = senseiHand.filter((c) => c.element === desired)
     if (counterCards.length > 0) {
       return counterCards.reduce((prev, curr) => (curr.value > prev.value ? curr : prev))

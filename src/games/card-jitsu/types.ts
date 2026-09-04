@@ -1,6 +1,16 @@
-export type NinjaElement = 'fire' | 'water' | 'snow'
+export type NinjaElement = 'f' | 'w' | 's'
 
-export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'purple'
+export type CardColor = 'r' | 'b' | 'g' | 'y' | 'o' | 'p'
+
+export interface OwnedCard {
+  readonly cardId: number
+  readonly quantity: number
+  readonly memberQuantity: number
+}
+
+export interface CardStore {
+  getOwned(): readonly OwnedCard[]
+}
 
 export type NinjaBelt =
   | 'white'
@@ -42,6 +52,7 @@ export interface CardData {
   readonly powerId: number
   readonly name?: string
   readonly description?: string
+  readonly setId?: number
 }
 
 export type ClashWinner = 'player' | 'sensei' | 'tie'

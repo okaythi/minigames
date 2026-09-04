@@ -28,6 +28,13 @@ class Bootstrap {
         };
     }
 
+    static function trap(obj:Object, label:String):Void {
+        obj.__resolve = function(name:String) {
+            ExternalInterface.call("shimLog", "MISSING", label + "." + name);
+            return undefined;
+        };
+    }
+
     function Bootstrap(root:MovieClip) {
         var nick:String = (root.nick != undefined) ? String(root.nick) : "Ninja";
         var modeRaw:Object = (root.mode != undefined) ? root.mode : 3;
@@ -74,6 +81,9 @@ class Bootstrap {
         Bootstrap.wrap(SHELL, "isItemInMyInventory", function(id:Number):Boolean { return false; });
         Bootstrap.wrap(SHELL, "sendJoinRoom", function():Void {});
         Bootstrap.wrap(SHELL, "showPrompt", function():Void {});
+        Bootstrap.wrap(SHELL, "stopGameMusic", function():Void {
+            ExternalInterface.call("stopMusic");
+        });
 
         var AIRTOWER:Object = {};
         AIRTOWER._listeners = {};
@@ -96,6 +106,11 @@ class Bootstrap {
 
         var ENGINE:Object = {};
 
+        Bootstrap.trap(SHELL, "SHELL");
+        Bootstrap.trap(AIRTOWER, "AIRTOWER");
+        Bootstrap.trap(INTERFACE, "INTERFACE");
+        Bootstrap.trap(ENGINE, "ENGINE");
+
         _global.SHELL = SHELL;
         _global.AIRTOWER = AIRTOWER;
         _global.INTERFACE = INTERFACE;
@@ -110,29 +125,6 @@ class Bootstrap {
         if (_global.com.clubpenguin.security == undefined) _global.com.clubpenguin.security = {};
         _global.com.clubpenguin.security.Security = { doSecurityCheck: function():Boolean { return true; } };
 
-        if (_global.com.clubpenguin.util == undefined) _global.com.clubpenguin.util = {};
-        var LocaleText:Object = {};
-        LocaleText.ready = true;
-        Bootstrap.wrap(LocaleText, "isReady", function():Boolean { return true; });
-        Bootstrap.wrap(LocaleText, "init", function():Void {});
-        Bootstrap.wrap(LocaleText, "addEventListener", function():Void {});
-        Bootstrap.wrap(LocaleText, "removeEventListener", function():Void {});
-        Bootstrap.wrap(LocaleText, "getText", function(k:String):String {
-            if (k == "sensei_label") return "Sensei";
-            if (k == "help") return "Card-Jitsu Help";
-            return k;
-        });
-        Bootstrap.wrap(LocaleText, "getTextReplaced", function(k:String, rep:Array):String {
-            var s:String = _global.com.clubpenguin.util.LocaleText.getText(k);
-            if (rep != undefined) {
-                for (var i:Number = 0; i < rep.length; i++) {
-                    s = s.split("%" + i + "%").join(String(rep[i]));
-                }
-            }
-            return s;
-        });
-        _global.com.clubpenguin.util.LocaleText = LocaleText;
-
         ExternalInterface.addCallback("dispatchAirtowerMessage", null,
             function(action:String, resObj:Array):Void {
                 var list:Array = _global.AIRTOWER._listeners[action];
@@ -142,9 +134,68 @@ class Bootstrap {
 
         ExternalInterface.call("shimLog", "bootstrap ready", [modeNum, nick, color, rank]);
 
-        var holder:MovieClip = root.createEmptyMovieClip("gameHolder", 1);
-        holder._lockroot = true;
-        var loader:MovieClipLoader = new MovieClipLoader();
-        loader.loadClip(SHELL.getGameContentPath() + "/card.swf", holder);
+        var loadCardSWF:Function = function():Void {
+            var holder:MovieClip = root.createEmptyMovieClip("gameHolder", 1);
+            holder._lockroot = true;
+            var loader:MovieClipLoader = new MovieClipLoader();
+            loader.loadClip(SHELL.getGameContentPath() + "/card.swf", holder);
+        };
+
+        var localeHolder:MovieClip = root.createEmptyMovieClip("localeHolder", 2);
+        var localeLoader:MovieClipLoader = new MovieClipLoader();
+        var localeListener:Object = {};
+        localeListener.onLoadInit = function(target:MovieClip):Void {
+            var data:Object = {};
+            var list:Array = target.localeText;
+            if (list != undefined) {
+                for (var i:Number = 0; i < list.length; i++) {
+                    var item:Object = list[i];
+                    if (item != undefined && item.id != undefined) {
+                        data[item.id] = item.value;
+                    }
+                }
+            }
+            if (_global.com.clubpenguin.util == undefined) _global.com.clubpenguin.util = {};
+            _global.com.clubpenguin.util.LocaleText = {
+                ready: true,
+                dataArray: data,
+                getText: function(id:String):String {
+                    if (this.dataArray != undefined && this.dataArray[id] != undefined) {
+                        return this.dataArray[id];
+                    }
+                    return id;
+                },
+                getTextReplaced: function(id:String, replacements:Array):String {
+                    var str:String = this.getText(id);
+                    if (replacements != undefined) {
+                        for (var r:Number = 0; r < replacements.length; r++) {
+                            str = str.split("%" + r + "%").join(replacements[r]);
+                        }
+                    }
+                    return str;
+                },
+                isReady: function():Boolean { return true; },
+                getLocaleID: function():Number { return 0; }
+            };
+            ExternalInterface.call("shimLog", "locale text loaded OK!", list.length);
+            loadCardSWF();
+        };
+
+        localeListener.onLoadError = function():Void {
+            ExternalInterface.call("shimLog", "locale load error, fallback");
+            if (_global.com.clubpenguin.util == undefined) _global.com.clubpenguin.util = {};
+            _global.com.clubpenguin.util.LocaleText = {
+                ready: true,
+                dataArray: { sensei_label: "Sensei" },
+                getText: function(id:String):String {
+                    return (this.dataArray != undefined && this.dataArray[id] != undefined) ? this.dataArray[id] : id;
+                },
+                isReady: function():Boolean { return true; }
+            };
+            loadCardSWF();
+        };
+
+        localeLoader.addListener(localeListener);
+        localeLoader.loadClip(SHELL.getGameContentPath() + "/lang/en/locale.swf", localeHolder);
     }
 }

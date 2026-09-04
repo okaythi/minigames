@@ -1,6 +1,7 @@
 import type {
   CardData,
   CardJitsuPhase,
+  CardStore,
   ClashResult,
   MatchStats,
   NinjaBelt,
@@ -8,10 +9,10 @@ import type {
   SenseiDifficulty,
   WinConditionResult,
 } from '../../types'
-import { ALL_CARDS, createSenseiDeck, createStarterDeck } from '../deck/cards'
+import { ALL_CARDS, CARD_BY_ID, DefaultCardStore, sample } from '../deck/cards'
 import {
   type ActiveEffects,
-  doesCardBeat,
+  beatsCard,
   INITIAL_EFFECTS,
   resolveClash,
 } from '../deck/rules'
@@ -46,6 +47,7 @@ export interface SessionConfig {
   readonly mode: 'MODE_EXP' | 'MODE_SEN'
   readonly playerNick?: string
   readonly playerColor?: number
+  readonly cardStore?: CardStore
   readonly onStateChange?: (stats: MatchStats, phase: CardJitsuPhase) => void
   readonly onClashDone?: (result: ClashResult, winCondition: WinConditionResult) => void
   readonly onGameOver?: (winner: 'player' | 'sensei') => void
@@ -58,12 +60,12 @@ export interface DealtCard {
 }
 
 export class CardJitsuSession {
+  private readonly store: CardStore
   private phase: CardJitsuPhase = 'dialogue'
   private round = 1
   private nextDealtId = 1
 
-  private playerDeck: CardData[] = []
-  private senseiDeck: CardData[] = []
+  private senseiColors: string[] = []
 
   // Track dealt cards by dealtId
   private playerDealtMap = new Map<number, CardData>()
@@ -89,6 +91,7 @@ export class CardJitsuSession {
 
   constructor(config: SessionConfig) {
     this.config = config
+    this.store = config.cardStore ?? new DefaultCardStore()
   }
 
   public setBridge(bridge: (msg: string) => void): void {
@@ -159,9 +162,7 @@ export class CardJitsuSession {
     this.playerDealtMap.clear()
     this.senseiDealtMap.clear()
     this.senseiMoveMap.clear()
-
-    this.playerDeck = createStarterDeck()
-    this.senseiDeck = createSenseiDeck()
+    this.senseiColors = []
 
     this.phase = 'choosing'
     this.notify()
@@ -215,118 +216,62 @@ export class CardJitsuSession {
     this.sendToFlash('sz', [])
   }
 
-  private handleDeal(): void {
-    const cardsNeeded = 5 - this.playerDealtMap.size
-    if (cardsNeeded <= 0) return
-
-    const playerDealtStrings: string[] = []
-    const senseiDealtStrings: string[] = []
-
-    const usedSenseiColors = new Set<string>()
-    for (const c of this.senseiDealtMap.values()) {
-      usedSenseiColors.add(c.color)
-    }
-
-    for (let i = 0; i < cardsNeeded; i++) {
-      let playerCard = this.playerDeck.shift()
-      if (!playerCard) {
-        this.playerDeck = createStarterDeck()
-        playerCard = this.playerDeck.shift()!
+  private getWinCard(playerCard: CardData): CardData {
+    if (this.senseiColors.length >= 6) this.senseiColors = []
+    const all = ALL_CARDS
+    const start = Math.floor(Math.random() * (all.length + 1))
+    for (let k = 0; k < all.length; k++) {
+      const c = all[(start + k) % all.length]!
+      if (!this.senseiColors.includes(c.color) && beatsCard(c, playerCard)) {
+        this.senseiColors.push(c.color)
+        return c
       }
-      const pDealtId = this.nextDealtId++
-      this.playerDealtMap.set(pDealtId, playerCard)
-      playerDealtStrings.push(this.formatCardString(pDealtId, playerCard))
+    }
+    return all[Math.floor(Math.random() * all.length)]!
+  }
 
-      // Select paired Sensei card at deal time
-      const senseiCard = this.selectSenseiCardForDeal(playerCard, usedSenseiColors)
-      usedSenseiColors.add(senseiCard.color)
-      const sDealtId = this.nextDealtId++
-      this.senseiDealtMap.set(sDealtId, senseiCard)
-      senseiDealtStrings.push(this.formatCardString(sDealtId, senseiCard))
+  private handleDeal(): void {
+    const canBeatSensei = this.getPlayerBeltRank() >= 9
+    // deck = Counter of owned card ids, power cards excluded below black belt
+    const deck = new Map<number, number>()
+    for (const o of this.store.getOwned()) {
+      const card = CARD_BY_ID.get(o.cardId)
+      if (!card) continue
+      if (!canBeatSensei && card.powerId !== 0) continue
+      deck.set(o.cardId, (deck.get(o.cardId) ?? 0) + o.quantity + o.memberQuantity)
+    }
+    for (const c of this.playerDealtMap.values()) {
+      deck.set(c.id, (deck.get(c.id) ?? 0) - 1) // deck - dealt
+    }
+    const pool: number[] = []
+    for (const [id, n] of deck) {
+      for (let i = 0; i < n; i++) pool.push(id)
+    }
+    const need = 5 - this.playerDealtMap.size
+    if (need <= 0) return
+    const undealt = sample(pool, need)
 
-      // Pair them: when player plays pDealtId, Sensei will play sDealtId
-      this.senseiMoveMap.set(pDealtId, sDealtId)
+    const s: string[] = []
+    const p: string[] = []
+    for (const id of undealt) {
+      const card = CARD_BY_ID.get(id)!
+      const pId = this.nextDealtId++
+      this.playerDealtMap.set(pId, card)
+      p.push(this.formatCardString(pId, card))
+
+      const senseiCard = canBeatSensei
+        ? ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)]!
+        : this.getWinCard(card)
+      const sId = this.nextDealtId++
+      this.senseiDealtMap.set(sId, senseiCard)
+      s.push(this.formatCardString(sId, senseiCard))
+      this.senseiMoveMap.set(pId, sId)
     }
 
-    // Houdini: send deal 0 (Sensei) then deal 1 (Player)
-    this.sendToFlash('zm', ['deal', 0, ...senseiDealtStrings])
-    this.sendToFlash('zm', ['deal', 1, ...playerDealtStrings])
+    this.sendToFlash('zm', ['deal', 0, ...s])
+    this.sendToFlash('zm', ['deal', 1, ...p])
     this.phase = 'choosing'
     this.notify()
-  }
-
-  private selectSenseiCardForDeal(playerCard: CardData, usedColors: Set<string>): CardData {
-    const canBeatSensei = (BELT_TO_RANK[this.config.playerBelt] ?? 1) >= 9
-    const difficulty = this.config.difficulty
-
-    let shouldCounter = false
-    let shouldLose = false
-
-    if (difficulty === 'ninja') {
-      shouldCounter = !canBeatSensei || Math.random() < 0.5
-    } else if (difficulty === 'hard') {
-      shouldCounter = Math.random() < 0.8
-    } else if (difficulty === 'medium') {
-      shouldCounter = Math.random() < 0.5
-    } else if (difficulty === 'easy') {
-      const roll = Math.random()
-      if (roll < 0.2) {
-        shouldCounter = true
-      } else if (roll < 0.6) {
-        shouldLose = true
-      }
-    }
-
-    if (shouldCounter) {
-      const counter = this.findMatchingSenseiCard(
-        (c) => doesCardBeat(c, playerCard),
-        usedColors,
-      )
-      if (counter) return counter
-    } else if (shouldLose) {
-      const losing = this.findMatchingSenseiCard(
-        (c) => doesCardBeat(playerCard, c),
-        usedColors,
-      )
-      if (losing) return losing
-    }
-
-    // Default: draw from senseiDeck or fallback to ALL_CARDS
-    const fallback =
-      this.senseiDeck.shift() ??
-      ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)]!
-    return fallback
-  }
-
-  private findMatchingSenseiCard(
-    predicate: (c: CardData) => boolean,
-    usedColors: Set<string>,
-  ): CardData | null {
-    // 1. Try from senseiDeck with unused color
-    const deckIdxUnused = this.senseiDeck.findIndex(
-      (c) => predicate(c) && !usedColors.has(c.color),
-    )
-    if (deckIdxUnused >= 0) {
-      return this.senseiDeck.splice(deckIdxUnused, 1)[0]!
-    }
-    // 2. Try from senseiDeck with any color
-    const deckIdx = this.senseiDeck.findIndex(predicate)
-    if (deckIdx >= 0) {
-      return this.senseiDeck.splice(deckIdx, 1)[0]!
-    }
-    // 3. Try from ALL_CARDS with unused color
-    const allMatchingUnused = ALL_CARDS.filter(
-      (c) => predicate(c) && !usedColors.has(c.color),
-    )
-    if (allMatchingUnused.length > 0) {
-      return allMatchingUnused[Math.floor(Math.random() * allMatchingUnused.length)]!
-    }
-    // 4. Try from ALL_CARDS any color
-    const allMatching = ALL_CARDS.filter(predicate)
-    if (allMatching.length > 0) {
-      return allMatching[Math.floor(Math.random() * allMatching.length)]!
-    }
-    return null
   }
 
   private handlePickCard(playerDealtId: number): void {
@@ -431,16 +376,16 @@ export class CardJitsuSession {
   ): number[] | null {
     // Group by element
     const byElem: Record<NinjaElement, DealtCard[]> = {
-      fire: [],
-      water: [],
-      snow: [],
+      f: [],
+      w: [],
+      s: [],
     }
     for (const item of wonDealtCards) {
       byElem[item.card.element].push(item)
     }
 
     // 1. Check same-element 3 different colors
-    for (const element of ['fire', 'water', 'snow'] as const) {
+    for (const element of ['f', 'w', 's'] as const) {
       const cards = byElem[element]
       const colorCards: DealtCard[] = []
       const colors = new Set<string>()
@@ -456,10 +401,10 @@ export class CardJitsuSession {
     }
 
     // 2. Check different elements 3 different colors (1 fire, 1 water, 1 snow)
-    for (const f of byElem.fire) {
-      for (const w of byElem.water) {
+    for (const f of byElem.f) {
+      for (const w of byElem.w) {
         if (f.card.color === w.card.color) continue
-        for (const s of byElem.snow) {
+        for (const s of byElem.s) {
           if (s.card.color === f.card.color || s.card.color === w.card.color) continue
           return [f.dealtId, w.dealtId, s.dealtId]
         }
@@ -483,9 +428,7 @@ export class CardJitsuSession {
   }
 
   private formatCardString(dealtId: number, card: CardData): string {
-    const elem = card.element === 'fire' ? 'f' : card.element === 'water' ? 'w' : 's'
-    const col = card.color.charAt(0).toLowerCase()
-    return `${dealtId}|${card.id}|${elem}|${card.value}|${col}|${card.powerId}`
+    return `${dealtId}|${card.id}|${card.element}|${card.value}|${card.color}|${card.powerId}`
   }
 
   private sendToFlash(action: string, args: readonly unknown[]): void {

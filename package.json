@@ -6,6 +6,7 @@
   "description": "Nixlabs Games - a collection of hand-built HTML5 + TypeScript minigames, shipped as a Cloudflare Pages site.",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/assert-card-jitsu-assets.mjs --report-only",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",

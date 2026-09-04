@@ -1,9 +1,10 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { statsDevPlugin } from './vite/stats-dev-plugin'
+import { cardJitsuStrict404Plugin } from './vite/card-jitsu-strict-404-plugin'
 
 export default defineConfig({
-  plugins: [react(), statsDevPlugin()],
+  plugins: [react(), statsDevPlugin(), cardJitsuStrict404Plugin()],
   build: {
     target: 'es2022',
     cssCodeSplit: false,
