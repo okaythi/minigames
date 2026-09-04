@@ -1,14 +1,19 @@
 import sys
 import struct
+import zlib
 
 def parse_data(data):
     sig = data[:3].decode('ascii', errors='replace')
     ver = data[3]
     flen = struct.unpack('<I', data[4:8])[0]
     
-    # Read bits
-    # rect starts at byte 8
-    rect_bytes = data[8:]
+    if sig == 'CWS':
+        decompressed = zlib.decompress(data[8:])
+        body = decompressed
+    else:
+        body = data[8:]
+
+    rect_bytes = body
     bit_pos = 0
     def read_ubits(n):
         nonlocal bit_pos
