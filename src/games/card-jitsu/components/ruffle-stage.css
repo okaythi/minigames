@@ -22,6 +22,15 @@
   justify-content: center;
 }
 
+/* Imperative mount node for <ruffle-player>; React never renders children here. */
+.nx-card-jitsu-ruffle-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nx-card-jitsu-ruffle-stage ruffle-player {
   width: 100% !important;
   height: 100% !important;
