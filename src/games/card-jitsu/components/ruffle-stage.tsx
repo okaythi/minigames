@@ -131,6 +131,13 @@ export function RuffleStage({ session }: RuffleStageProps) {
         const player = ruffle.createPlayer()
         playerElement = player
 
+        // Fill the stage container. Ruffle's shadow root defaults the host to a
+        // fixed 550x400 inline-block; sizing it here (Ruffle turns width/height
+        // attributes into `:host` rules resolved against our flex container) is
+        // more reliable than relying on outer-document CSS alone.
+        player.setAttribute('width', '100%')
+        player.setAttribute('height', '100%')
+
         // Connect global ExternalInterface hooks
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
           if (cancelled) return
