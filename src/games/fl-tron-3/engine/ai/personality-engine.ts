@@ -264,39 +264,65 @@ export class PersonalityEngine {
     const destRow = ai.row + curVec.y
 
     const p1Vec = DIRECTION_VECTORS[p1.dir]
-    const p1FutureCol = p1.col + p1Vec.x * 4
-    const p1FutureRow = p1.row + p1Vec.y * 4
+    // Lead point 3 cells ahead of player
+    const p1LeadCol = p1.col + p1Vec.x * 3
+    const p1LeadRow = p1.row + p1Vec.y * 3
+
+    // Dynamic variation to prevent deterministic choking
+    const dynamicSeed = Math.sin(this.elapsedTime * 3.14 + ai.col * 0.17 + ai.row * 0.31) * 2.5
 
     for (const dir of safeDirs) {
       const vec = DIRECTION_VECTORS[dir]
       const nextCol = destCol + vec.x
       const nextRow = destRow + vec.y
 
-      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 500)
-      const distToIntercept = Math.hypot(nextCol - p1FutureCol, nextRow - p1FutureRow)
-      
-      const alignmentScore = (vec.x === p1Vec.x && vec.y === p1Vec.y) ? 20 : 0
-      
+      // 1. Chamber survivability check - survivability is the ONLY thing that stops pursuit
+      const chamber = grid.floodFillArea(nextCol, nextRow, 800)
+      if (chamber < 40) {
+        // Lethal hazard or trap: heavily penalize so survival veto/instinct takes over
+        continue
+      }
+      const chamberPenalty = chamber < 120 ? (120 - chamber) * 4.0 : 0
+
+      // 2. Obsessive pursuit & tailing metrics
+      const distToPlayer = Math.hypot(nextCol - p1.col, nextRow - p1.row)
+      const distToLead = Math.hypot(nextCol - p1LeadCol, nextRow - p1LeadRow)
+
+      // Heading alignment: traveling in same direction as player
+      const isAligned = vec.x === p1Vec.x && vec.y === p1Vec.y
+      const alignmentScore = isAligned ? 35 : 0
+
+      // Behind score: candidate cell lies directly on player's travel line, behind them
       let behindScore = 0
       if (p1Vec.x !== 0) {
-         if (nextRow === p1.row && Math.sign(p1.col - nextCol) === Math.sign(p1Vec.x)) {
-            behindScore = 40
-         }
+        if (nextRow === p1.row && Math.sign(p1.col - nextCol) === Math.sign(p1Vec.x)) {
+          behindScore = 70
+        }
       } else {
-         if (nextCol === p1.col && Math.sign(p1.row - nextRow) === Math.sign(p1Vec.y)) {
-            behindScore = 40
-         }
+        if (nextCol === p1.col && Math.sign(p1.row - nextRow) === Math.sign(p1Vec.y)) {
+          behindScore = 70
+        }
       }
 
-      // Assassin: Relentless tailing and future-intercept.
-      // Again, zero chamber scoring because SurvivalEngine already vetoed suicidal moves.
+      // Closing distance to player (obsessed pursuit)
+      const pursuitScore = Math.max(0, 120 - distToPlayer) * 3.0 - distToLead * 2.0
+
+      // 3. Voronoi territory control (subordinated to tailing)
+      const territory = grid.voronoiTerritory(p1.col, p1.row, nextCol, nextRow, 300)
+      const territoryScore = territory.aiArea * 0.8 - territory.p1Area * 0.5
+
+      // Momentum bonus to avoid erratic micro-turning
+      const momentumBonus = dir === ai.dir ? 18 : 0
+
+      // Assassin formula: Obsessive pursuit + tail lock, checked by chamber survival
       const score =
-        territory.aiArea * 2.5 -
-        territory.p1Area * 1.5 -
-        distToIntercept * 3.0 +
-        alignmentScore +
+        pursuitScore +
         behindScore +
-        (dir === ai.dir ? 15 : 0)
+        alignmentScore +
+        territoryScore +
+        momentumBonus +
+        dynamicSeed -
+        chamberPenalty
 
       if (score > bestScore) {
         bestScore = score

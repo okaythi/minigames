@@ -1,5 +1,5 @@
 import { DIRECTION_VECTORS, OPPOSITE_DIRECTIONS } from '../cycle'
-import type { OccupancyGrid } from '../grid'
+import { OCCUPANCY, type OccupancyGrid, type OccupancyType } from '../grid'
 import type { CycleState, Direction } from '../types'
 import type { ChamberDiagnosis, MoveProposal, VetoVerdict } from './types'
 
@@ -102,48 +102,79 @@ export class SurvivalEngine {
       const futureCol = destCol + propVec.x
       const futureRow = destRow + propVec.y
 
-      if (level >= 6) {
-        // Level 6 Master Core: Mathematical Zero-Self-Trap Guarantee
-        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 2500)
-        let maxAvailableChamber = proposedChamber
-        for (const d of safeDirections) {
-          const dVec = DIRECTION_VECTORS[d]
-          const c = destCol + dVec.x
-          const r = destRow + dVec.y
-          const ch = grid.floodFillArea(c, r, 2500)
-          if (ch > maxAvailableChamber) {
-            maxAvailableChamber = ch
+      // Temporarily mark destination cell as occupied so flood-fill does not leak backward through entrance
+      const prevDestVal = grid.get(destCol, destRow) as OccupancyType
+      grid.set(destCol, destRow, OCCUPANCY.aiTrail)
+
+      try {
+        if (level >= 6) {
+          // Level 6 Master Core: Mathematical Zero-Self-Trap Guarantee
+          const proposedChamber = grid.floodFillArea(futureCol, futureRow, 2500)
+          let maxAvailableChamber = proposedChamber
+          for (const d of safeDirections) {
+            const dVec = DIRECTION_VECTORS[d]
+            const c = destCol + dVec.x
+            const r = destRow + dVec.y
+            const ch = grid.floodFillArea(c, r, 2500)
+            if (ch > maxAvailableChamber) {
+              maxAvailableChamber = ch
+            }
+          }
+
+          // Secondary exit check: verify candidate cell has at least 1 legal turn out
+          let secondaryExits = 0
+          for (const d2 of ALL_DIRECTIONS) {
+            if (d2 === OPPOSITE_DIRECTIONS[proposal.desiredDir]) continue
+            const d2Vec = DIRECTION_VECTORS[d2]
+            if (grid.isFree(futureCol + d2Vec.x, futureRow + d2Vec.y)) {
+              secondaryExits += 1
+            }
+          }
+
+          // Strictly veto blind dead ends (0 secondary exits) and moves that enter a partitioned sub-chamber
+          if (secondaryExits === 0 || proposedChamber < 50) {
+            isSafe = false
+          } else if (maxAvailableChamber > 100 && proposedChamber < maxAvailableChamber * 0.85) {
+            isSafe = false
+          }
+        } else if (level === 5) {
+          // Level 5 Assassin: Relentless pursuit protected by strict chamber survivability.
+          // Survivability is the ONLY thing that stops pursuit: strictly veto dead-ends and trapped sub-chambers.
+          const proposedChamber = grid.floodFillArea(futureCol, futureRow, 2000)
+          let maxAvailableChamber = proposedChamber
+          for (const d of safeDirections) {
+            const dVec = DIRECTION_VECTORS[d]
+            const c = destCol + dVec.x
+            const r = destRow + dVec.y
+            const ch = grid.floodFillArea(c, r, 2000)
+            if (ch > maxAvailableChamber) {
+              maxAvailableChamber = ch
+            }
+          }
+
+          let secondaryExits = 0
+          for (const d2 of ALL_DIRECTIONS) {
+            if (d2 === OPPOSITE_DIRECTIONS[proposal.desiredDir]) continue
+            const d2Vec = DIRECTION_VECTORS[d2]
+            if (grid.isFree(futureCol + d2Vec.x, futureRow + d2Vec.y)) {
+              secondaryExits += 1
+            }
+          }
+
+          if (secondaryExits === 0 || proposedChamber < 60) {
+            isSafe = false
+          } else if (maxAvailableChamber > 100 && proposedChamber < maxAvailableChamber * 0.70) {
+            isSafe = false
+          }
+        } else {
+          // Levels 1-4: Exact original behavior untouched
+          const proposedChamber = grid.floodFillArea(futureCol, futureRow, 500)
+          if (proposedChamber < 30) {
+            isSafe = false
           }
         }
-
-        // Secondary exit check: verify candidate cell has at least 1 legal turn out
-        let secondaryExits = 0
-        for (const d2 of ALL_DIRECTIONS) {
-          if (d2 === OPPOSITE_DIRECTIONS[proposal.desiredDir]) continue
-          const d2Vec = DIRECTION_VECTORS[d2]
-          if (grid.isFree(futureCol + d2Vec.x, futureRow + d2Vec.y)) {
-            secondaryExits += 1
-          }
-        }
-
-        // Strictly veto blind dead ends (0 secondary exits) and moves that enter a partitioned sub-chamber
-        if (secondaryExits === 0 || proposedChamber < 50) {
-          isSafe = false
-        } else if (maxAvailableChamber > 100 && proposedChamber < maxAvailableChamber * 0.85) {
-          isSafe = false
-        }
-      } else if (level === 5) {
-        // Level 5 Assassin: High survival volume guarantee (near-zero self-trap chance)
-        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 800)
-        if (proposedChamber < 50) {
-          isSafe = false
-        }
-      } else {
-        // Levels 1-4: Exact original behavior untouched
-        const proposedChamber = grid.floodFillArea(futureCol, futureRow, 500)
-        if (proposedChamber < 30) {
-          isSafe = false
-        }
+      } finally {
+        grid.set(destCol, destRow, prevDestVal)
       }
     }
 
@@ -224,34 +255,41 @@ export class SurvivalEngine {
     const destCol = ai.col + curVec.x
     const destRow = ai.row + curVec.y
 
-    for (const dir of safeDirs) {
-      const vec = DIRECTION_VECTORS[dir]
-      const nextCol = destCol + vec.x
-      const nextRow = destRow + vec.y
+    const prevDestVal = grid.get(destCol, destRow) as OccupancyType
+    grid.set(destCol, destRow, OCCUPANCY.aiTrail)
 
-      const chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 2500 : 600)
-      const runway = this.getClearRunway(destCol, destRow, dir, grid)
+    try {
+      for (const dir of safeDirs) {
+        const vec = DIRECTION_VECTORS[dir]
+        const nextCol = destCol + vec.x
+        const nextRow = destRow + vec.y
 
-      let secondaryExits = 0
-      for (const d2 of ALL_DIRECTIONS) {
-        if (d2 === OPPOSITE_DIRECTIONS[dir]) continue
-        const d2Vec = DIRECTION_VECTORS[d2]
-        if (grid.isFree(nextCol + d2Vec.x, nextRow + d2Vec.y)) {
-          secondaryExits += 1
+        const chamber = grid.floodFillArea(nextCol, nextRow, level >= 5 ? 2500 : 600)
+        const runway = this.getClearRunway(destCol, destRow, dir, grid)
+
+        let secondaryExits = 0
+        for (const d2 of ALL_DIRECTIONS) {
+          if (d2 === OPPOSITE_DIRECTIONS[dir]) continue
+          const d2Vec = DIRECTION_VECTORS[d2]
+          if (grid.isFree(nextCol + d2Vec.x, nextRow + d2Vec.y)) {
+            secondaryExits += 1
+          }
+        }
+
+        // Strictly prioritize open chamber, secondary exits, and clear escape runway
+        const score =
+          chamber * 3.0 +
+          secondaryExits * 60.0 +
+          runway * 12.0 +
+          (dir === ai.dir ? 25 : 0)
+
+        if (score > bestScore) {
+          bestScore = score
+          bestDir = dir
         }
       }
-
-      // Strictly prioritize open chamber, secondary exits, and clear escape runway
-      const score =
-        chamber * 3.0 +
-        secondaryExits * 60.0 +
-        runway * 12.0 +
-        (dir === ai.dir ? 25 : 0)
-
-      if (score > bestScore) {
-        bestScore = score
-        bestDir = dir
-      }
+    } finally {
+      grid.set(destCol, destRow, prevDestVal)
     }
 
     return bestDir
