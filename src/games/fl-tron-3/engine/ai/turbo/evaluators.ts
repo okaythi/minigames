@@ -31,14 +31,24 @@ export function computeGeometricCutoffScore(ai: CycleState, p1: CycleState, grid
       const intersectRow = aiVec.y !== 0 ? p1.row : ai.row
 
       if (grid.isFree(intersectCol, intersectRow)) {
-        const normalSpeedWins = aiDist < p1Dist
-        const turboSpeedWins = aiDist / 1.8 < p1Dist - 0.5
+        // Check exit viability at and beyond the intersection point
+        const exitCol = intersectCol + aiVec.x
+        const exitRow = intersectRow + aiVec.y
+        const hasForwardExit = grid.isFree(exitCol, exitRow)
+        const hasSideExits =
+          grid.isFree(intersectCol - aiVec.y, intersectRow - aiVec.x) ||
+          grid.isFree(intersectCol + aiVec.y, intersectRow + aiVec.x)
 
-        if (!normalSpeedWins && turboSpeedWins) {
-          return 90
-        }
-        if (normalSpeedWins && aiDist > 4 && p1Dist < 16) {
-          return 55
+        if (hasForwardExit || hasSideExits) {
+          const normalSpeedWins = aiDist < p1Dist
+          const turboSpeedWins = aiDist / 1.8 < p1Dist - 0.5
+
+          if (!normalSpeedWins && turboSpeedWins) {
+            return 90
+          }
+          if (normalSpeedWins && aiDist > 4 && p1Dist < 16) {
+            return 55
+          }
         }
       }
     }
@@ -49,8 +59,19 @@ export function computeGeometricCutoffScore(ai: CycleState, p1: CycleState, grid
         (aiVec.x !== 0 && Math.sign(dx) === Math.sign(aiVec.x) && ai.row === p1.row) ||
         (aiVec.y !== 0 && Math.sign(dy) === Math.sign(aiVec.y) && ai.col === p1.col)
       const dist = Math.abs(dx) + Math.abs(dy)
-      if (isDirectlyBehind && dist > 5 && dist < 24) {
-        return 70
+      if (isDirectlyBehind && dist >= 8 && dist < 24) {
+        // Ensure player has runway ahead so AI doesn't slam into player's immediate corner turn
+        const p1Vec = DIRECTION_VECTORS[p1.dir]
+        let p1Runway = 0
+        while (p1Runway < 8) {
+          const pc = p1.col + p1Vec.x * (p1Runway + 1)
+          const pr = p1.row + p1Vec.y * (p1Runway + 1)
+          if (!grid.isFree(pc, pr)) break
+          p1Runway += 1
+        }
+        if (p1Runway >= 5) {
+          return 70
+        }
       }
     }
   }
@@ -81,10 +102,14 @@ export function computeTerritoryGainScore(
 }
 
 export function computePinchEscapeScore(ai: CycleState, grid: OccupancyGrid): number {
-  const chamber = grid.floodFillArea(ai.col, ai.row, 100)
+  const vec = DIRECTION_VECTORS[ai.dir]
+  const forwardCol = ai.col + vec.x
+  const forwardRow = ai.row + vec.y
+  if (!grid.isFree(forwardCol, forwardRow)) return 0
+
+  const chamber = grid.floodFillArea(forwardCol, forwardRow, 100)
   if (chamber >= 45) return 0
 
-  const vec = DIRECTION_VECTORS[ai.dir]
   let runway = 0
   while (runway < 20) {
     const nc = ai.col + vec.x * (runway + 1)

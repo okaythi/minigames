@@ -99,3 +99,17 @@ export function parseFlags(raw: unknown): number {
   }
   return 0
 }
+
+/**
+ * Checks whether a game manifest has a specific game flag.
+ */
+export function hasGameFlag(
+  manifest:
+    | { readonly flag?: string | undefined; readonly gameFlag?: string | undefined }
+    | undefined
+    | null,
+  flag: string,
+): boolean {
+  if (!manifest) return false
+  return manifest.flag === flag || manifest.gameFlag === flag
+}

@@ -1,0 +1,67 @@
+.nx-difficulty-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--nx-card, #1a1d24);
+  border: var(--nx-hairline, 1px solid rgba(255, 255, 255, 0.1));
+  border-radius: var(--nx-radius, 8px);
+  padding: 12px 16px;
+}
+
+.nx-belt-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nx-belt-swatch {
+  width: 32px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.nx-belt-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nx-ink, #f8fafc);
+}
+
+.nx-belt-sub {
+  font-size: 11.5px;
+  color: var(--nx-slate, #94a3b8);
+}
+
+.nx-difficulty-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nx-diff-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--nx-slate, #94a3b8);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nx-diff-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--nx-ink, #f8fafc);
+}
+
+.nx-diff-pill.active {
+  background: var(--nx-orange-deep, #ff6b35);
+  border-color: var(--nx-orange, #ff6b35);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+}

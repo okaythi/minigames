@@ -1,0 +1,160 @@
+.nx-sensei-dialogue-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #2e261d 0%, #15100a 100%);
+  z-index: 20;
+  padding: 24px;
+  user-select: none;
+}
+
+.nx-dojo-background-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.nx-sensei-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
+  width: 100%;
+}
+
+.nx-sensei-figure {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.nx-sensei-mat {
+  position: absolute;
+  bottom: -6px;
+  width: 170px;
+  height: 24px;
+  background: #3e7b39;
+  border: 3px solid #234b20;
+  border-radius: 50%;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+}
+
+.nx-sensei-character-svg {
+  width: 130px;
+  height: 130px;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+  animation: sensei-breathe 4s ease-in-out infinite;
+}
+
+@keyframes sensei-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+
+.nx-sensei-speech-bubble {
+  position: relative;
+  background: #ffffff;
+  border: 4px solid #3d2f1d;
+  border-radius: 20px;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  max-width: 500px;
+  text-align: center;
+}
+
+.nx-sensei-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 16px 14px 0;
+  border-style: solid;
+  border-color: #ffffff transparent;
+  display: block;
+  width: 0;
+}
+
+.nx-sensei-speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -21px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 20px 17px 0;
+  border-style: solid;
+  border-color: #3d2f1d transparent;
+  display: block;
+  width: 0;
+}
+
+.nx-sensei-speech-text {
+  margin: 0;
+  font-family: 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #2b2114;
+  line-height: 1.35;
+}
+
+.nx-sensei-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+  z-index: 3;
+}
+
+.nx-wood-button {
+  background: linear-gradient(180deg, #b07e44 0%, #875929 100%);
+  border: 3px solid #543413;
+  border-radius: 12px;
+  color: #fff9e6;
+  padding: 14px 24px;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), inset 0 2px 2px rgba(255, 255, 255, 0.3);
+  transition: transform 0.12s ease, filter 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  letter-spacing: 0.02em;
+}
+
+.nx-wood-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+}
+
+.nx-wood-button:active {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.95);
+}
+
+.nx-wood-button.nx-wood-primary {
+  background: linear-gradient(180deg, #c44026 0%, #942914 100%);
+  border-color: #59160a;
+}

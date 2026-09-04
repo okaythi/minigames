@@ -10,12 +10,19 @@ export class TurboBrain {
   private timeSinceLastTurbo = 999
   private level5CutoffTimer = 0
   private level5WantsTrigger = false
+  private trackerTimer = 0
 
   public constructor(public readonly config: TurboConfig) {}
 
   public update(player: CycleState, ai: CycleState, dt: number): void {
     this.timeSinceLastTurbo += dt
-    this.tracker.update(player, ai)
+
+    // OnlinePlayerTracker profiles player metrics every 60s (1 minute) for external systems
+    this.trackerTimer += dt
+    if (this.trackerTimer >= 60.0) {
+      this.trackerTimer = 0
+      this.tracker.update(player, ai)
+    }
 
     if (this.config.alwaysCounterPlayerTurbo) {
       this.level5CutoffTimer += dt
@@ -84,8 +91,12 @@ export class TurboBrain {
       scarcityPenalty
 
     if (totalScore >= this.config.activationThreshold) {
-      this.timeSinceLastTurbo = 0
-      return true
+      // For offensive boosts, verify that the forward chamber is not a suicide pocket
+      const vec = SurvivalEngine.getCycleFrontier(ai, grid, 100)
+      if (vec.area >= 40) {
+        this.timeSinceLastTurbo = 0
+        return true
+      }
     }
 
     return false
@@ -95,6 +106,7 @@ export class TurboBrain {
     this.timeSinceLastTurbo = 999
     this.level5CutoffTimer = 0
     this.level5WantsTrigger = false
+    this.trackerTimer = 0
     this.tracker.reset()
   }
 }

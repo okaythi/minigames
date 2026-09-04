@@ -52,3 +52,13 @@ export interface FlagDefinition<TDesc extends string = string> {
   readonly name: string
   readonly description: MaxFourWords<TDesc>
 }
+
+/**
+ * Game Flags — Discrete feature/visibility gating for games.
+ */
+export const GameFlags = {
+  NONE: '',
+  GAME_BETA: 'GAME_BETA',
+} as const
+
+export type GameFlag = (typeof GameFlags)[keyof typeof GameFlags] | string

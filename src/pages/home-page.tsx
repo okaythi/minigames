@@ -3,17 +3,21 @@ import { Button } from '../components/ui/button'
 import { GameGrid } from '../games/game-grid'
 import { useStatsController } from '../services/stats/stats-provider'
 import { compactCount } from '../lib/format'
-import { MANIFESTS, gameCount } from '../games/registry'
+import { getVisibleManifests } from '../games/registry'
+import { useCanSeeBetaGames } from '../services/auth-api'
 import { LOAD_MORE, pageLimit } from './pagination'
 import './home-page.css'
 
 /** 9 cards, then +6 per press, exactly as specified. */
 export function HomePage() {
   const { uniquePlayers } = useStatsController()
+  const { canSeeBetaGames } = useCanSeeBetaGames()
+  const manifests = getVisibleManifests(canSeeBetaGames)
+  const totalGames = manifests.length
   const [page, setPage] = useState(1)
   const limit = pageLimit(page)
-  const shown = MANIFESTS.slice(0, limit)
-  const remaining = Math.max(0, gameCount - shown.length)
+  const shown = manifests.slice(0, limit)
+  const remaining = Math.max(0, totalGames - shown.length)
 
   return (
     <div className="nx-home">
@@ -25,7 +29,7 @@ export function HomePage() {
         <dl className="nx-hero-stats">
           <div>
             <dt>Catalogue</dt>
-            <dd>{gameCount}</dd>
+            <dd>{totalGames}</dd>
           </div>
           <div>
             <dt>Unique players</dt>
@@ -46,12 +50,12 @@ export function HomePage() {
               <span className="nx-more-count">+{Math.min(LOAD_MORE, remaining)}</span>
             </Button>
             <p className="nx-more-note">
-              Showing {shown.length} of {gameCount}
+              Showing {shown.length} of {totalGames}
             </p>
           </>
         ) : (
           <p className="nx-more-note">
-            {shown.length} of {gameCount} games · that is the whole lab for now
+            {shown.length} of {totalGames} games · that is the whole lab for now
           </p>
         )}
       </div>

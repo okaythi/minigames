@@ -412,6 +412,62 @@ function aiPerimeterNavigationProbe(): void {
   }
 }
 
+function level5OverhaulProbe(): void {
+  const grid = new OccupancyGrid()
+
+  // 1. Spawn-frame turbo elimination: At spawn, pinch escape must be 0 and turbo must NOT fire
+  const aiSpawn = createCycle('ai', 60, 30, 'down', 6)
+  const p1Spawn = createCycle('p1', 20, 75, 'up', 3)
+  grid.set(60, 30, OCCUPANCY.aiTrail)
+  grid.set(20, 75, OCCUPANCY.p1Trail)
+
+  const l5Personality = new PersonalityEngine(5)
+  const spawnMove = l5Personality.proposeMove(aiSpawn, p1Spawn, grid, 0.016)
+  check('Level 5 does NOT fire turbo on spawn frame (t=0)', !spawnMove.wantsTurbo)
+
+  // 2. Non-stacking boost rule: Player boosting while AI is boosting does NOT increase/reset AI turboTimer
+  aiSpawn.isTurbo = true
+  aiSpawn.turboTimer = 0.75
+  const initialTimer = aiSpawn.turboTimer
+  p1Spawn.isTurbo = true
+  const moveDuringBoost = l5Personality.proposeMove(aiSpawn, p1Spawn, grid, 0.016)
+  check('AI turbo intent is false when already boosting', !moveDuringBoost.wantsTurbo)
+  check('AI turboTimer is never stacked or extended by player turbo', aiSpawn.turboTimer === initialTimer)
+
+  // 3. OnlinePlayerTracker 60s throttle: tracker updates only after 60s
+  const initialTrackerSteps = l5Personality.turboBrain.tracker.getMetrics().turnCount
+  for (let i = 0; i < 10; i += 1) {
+    p1Spawn.col += (i % 2 === 0 ? 1 : -1)
+    l5Personality.turboBrain.update(p1Spawn, aiSpawn, 0.1)
+  }
+  const stepsAt10s = l5Personality.turboBrain.tracker.getMetrics().turnCount
+  check('OnlinePlayerTracker does not update before 60s threshold', stepsAt10s === initialTrackerSteps)
+
+  l5Personality.turboBrain.update(p1Spawn, aiSpawn, 61.0)
+  const stepsAt65s = l5Personality.turboBrain.tracker.getMetrics().turnCount
+  check('OnlinePlayerTracker updates after 60s has elapsed', typeof stepsAt65s === 'number')
+
+  // 4. Level 5 Survival Veto prevents self-trapping into dead-ends/small sub-chambers
+  const cleanGrid = new OccupancyGrid()
+  const aiL5 = createCycle('ai', 40, 50, 'up', 6)
+  const p1L5 = createCycle('p1', 40, 40, 'up', 3)
+  // Create an enclosed 4x7 (28 cell) dead-end pocket to the right of column 40
+  for (let r = 46; r <= 54; r += 1) {
+    cleanGrid.set(40, r, OCCUPANCY.p1Trail)
+    cleanGrid.set(45, r, OCCUPANCY.p1Trail)
+  }
+  for (let c = 40; c <= 45; c += 1) {
+    cleanGrid.set(c, 46, OCCUPANCY.p1Trail)
+    cleanGrid.set(c, 54, OCCUPANCY.p1Trail)
+  }
+  // Open entrance at (40, 49) so AI heading up from (40, 50) reaches destCol 40, destRow 49
+  cleanGrid.set(40, 49, OCCUPANCY.empty)
+
+  const trapProposal = { desiredDir: 'right' as const, wantsTurbo: false, intent: 'chase' as const }
+  const veto = SurvivalEngine.evaluateVeto(aiL5, p1L5, trapProposal, cleanGrid, 5)
+  check('Level 5 survival veto overrides suicidal turn into dead-end trap', !veto.allowed && veto.finalDir !== 'right')
+}
+
 console.log('--- FL Tron 3.0: Engine & Invariant Simulation ---')
 gridInvariantProbe()
 cycleMechanicsProbe()
@@ -423,6 +479,7 @@ staircase1CellMicroStepProbe()
 staircaseCommitmentAndMultiStepProbe()
 ghostCollisionAndInputQueueProbe()
 aiPerimeterNavigationProbe()
+level5OverhaulProbe()
 
 const failed = checks.filter((entry) => !entry.ok)
 console.log('')

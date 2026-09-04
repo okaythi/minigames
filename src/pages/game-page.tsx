@@ -8,6 +8,7 @@ import { findGame } from '../games/registry'
 import { useGameStats } from '../services/stats/stats-provider'
 import { setCurrentlyPlaying } from '../services/presence-service'
 import { getChallenge, resolveChallenge } from '../services/social-api'
+import { useCanSeeBetaGames } from '../services/auth-api'
 import { NotFoundPage } from './not-found-page'
 import { emptyGameStats } from './game-stats'
 import './game-page.css'
@@ -22,21 +23,32 @@ interface GamePageProps {
  * it only reads the manifest and the stats service.
  */
 export function GamePage({ slug }: GamePageProps) {
-  const { route } = useRouter()
+  const { route, navigate } = useRouter()
+  const { canSeeBetaGames, loading: authLoading } = useCanSeeBetaGames()
   const challengeId = route.name === 'game' ? route.query['challengeId'] : undefined
   const [challenge, setChallenge] = useState<any>(null)
   const [challengeWon, setChallengeWon] = useState(false)
 
   const game = findGame(slug)
+  const isBetaGame = game?.manifest.flag === 'GAME_BETA' || game?.manifest.gameFlag === 'GAME_BETA'
+
+  useEffect(() => {
+    if (authLoading) return
+    if (isBetaGame && !canSeeBetaGames) {
+      navigate(ROUTES.home, { replace: true })
+    }
+  }, [authLoading, isBetaGame, canSeeBetaGames, navigate])
+
   const liveStats = useGameStats(slug)
   const stats = game === undefined ? emptyGameStats() : liveStats
 
   useEffect(() => {
+    if (isBetaGame && !canSeeBetaGames) return
     setCurrentlyPlaying(slug)
     return () => {
       setCurrentlyPlaying(null)
     }
-  }, [slug])
+  }, [slug, isBetaGame, canSeeBetaGames])
 
   useEffect(() => {
     if (!challengeId) return
@@ -66,11 +78,16 @@ export function GamePage({ slug }: GamePageProps) {
     return <NotFoundPage path={`/games/${slug}`} />
   }
 
+  // Block rendering of beta game if user does not have STAFF flag
+  if (isBetaGame && !canSeeBetaGames) {
+    return null
+  }
+
   const { manifest } = game
   const highscore = stats.personalBest ?? stats.globalRecord
 
   return (
-    <article className="nx-game" data-slug={slug}>
+    <article className="nx-game" data-slug={slug} data-layout={manifest.layout ?? 'standard'}>
       <header className="nx-game-head">
         <Link to={ROUTES.home} className="nx-back">
           <svg viewBox="0 0 16 16" aria-hidden="true">
