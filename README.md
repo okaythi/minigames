@@ -177,11 +177,10 @@ no Function matches the route. Two rules keep the site inside the free tier:
 - **`public/_routes.json`** pins Functions to `/api/*`. Without it, Pages
   auto-generates a spec from the `functions/` directory (`include: ["/*"]`,
   `exclude: []`), which makes every JS/CSS chunk, game image, vault `.dat`
-  and SPA HTML request a *billed* invocation. The catch-all handlers under
-  `functions/assets/` and `functions/images/` are R2 fallbacks kept for
-  parity only — nothing needs them, because those keys also ship inside
-  `dist/` and the asset layer serves them for free. User uploads
-  (avatars, release media) deliberately live under `/api/assets/*` and stay
+  and SPA HTML request a *billed* invocation. The old R2 catch-alls under
+  `functions/assets|images` were inert mirrors of files that ship inside
+  `dist/` anyway and have been removed. User uploads
+  (avatars, release media) intentionally live under `/api/assets/*` and stay
   Functions-served (they are cached by the browser for a year).
 - **Client-side request discipline.** Boot costs roughly: `/api/users/me` +
   one `/api/stats` GET + one visit POST + one `/api/updates` GET + (only when
