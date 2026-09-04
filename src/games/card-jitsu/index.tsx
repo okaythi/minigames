@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { HorizontalGameTemplate } from '../template/horizontal-game-template'
 import { manifest } from './manifest'
 import {
@@ -38,32 +38,39 @@ export default function CardJitsuGame() {
     }
   }, [])
 
-  const wrappedCreateRuntime = (
-    deps: Parameters<typeof createCardJitsuRuntime>[0],
-  ): CardJitsuRuntimeExtended => {
-    const runtime = createCardJitsuRuntime(deps) as CardJitsuRuntimeExtended
-    runtimeRef.current = runtime
+  // The factory must be referentially stable: `useGameRuntime` recreates the
+  // runtime (and the Ruffle-backed CardJitsuSession) whenever `create` changes
+  // identity. An unstable factory causes the page's post-mount re-renders
+  // (auth resolve, stats fetch, visit announce, counter subscription) to
+  // repeatedly destroy and rebuild the `<ruffle-player>`, so the SWF never
+  // finishes loading. Everything captured here is stable, so `[]` is correct.
+  const wrappedCreateRuntime = useCallback(
+    (deps: Parameters<typeof createCardJitsuRuntime>[0]): CardJitsuRuntimeExtended => {
+      const runtime = createCardJitsuRuntime(deps) as CardJitsuRuntimeExtended
+      runtimeRef.current = runtime
 
-    return {
-      ...runtime,
-      attach: (host) => {
-        const result = runtime.attach(host)
-        const timer = setInterval(() => {
-          if (runtime.session) {
-            const stats = runtime.session.getStats()
-            setSenseiHand(stats.senseiHand)
+      return {
+        ...runtime,
+        attach: (host) => {
+          const result = runtime.attach(host)
+          const timer = setInterval(() => {
+            if (runtime.session) {
+              const stats = runtime.session.getStats()
+              setSenseiHand(stats.senseiHand)
+            }
+          }, 200)
+
+          return {
+            dispose: () => {
+              clearInterval(timer)
+              result.dispose()
+            },
           }
-        }, 200)
-
-        return {
-          dispose: () => {
-            clearInterval(timer)
-            result.dispose()
-          },
-        }
-      },
-    }
-  }
+        },
+      }
+    },
+    [],
+  )
 
   const handleSelectDifficulty = (mode: SenseiDifficulty) => {
     setDifficulty(mode)
