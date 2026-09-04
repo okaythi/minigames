@@ -4,10 +4,12 @@ import { isPlayable } from './types'
 import { avoidTheSpikesManifest } from './avoid-the-spikes/manifest'
 import { pongManifest } from './pong/manifest'
 import { flTron3Manifest } from './fl-tron-3/manifest'
+import { manifest as cardJitsuManifest } from './card-jitsu/manifest'
 
 const AvoidTheSpikes = lazy(() => import('./avoid-the-spikes'))
 const Pong = lazy(() => import('./pong'))
 const FLTron3 = lazy(() => import('./fl-tron-3'))
+const CardJitsu = lazy(() => import('./card-jitsu'))
 
 /**
  * The catalogue. Adding a game means creating `src/games/<slug>/`, exporting a
@@ -17,6 +19,7 @@ export const GAMES: readonly GameModule[] = [
   { manifest: avoidTheSpikesManifest, Component: AvoidTheSpikes },
   { manifest: pongManifest, Component: Pong },
   { manifest: flTron3Manifest, Component: FLTron3 },
+  { manifest: cardJitsuManifest, Component: CardJitsu },
 ]
 
 export const MANIFESTS: readonly GameManifest[] = GAMES.map((game) => game.manifest)

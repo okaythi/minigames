@@ -44,6 +44,8 @@ export interface GameManifest {
   readonly banner?: string
   /** Optional aspect ratio override for the game page hero banner (default: '21 / 3.5', tron: '21 / 8'). */
   readonly bannerAspectRatio?: string
+  /** Optional layout style: standard (default 2-column portrait) or horizontal (widescreen with info below). */
+  readonly layout?: 'standard' | 'horizontal'
   readonly controls: readonly GameControlHint[]
   /** Design notes rendered on the game page. */
   readonly mechanics?: readonly GameMechanic[]

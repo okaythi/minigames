@@ -1,0 +1,68 @@
+.nx-thy-debug-drawer {
+  background: rgba(33, 20, 10, 0.95);
+  border: 1px solid #ff9800;
+  border-radius: var(--nx-radius, 8px);
+  padding: 14px 18px;
+  color: #ffe0b2;
+  font-family: var(--nx-font-mono, monospace);
+  font-size: 12px;
+}
+
+.nx-thy-debug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 152, 0, 0.3);
+  padding-bottom: 6px;
+}
+
+.nx-thy-debug-title {
+  font-weight: 700;
+  color: #ffa726;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nx-sensei-xray-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+.nx-xray-card {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.nx-thy-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nx-thy-btn {
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid #ff9800;
+  color: #fff3e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.nx-thy-btn:hover {
+  background: #ff9800;
+  color: #000;
+}

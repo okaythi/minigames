@@ -70,7 +70,7 @@ export function GamePage({ slug }: GamePageProps) {
   const highscore = stats.personalBest ?? stats.globalRecord
 
   return (
-    <article className="nx-game" data-slug={slug}>
+    <article className="nx-game" data-slug={slug} data-layout={manifest.layout ?? 'standard'}>
       <header className="nx-game-head">
         <Link to={ROUTES.home} className="nx-back">
           <svg viewBox="0 0 16 16" aria-hidden="true">
