@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type {
   UserLoginPayload,
   UserRegisterPayload,
@@ -50,6 +51,46 @@ export function isCmsEditor(): boolean {
     hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
     hasFlag(cachedCurrentUser.flags, UserFlags.CMS_EDITOR)
   )
+}
+
+/**
+ * Evaluates whether the user can see beta games.
+ * IF USER HAS FLAG "STAFF" THEN "canSeeBetaGames" EVALUATES TO TRUE.
+ */
+export function canSeeBetaGames(user?: UserProfileResponse | null): boolean {
+  const target = user !== undefined ? user : cachedCurrentUser
+  if (!target) return false
+  return hasFlag(target.flags, UserFlags.STAFF)
+}
+
+export function useCanSeeBetaGames(): {
+  readonly canSeeBetaGames: boolean
+  readonly loading: boolean
+} {
+  const [canSee, setCanSee] = useState(() => canSeeBetaGames())
+  const [loading, setLoading] = useState<boolean>(() => cachedCurrentUser === null)
+
+  useEffect(() => {
+    let active = true
+    const update = () => {
+      if (active) {
+        setCanSee(canSeeBetaGames())
+      }
+    }
+    const unsub = subscribeAuth(update)
+    void getMe().finally(() => {
+      if (active) {
+        setCanSee(canSeeBetaGames())
+        setLoading(false)
+      }
+    })
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [])
+
+  return { canSeeBetaGames: canSee, loading }
 }
 
 

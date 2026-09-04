@@ -1,8 +1,11 @@
 import type { GameManifest } from '../types'
+import { GameFlags } from '../../../shared/flags'
 
 export const manifest: GameManifest = {
   slug: 'card-jitsu',
   title: 'Card-Jitsu',
+  flag: GameFlags.GAME_BETA,
+  gameFlag: GameFlags.GAME_BETA,
   tagline: 'Master Fire, Water, and Snow to earn your belts and defeat Sensei.',
   description:
     'The authentic Club Penguin martial arts card game. Face Sensei in the ancient Dojo, command the elemental trinity, and unleash unique power cards to earn your Black Belt.',

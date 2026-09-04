@@ -1,5 +1,5 @@
 import type React from 'react'
-
+import type { GameFlag } from '../../shared/flags'
 
 /** Colour keys map onto `accentOf()` in src/theme/palette.ts. */
 export type GameAccentName = 'orange' | 'amber' | 'blue' | 'green' | 'red'
@@ -31,6 +31,10 @@ export interface GameMechanic {
 export interface GameManifest {
   readonly slug: string
   readonly title: string
+  /** Optional game flag for access control / beta visibility */
+  readonly flag?: GameFlag | undefined
+  /** Alias for flag */
+  readonly gameFlag?: GameFlag | undefined
   /** One line for the card. */
   readonly tagline: string
   /** Short paragraph for the game page. */

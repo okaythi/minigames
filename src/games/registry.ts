@@ -37,3 +37,21 @@ export const featuredSlug: string | null =
 
 export const gameCount = GAMES.length
 
+/**
+ * Returns the game modules visible to the user.
+ * If canSeeBeta is true, includes GAME_BETA games; otherwise excludes them.
+ */
+export function getVisibleGames(canSeeBeta: boolean): readonly GameModule[] {
+  if (canSeeBeta) return GAMES
+  return GAMES.filter(
+    (g) => g.manifest.flag !== 'GAME_BETA' && g.manifest.gameFlag !== 'GAME_BETA',
+  )
+}
+
+/**
+ * Returns the game manifests visible to the user.
+ */
+export function getVisibleManifests(canSeeBeta: boolean): readonly GameManifest[] {
+  return getVisibleGames(canSeeBeta).map((g) => g.manifest)
+}
+
