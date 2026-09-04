@@ -126,57 +126,58 @@ export function RuffleStage({ session }: RuffleStageProps) {
         player.setAttribute('width', '100%')
         player.setAttribute('height', '100%')
 
-        window.shimLog = (...a) => console.log('[shim]', ...a)
+        window.shimLog = (...a) => console.log('[shim]', JSON.stringify(a))
 
         const pending: string[] = []
+        let scheduled = false
         const flush = () => {
-          while (pending.length && typeof player.dispatchAirtowerMessage === 'function') {
+          scheduled = false
+          if (typeof player.dispatchAirtowerMessage !== 'function') {
+            schedule()
+            return
+          }
+          while (pending.length) {
             const raw = pending.shift()!
-            console.log('[ts→flash]', raw)
-            // Parse XT packet: %xt%<action>%-1%<args...>%
             const parts = raw.split('%')
-            if (parts.length >= 4 && parts[1] === 'xt') {
-              const action = parts[2]!
-              const resObj = parts.slice(3, -1)
-              try {
-                console.log('[ts→flash dispatch]', action, resObj)
-                player.dispatchAirtowerMessage(action, resObj)
-              } catch (bridgeError) {
-                console.warn('[Card-Jitsu Ruffle] dispatch error', action, bridgeError)
-              }
+            if (parts.length < 4 || parts[1] !== 'xt') continue
+            console.log('[ts→flash]', raw)
+            try {
+              player.dispatchAirtowerMessage(parts[2]!, parts.slice(3, -1))
+            } catch (bridgeError) {
+              console.warn('[Card-Jitsu Ruffle] dispatch error', parts[2], bridgeError)
             }
           }
         }
+        const schedule = () => {
+          if (!scheduled) {
+            scheduled = true
+            setTimeout(flush, 0)
+          }
+        }
+
+        // Bridge outgoing TypeScript virtual SmartFox packets to Flash.
+        session.setBridge((msg: string) => {
+          if (cancelled || !player.isConnected) return
+          pending.push(msg)
+          schedule()
+        })
 
         // Connect global ExternalInterface hooks
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
-          console.log('[flash→ts]', ext, action, args, type, roomId)
+          console.log('[flash→ts]', ext, action, JSON.stringify(args), type, roomId)
           if (cancelled) return
-          flush()
           session.handleFlashPacket(ext, action, args, type, roomId)
-          flush()
         }
 
         window.onFlashGameScore = (_score) => {
           // Handled via session onGameOver
         }
 
-        // Bridge outgoing TypeScript virtual SmartFox packets to Flash.
-        // Queue instead of silently dropping before addCallback attaches.
-        session.setBridge((msg: string) => {
-          if (cancelled || !player.isConnected) return
-          if (typeof player.dispatchAirtowerMessage !== 'function') {
-            console.log('[ts→flash queue (callback not yet attached)]', msg)
-          }
-          pending.push(msg)
-          flush()
-        })
-
         // Mount player into the React-free host node.
         host.replaceChildren(player)
 
         // Load Disney Card-Jitsu bootstrap with exact forceScale/forceAlign & logging
-        const BUILD_ID = '20260904_v2'
+        const BUILD_ID = '20260904_v5'
         await player.load({
           url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
           allowScriptAccess: true,
@@ -191,10 +192,16 @@ export function RuffleStage({ session }: RuffleStageProps) {
           forceAlign: true,   // ignore Stage.align = "TL"
           quality: 'high',
           logLevel: 'info',
+          parameters: {
+            nick: session.getPlayerNick(),
+            mode: session.getMode(),
+            color: session.getPlayerColor(),
+            rank: session.getPlayerBeltRank(),
+          },
         })
 
         if (cancelled) return
-        flush()
+        schedule()
         setLoading(false)
       } catch (err) {
         // Errors raised after unmount (e.g. a load() rejected because the

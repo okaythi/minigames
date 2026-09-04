@@ -1,4 +1,5 @@
 import { createStore } from '../../lib/observable-store'
+import { getCurrentUser } from '../../services/auth-api'
 import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
 import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
@@ -44,10 +45,15 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
 
   let _currentPhase: CardJitsuPhase = 'dialogue'
 
+  const currentUser = getCurrentUser()
+  const playerNick = currentUser?.nickname ?? currentUser?.username ?? 'Ninja'
+
   const session = new CardJitsuSession({
     difficulty,
     playerBelt,
-    mode: 'MODE_EXP',
+    mode: 'MODE_SEN',
+    playerNick,
+    playerColor: 6,
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase

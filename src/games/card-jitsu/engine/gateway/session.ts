@@ -44,6 +44,8 @@ export interface SessionConfig {
   readonly difficulty: SenseiDifficulty
   readonly playerBelt: NinjaBelt
   readonly mode: 'MODE_EXP' | 'MODE_SEN'
+  readonly playerNick?: string
+  readonly playerColor?: number
   readonly onStateChange?: (stats: MatchStats, phase: CardJitsuPhase) => void
   readonly onClashDone?: (result: ClashResult, winCondition: WinConditionResult) => void
   readonly onGameOver?: (winner: 'player' | 'sensei') => void
@@ -121,6 +123,22 @@ export class CardJitsuSession {
     this.notify()
   }
 
+  public getPlayerNick(): string {
+    return this.config.playerNick ?? 'Ninja'
+  }
+
+  public getPlayerColor(): number {
+    return this.config.playerColor ?? 6
+  }
+
+  public getPlayerBeltRank(): number {
+    return BELT_TO_RANK[this.config.playerBelt] ?? 1
+  }
+
+  public getMode(): 'MODE_EXP' | 'MODE_SEN' {
+    return this.config.mode
+  }
+
   public startMatch(mode?: 'MODE_EXP' | 'MODE_SEN'): void {
     const activeMode = mode ?? this.config.mode
     this.config = { ...this.config, mode: activeMode }
@@ -179,16 +197,20 @@ export class CardJitsuSession {
 
   private handleGetGame(): void {
     this.startMatch()
-    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 1
+    const beltRank = this.getPlayerBeltRank()
+    const playerNick = this.getPlayerNick()
+    const playerColor = this.getPlayerColor()
     this.sendToFlash('gz', [2, 2])
-    this.sendToFlash('jz', [1, 'Ninja', 1, beltRank])
+    this.sendToFlash('jz', [1, playerNick, playerColor, beltRank])
   }
 
   private handleUpdateGame(): void {
-    const beltRank = BELT_TO_RANK[this.config.playerBelt] ?? 1
+    const beltRank = this.getPlayerBeltRank()
+    const playerNick = this.getPlayerNick()
+    const playerColor = this.getPlayerColor()
     this.sendToFlash('uz', [
       '0|Sensei|14|10',
-      `1|Ninja|1|${beltRank}`,
+      `1|${playerNick}|${playerColor}|${beltRank}`,
     ])
     this.sendToFlash('sz', [])
   }
@@ -467,10 +489,7 @@ export class CardJitsuSession {
   }
 
   private sendToFlash(action: string, args: readonly unknown[]): void {
-    const packet = `%xt%${action}%-1%${args.map(String).join('%')}%`
-    if (this.flashBridge) {
-      this.flashBridge(packet)
-    }
+    this.flashBridge?.(['', 'xt', action, '-1', ...args.map(String), ''].join('%'))
   }
 
   private notify(): void {
