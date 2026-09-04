@@ -18,22 +18,22 @@ const DIFFICULTIES: readonly {
   {
     id: 'easy',
     label: 'Easy',
-    desc: 'Novice Sensei (frequent blunders, great for practice)',
+    desc: 'Novice',
   },
   {
     id: 'medium',
     label: 'Medium',
-    desc: 'Balanced Sensei training opponent',
+    desc: 'Balanced',
   },
   {
     id: 'hard',
     label: 'Hard',
-    desc: 'Grandmaster Sensei (tactical 5-card triad strategy)',
+    desc: 'Grandmaster',
   },
   {
     id: 'ninja',
     label: 'Ninja 🥷',
-    desc: 'Can only beat if player is Black Belt (authentic Disney canon)',
+    desc: 'Can only be unlocked by defeating Sensei on Hard mode',
     badge: 'Requires Black Belt',
   },
 ]
