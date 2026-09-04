@@ -1,3 +1,5 @@
+import cover from './cover.png'
+import banner from './banner.png'
 import type { GameManifest } from '../types'
 import { GameFlags } from '../../../shared/flags'
 
@@ -13,7 +15,8 @@ export const manifest: GameManifest = {
   accent: 'orange',
   layout: 'horizontal',
   tags: ['Club Penguin', 'Strategy', 'Card Battle', 'Sensei', 'Martial Arts'],
-  cover: '/games/card-jitsu/cover.svg',
+  cover,
+  banner,
   controls: [
     { input: 'Mouse Hover', action: 'Inspect card & view elevated power details' },
     { input: 'Left Click', action: 'Lock in chosen card for the center clash' },
