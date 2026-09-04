@@ -18,6 +18,8 @@ import type {
 let publishedCache: readonly ReleaseAggregate[] | null = null
 let latestCache: ReleaseAggregate | null = null
 let draftsCache: readonly ReleaseAggregate[] | null = null
+let publishedInflight: Promise<readonly ReleaseAggregate[]> | null = null
+let draftsInflight: Promise<readonly ReleaseAggregate[]> | null = null
 
 const EMPTY_RELEASES: readonly ReleaseAggregate[] = []
 const EMPTY_DRAFTS: readonly ReleaseAggregate[] = []
@@ -29,38 +31,70 @@ function notifyLocalSubscribers(): void {
   }
 }
 
-// Initial fetch to prime synchronous caches
+function isAdminSurface(): boolean {
+  return typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+}
+
+/**
+ * One published release list powers `latest`, `published`, and the TopBanner.
+ * Single-flight dedupes concurrent callers (module prime, hooks, StrictMode
+ * double-mount) so a page load costs at most ONE /api/updates request.
+ */
+function loadPublished(force = false): Promise<readonly ReleaseAggregate[]> {
+  if (typeof window === 'undefined') return Promise.resolve(EMPTY_RELEASES)
+  if (!force && publishedCache !== null) return Promise.resolve(publishedCache)
+  if (publishedInflight) return publishedInflight
+
+  publishedInflight = updatesEngine.reader
+    .getPublished()
+    .then((res) => {
+      publishedCache = res
+      latestCache = res[0] ?? null
+      notifyLocalSubscribers()
+      return res
+    })
+    .finally(() => {
+      publishedInflight = null
+    })
+
+  return publishedInflight
+}
+
+/**
+ * Drafts live behind an admin-only endpoint; regular visitors must never pay
+ * for them. Loaded lazily on /admin surfaces, shared across all of them.
+ */
+function loadDrafts(force = false): Promise<readonly ReleaseAggregate[]> {
+  if (typeof window === 'undefined') return Promise.resolve(EMPTY_DRAFTS)
+  if (!force && draftsCache !== null) return Promise.resolve(draftsCache)
+  if (draftsInflight) return draftsInflight
+
+  draftsInflight = updatesEngine.reader
+    .getDrafts()
+    .then((res) => {
+      draftsCache = res
+      notifyLocalSubscribers()
+      return res
+    })
+    .finally(() => {
+      draftsInflight = null
+    })
+
+  return draftsInflight
+}
+
+// Prime the caches once per page load.
 if (typeof window !== 'undefined') {
-  void updatesEngine.reader.getPublished().then((res) => {
-    publishedCache = res
-    notifyLocalSubscribers()
-  })
-  void updatesEngine.reader.getLatestPublished().then((res) => {
-    latestCache = res
-    notifyLocalSubscribers()
-  })
-  void updatesEngine.reader.getDrafts().then((res) => {
-    draftsCache = res
-    notifyLocalSubscribers()
-  })
+  void loadPublished()
+  if (isAdminSurface()) void loadDrafts()
 }
 
 function subscribeUpdates(callback: () => void): () => void {
   localSubscribers.add(callback)
   const unsubscribeBus = updatesEngine.subscriber.subscribe(() => {
-    // Invalidate local in-memory snapshot caches
-    void updatesEngine.reader.getPublished().then((res) => {
-      publishedCache = res
-      notifyLocalSubscribers()
-    })
-    void updatesEngine.reader.getLatestPublished().then((res) => {
-      latestCache = res
-      notifyLocalSubscribers()
-    })
-    void updatesEngine.reader.getDrafts().then((res) => {
-      draftsCache = res
-      notifyLocalSubscribers()
-    })
+    // CMS writes bust the snapshot caches; only the admin surface refetches drafts.
+    void loadPublished(true)
+    if (isAdminSurface()) void loadDrafts(true)
   })
 
   return () => {
@@ -87,8 +121,7 @@ export function usePublishedUpdates(): {
 
   useEffect(() => {
     if (publishedCache === null) {
-      void updatesEngine.reader.getPublished().then((res) => {
-        publishedCache = res
+      void loadPublished().finally(() => {
         setLoading(false)
       })
     } else {
@@ -101,6 +134,7 @@ export function usePublishedUpdates(): {
 
 /**
  * Hook specifically optimized for TopBanner to retrieve the latest release.
+ * Reads the shared published snapshot — no separate request.
  */
 export function useLatestRelease(): {
   readonly latestRelease: ReleaseAggregate | null
@@ -116,8 +150,7 @@ export function useLatestRelease(): {
 
   useEffect(() => {
     if (latestCache === null) {
-      void updatesEngine.reader.getLatestPublished().then((res) => {
-        latestCache = res
+      void loadPublished().finally(() => {
         setLoading(false)
       })
     } else {
@@ -151,6 +184,12 @@ export function useUpdateEditor(selectedReleaseId?: ReleaseId): {
     () => draftsCache ?? EMPTY_DRAFTS,
     () => EMPTY_DRAFTS,
   )
+
+  // Drafts are no longer primed for every visitor; ensure the admin editor
+  // loads them once on mount (shared + single-flight with other editor parts).
+  useEffect(() => {
+    void loadDrafts()
+  }, [])
 
   const [activeRelease, setActiveRelease] = useState<ReleaseAggregate | null>(null)
 

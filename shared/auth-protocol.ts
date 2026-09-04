@@ -87,51 +87,11 @@ export interface FriendSummary {
   }
 }
 
-export interface DirectMessage {
-  id: string
-  conversationId: string
-  senderUsername: string
-  senderNickname: string | null
-  senderPfpUrl: string | null
-  recipientUsername: string
-  messageType: 'text' | 'challenge' | 'system'
-  content: string
-  metadata?: string | null
-  readAt?: number | null
-  createdAt: number
-  failed?: boolean
-  status?: 'sending' | 'sent' | 'failed'
-}
-
-export interface ConversationSummary {
-  id: string
-  lastMessageAt: number
-  partner: {
-    username: string
-    nickname: string | null
-    pfpUrl: string | null
-    flags: number
-  }
-  lastMessage: {
-    content: string
-    senderUsername: string
-    createdAt: number
-  } | null
-  unreadCount: number
-  hasUnread: boolean
-  isFirstEverMessage: boolean
-}
-
-export interface ChallengeMetadata {
-  challengeId: string
-  gameSlug: string
-  targetScore: number
-  bountyCandy: number
-  status: 'pending' | 'accepted' | 'completed' | 'declined' | 'expired'
-  challengerUsername: string
-  challengedUsername: string
-  winnerUsername?: string | null
-}
+/**
+ * Chat wire types (DirectMessage, ConversationSummary, ChallengeMetadata)
+ * moved to `shared/chat-protocol.ts` — that file is the single contract for
+ * the DM subsystem. FriendSummary stays here: it is the friends domain.
+ */
 
 export interface PrivacySettings {
   hideFriends: boolean

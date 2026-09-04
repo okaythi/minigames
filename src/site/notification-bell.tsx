@@ -4,6 +4,7 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   dismissMessageNotification,
+  refreshNotifications,
 } from '../services/notifications-service'
 import { openChat } from '../services/social-api'
 import { getCurrentUser } from '../services/auth-api'
@@ -26,6 +27,16 @@ export function NotificationBell() {
       document.addEventListener('mousedown', handleClickOutside)
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  // Polling is now event-driven (badge-count deltas from the presence
+  // heartbeat), so make the list fresh exactly when the user looks at it.
+  // Throttled + shared inside the service, so opening the bell right after a
+  // boot/focus refresh costs nothing extra.
+  useEffect(() => {
+    if (isOpen) {
+      void refreshNotifications()
+    }
   }, [isOpen])
 
   // Bell is visible when user is logged in

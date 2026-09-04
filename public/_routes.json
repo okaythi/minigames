@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Only /api/* may invoke Pages Functions. Everything else (hashed JS/CSS chunks, images, vault assets, HTML) is served by the Pages static-asset layer, which is FREE and UNLIMITED on both plans. Without this file, Pages auto-generates a routes spec from the functions/ directory (include: /*, exclude: []) and every static asset request is billed as a Functions invocation against the 100k/day quota. SPA deep-links keep working via the '/* /index.html 200' rewrite in public/_redirects, which is applied by the asset layer, also free. R2-backed images (avatars, update media) are intentionally NOT excluded: they live under /api/assets/*.",
+  "include": ["/api/*"],
+  "exclude": []
+}

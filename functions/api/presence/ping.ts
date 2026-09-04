@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { eq } from 'drizzle-orm'
-import { users, userPresence } from '../../../src/db/schema'
+import type { DrizzleD1Database } from 'drizzle-orm/d1'
+import { and, eq, isNull } from 'drizzle-orm'
+import { users, userPresence, messages, friendships } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -9,6 +10,50 @@ import { storeFor, type StatsEnv } from '../stats/store-for'
 interface PagesContext {
   readonly request: Request
   readonly env: StatsEnv & { NIXLABS_DB: D1Database }
+}
+
+interface NotificationCounts {
+  readonly friendRequests: number
+  readonly newMessages: number
+}
+
+/**
+ * Cheap badge counts (indexed selects on the player's own rows). Piggybacking
+ * them on the presence heartbeat saves the client two separate polling
+ * requests per cycle — every Functions route request counts against the
+ * Pages quota, 304s and cache hits included.
+ */
+async function getNotificationCounts(
+  db: DrizzleD1Database,
+  playerId: string,
+): Promise<NotificationCounts> {
+  try {
+    const [pending, unread] = await Promise.all([
+      db
+        .select({ id: friendships.requesterId })
+        .from(friendships)
+        .where(and(eq(friendships.addresseeId, playerId), eq(friendships.status, 'pending')))
+        .all(),
+      db
+        .select({ conversationId: messages.conversationId })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.recipientId, playerId),
+            isNull(messages.readAt),
+            eq(messages.deletedByRecipient, 0),
+          ),
+        )
+        .all(),
+    ])
+    return {
+      friendRequests: pending.length,
+      newMessages: new Set(unread.map((u) => u.conversationId)).size,
+    }
+  } catch {
+    // A broken count must never fail the heartbeat itself.
+    return { friendRequests: 0, newMessages: 0 }
+  }
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
@@ -60,5 +105,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       .run()
   }
 
-  return jsonResponse(200, { ok: true })
+  const notifications = await getNotificationCounts(db, playerId)
+
+  return jsonResponse(200, { ok: true, notifications })
 }
