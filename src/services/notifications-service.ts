@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import { getMyFriends, getConversations, sendFriendAction } from './social-api'
-import { getCurrentUser } from './auth-api'
+import { getMyFriends, getConversations, sendFriendAction, type PresencePingResult } from './social-api'
+import { getCurrentUser, subscribeAuth } from './auth-api'
 import type { FriendSummary, ConversationSummary } from '../../shared/auth-protocol'
 
 export interface MessageNotificationItem {
@@ -33,7 +33,17 @@ function notifyListeners(): void {
   }
 }
 
-export async function refreshNotifications(): Promise<void> {
+/**
+ * Refreshes the bell snapshot. Every successful refresh costs up to two
+ * Functions invocations, so it is deliberately single-flight and throttled:
+ * burst triggers (boot, focus, tab-visible, ping deltas) coalesce. Mutating
+ * actions pass `force` to bypass the throttle.
+ */
+const MIN_REFRESH_INTERVAL_MS = 15_000
+let lastRefreshAt = 0
+let refreshInflight: Promise<void> | null = null
+
+export async function refreshNotifications(force = false): Promise<void> {
   const user = getCurrentUser()
   if (!user) {
     if (currentSnapshot !== emptySnapshot) {
@@ -43,39 +53,72 @@ export async function refreshNotifications(): Promise<void> {
     return
   }
 
-  try {
-    const [friendsRes, convos] = await Promise.all([
-      getMyFriends(),
-      getConversations(),
-    ])
+  if (refreshInflight) return refreshInflight
+  const now = Date.now()
+  if (!force && now - lastRefreshAt < MIN_REFRESH_INTERVAL_MS) return
 
-    const friendRequests = friendsRes.pendingIncoming || []
+  refreshInflight = (async () => {
+    lastRefreshAt = Date.now()
+    try {
+      // getMyFriends/getConversations are themselves single-flight + briefly
+      // cached in social-api, so concurrent consumers (drawer, bell, profile)
+      // share one request per endpoint instead of each firing their own.
+      const [friendsRes, convos] = await Promise.all([
+        getMyFriends(),
+        getConversations(),
+      ])
 
-    const messageNotifications: MessageNotificationItem[] = convos
-      .filter((c: ConversationSummary) => c.isFirstEverMessage && !dismissedMsgUsers.has(c.partner.username.toLowerCase()))
-      .map((c: ConversationSummary) => ({
-        conversationId: c.id,
-        username: c.partner.username,
-        nickname: c.partner.nickname,
-        pfpUrl: c.partner.pfpUrl,
-        lastMessageSnippet: c.lastMessage?.content,
-      }))
+      const friendRequests = friendsRes.pendingIncoming || []
 
-    currentSnapshot = {
-      friendRequests,
-      messageNotifications,
-      totalCount: friendRequests.length + messageNotifications.length,
+      const messageNotifications: MessageNotificationItem[] = convos
+        .filter((c: ConversationSummary) => c.isFirstEverMessage && !dismissedMsgUsers.has(c.partner.username.toLowerCase()))
+        .map((c: ConversationSummary) => ({
+          conversationId: c.id,
+          username: c.partner.username,
+          nickname: c.partner.nickname,
+          pfpUrl: c.partner.pfpUrl,
+          lastMessageSnippet: c.lastMessage?.content,
+        }))
+
+      currentSnapshot = {
+        friendRequests,
+        messageNotifications,
+        totalCount: friendRequests.length + messageNotifications.length,
+      }
+      notifyListeners()
+    } catch {
+      // Ignore network failure
+    } finally {
+      refreshInflight = null
     }
-    notifyListeners()
-  } catch {
-    // Ignore network failure
+  })()
+
+  return refreshInflight
+}
+
+/**
+ * The presence heartbeat replies with raw badge counts. Only when a count
+ * actually changes do we pay for the full snapshot refresh — this replaces
+ * the old unconditional 45s double-fetch.
+ */
+let lastPingCounts: PresencePingResult | null = null
+
+export function applyPingCounts(counts: PresencePingResult | null): void {
+  if (!counts) return
+  const changed =
+    lastPingCounts === null ||
+    lastPingCounts.friendRequests !== counts.friendRequests ||
+    lastPingCounts.newMessages !== counts.newMessages
+  lastPingCounts = counts
+  if (changed) {
+    void refreshNotifications()
   }
 }
 
 export async function acceptFriendRequest(username: string): Promise<boolean> {
   const res = await sendFriendAction(username, 'accept')
   if (res.ok) {
-    await refreshNotifications()
+    await refreshNotifications(true)
     return true
   }
   return false
@@ -84,7 +127,7 @@ export async function acceptFriendRequest(username: string): Promise<boolean> {
 export async function declineFriendRequest(username: string): Promise<boolean> {
   const res = await sendFriendAction(username, 'decline')
   if (res.ok) {
-    await refreshNotifications()
+    await refreshNotifications(true)
     return true
   }
   return false
@@ -124,17 +167,20 @@ export function useNotifications(): NotificationsSnapshot {
   )
 }
 
-// Auto-refresh notifications responsibly
+// Wiring. There is deliberately no fixed-interval notification poll: presence
+// heartbeats already ping the edge while the tab is visible and logged in, and
+// their response carries the badge counts (see applyPingCounts). Full list
+// refreshes only happen when those counts change or the user comes back to the
+// tab — each one is throttled + single-flight.
 if (typeof window !== 'undefined') {
-  void refreshNotifications()
+  if (getCurrentUser()) {
+    void refreshNotifications()
+  }
+  subscribeAuth(() => {
+    if (getCurrentUser()) void refreshNotifications()
+  })
   window.addEventListener('focus', () => void refreshNotifications())
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void refreshNotifications()
   })
-  window.addEventListener('nx:auth-change', () => void refreshNotifications())
-  setInterval(() => {
-    if (!document.hidden && getCurrentUser()) {
-      void refreshNotifications()
-    }
-  }, 45000)
 }

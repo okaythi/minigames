@@ -44,7 +44,19 @@ const readNumber = (source: unknown, key: string): number | null => {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+let allStatsInflight: Promise<StatsPayload | null> | null = null
+
 export async function fetchAllStats(): Promise<StatsPayload | null> {
+  // Concurrent boot-time consumers (StatsProvider, migration banner, game
+  // pages under StrictMode) share one request instead of stampeding the edge.
+  if (allStatsInflight) return allStatsInflight
+  allStatsInflight = fetchAllStatsOnce().finally(() => {
+    allStatsInflight = null
+  })
+  return allStatsInflight
+}
+
+async function fetchAllStatsOnce(): Promise<StatsPayload | null> {
   return withTimeout(async (signal) => {
     const response = await fetch(STATS_ENDPOINT, {
       method: 'GET',

@@ -164,7 +164,35 @@ endpoint from `.nixlabs/stats.json`, so the client never has two code paths.
 
 3. `public/_redirects` rewrites unknown paths to `index.html`, so `/games/avoid-the-spikes`
    is a real, shareable URL. `public/_headers` caches `/assets/*` immutably.
+   `public/_routes.json` restricts Pages Functions to `/api/*` — see the request-budget
+   section below. It must ship with the build; never delete it casually.
 4. Or from a terminal: `npm run deploy`.
+
+## Cloudflare request budget (Free plan)
+
+Pages bills every request that *invokes a Function* against the shared 100k/day
+Workers-Free quota. Static asset requests are free and unlimited — but only if
+no Function matches the route. Two rules keep the site inside the free tier:
+
+- **`public/_routes.json`** pins Functions to `/api/*`. Without it, Pages
+  auto-generates a spec from the `functions/` directory (`include: ["/*"]`,
+  `exclude: []`), which makes every JS/CSS chunk, game image, vault `.dat`
+  and SPA HTML request a *billed* invocation. The catch-all handlers under
+  `functions/assets/` and `functions/images/` are R2 fallbacks kept for
+  parity only — nothing needs them, because those keys also ship inside
+  `dist/` and the asset layer serves them for free. User uploads
+  (avatars, release media) deliberately live under `/api/assets/*` and stay
+  Functions-served (they are cached by the browser for a year).
+- **Client-side request discipline.** Boot costs roughly: `/api/users/me` +
+  one `/api/stats` GET + one visit POST + one `/api/updates` GET + (only when
+  logged in) one friends/messages snapshot. The presence heartbeat (40s)
+  doubles as the notification poller: its response carries badge counts and
+  the client only refetches the full lists when a count changes. The update
+  engine, social snapshots and public profiles are single-flight + briefly
+  cached in the browser, so multiple components on the same tick share one
+  request. Heartbeats pause while the tab is hidden or idle — presence then
+  decays naturally (online ≤45s, idle ≤165s, offline after), which is honest
+  UX and pure quota savings.
 
 ## Games
 

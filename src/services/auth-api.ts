@@ -132,6 +132,48 @@ if (typeof window !== 'undefined') {
   void getMe()
 }
 
+const publicProfileCache = new Map<string, {
+  value: UserPublicProfileResponse | null
+  at: number
+  inflight?: Promise<UserPublicProfileResponse | null>
+}>()
+const PUBLIC_PROFILE_TTL_MS = 60_000
+
+export function invalidatePublicProfileCache(username: string): void {
+  publicProfileCache.delete(username.toLowerCase())
+}
+
+/**
+ * Public profiles change rarely; every author byline on the updates page and
+ * every profile visit would otherwise re-fetch the same user. Short TTL +
+ * single-flight keeps the UI identical while collapsing duplicate requests.
+ */
+export async function getPublicProfile(username: string): Promise<UserPublicProfileResponse | null> {
+  const key = username.toLowerCase()
+  const hit = publicProfileCache.get(key)
+  if (hit) {
+    if (hit.inflight) return hit.inflight
+    if (Date.now() - hit.at < PUBLIC_PROFILE_TTL_MS) return hit.value
+  }
+
+  const slot = { value: hit?.value ?? null, at: hit?.at ?? 0 }
+  const inflight = (async (): Promise<UserPublicProfileResponse | null> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(username)}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      const profile = (data.profile as UserPublicProfileResponse | null) ?? null
+      publicProfileCache.set(key, { value: profile, at: Date.now() })
+      return profile
+    } finally {
+      const current = publicProfileCache.get(key)
+      if (current && current.inflight) delete current.inflight
+    }
+  })()
+  publicProfileCache.set(key, { ...slot, inflight })
+  return inflight
+}
+
 export async function updateNickname(payload: UserProfileUpdatePayload) {
   const res = await fetch('/api/users/me', {
     method: 'PUT',
@@ -139,6 +181,9 @@ export async function updateNickname(payload: UserProfileUpdatePayload) {
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error(await res.text())
+  if (cachedCurrentUser) {
+    invalidatePublicProfileCache(cachedCurrentUser.username)
+  }
   return res.json()
 }
 
@@ -152,13 +197,9 @@ export async function updatePfp(file: File) {
     body: file,
   })
   if (!res.ok) throw new Error(await res.text())
+  if (cachedCurrentUser) {
+    invalidatePublicProfileCache(cachedCurrentUser.username)
+  }
   return res.json()
-}
-
-export async function getPublicProfile(username: string): Promise<UserPublicProfileResponse | null> {
-  const res = await fetch(`/api/users/${username}`)
-  if (!res.ok) return null
-  const data = await res.json()
-  return data.profile
 }
 
