@@ -16,3 +16,6 @@
 
 /favicon.svg
   Cache-Control: public, max-age=86400
+
+/games/card-jitsu/*.swf
+  Cache-Control: no-cache, no-store, must-revalidate

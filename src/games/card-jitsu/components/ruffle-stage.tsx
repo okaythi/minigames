@@ -30,6 +30,7 @@ declare global {
       roomId: number,
     ) => void
     onFlashGameScore?: (score: number) => void
+    shimLog?: (...args: unknown[]) => void
   }
 }
 
@@ -125,18 +126,20 @@ export function RuffleStage({ session }: RuffleStageProps) {
         player.setAttribute('width', '100%')
         player.setAttribute('height', '100%')
 
+        window.shimLog = (...a) => console.log('[shim]', ...a)
+
         const pending: string[] = []
         const flush = () => {
           while (pending.length && typeof player.dispatchAirtowerMessage === 'function') {
             const raw = pending.shift()!
-            console.log('[Card-Jitsu Bridge -> Flash Raw]', raw)
+            console.log('[ts→flash]', raw)
             // Parse XT packet: %xt%<action>%-1%<args...>%
             const parts = raw.split('%')
             if (parts.length >= 4 && parts[1] === 'xt') {
               const action = parts[2]!
               const resObj = parts.slice(3, -1)
               try {
-                console.log('[Card-Jitsu dispatchAirtowerMessage]', action, resObj)
+                console.log('[ts→flash dispatch]', action, resObj)
                 player.dispatchAirtowerMessage(action, resObj)
               } catch (bridgeError) {
                 console.warn('[Card-Jitsu Ruffle] dispatch error', action, bridgeError)
@@ -147,7 +150,7 @@ export function RuffleStage({ session }: RuffleStageProps) {
 
         // Connect global ExternalInterface hooks
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
-          console.log('[Card-Jitsu Flash -> Host]', { ext, action, args, type, roomId })
+          console.log('[flash→ts]', ext, action, args, type, roomId)
           if (cancelled) return
           flush()
           session.handleFlashPacket(ext, action, args, type, roomId)
@@ -162,6 +165,9 @@ export function RuffleStage({ session }: RuffleStageProps) {
         // Queue instead of silently dropping before addCallback attaches.
         session.setBridge((msg: string) => {
           if (cancelled || !player.isConnected) return
+          if (typeof player.dispatchAirtowerMessage !== 'function') {
+            console.log('[ts→flash queue (callback not yet attached)]', msg)
+          }
           pending.push(msg)
           flush()
         })
@@ -170,8 +176,9 @@ export function RuffleStage({ session }: RuffleStageProps) {
         host.replaceChildren(player)
 
         // Load Disney Card-Jitsu bootstrap with exact forceScale/forceAlign & logging
+        const BUILD_ID = '20260904_v2'
         await player.load({
-          url: '/games/card-jitsu/card_bootstrap.swf',
+          url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
           allowScriptAccess: true,
           publicPath: '/games/card-jitsu/ruffle/',
           polyfills: false,
