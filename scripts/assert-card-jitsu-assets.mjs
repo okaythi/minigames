@@ -59,33 +59,59 @@ for (const file of fixedBattles) {
   }
 }
 
+const dealableIds = []
+
 // Check cards
 for (const card of cards) {
   const iconPath = path.join(iconsDir, `${card.id}.swf`)
-  if (!fs.existsSync(iconPath)) {
+  const hasIcon = fs.existsSync(iconPath) && fs.statSync(iconPath).size > 0
+  if (!hasIcon) {
     missingIcons.push(card.id)
   }
 
+  let hasPower = true
   if (card.power_id > 0) {
     const attackPath = path.join(battlesDir, `pow_${card.id}_attack.swf`)
     const reactPath = path.join(battlesDir, `pow_${card.id}_react.swf`)
 
-    if (!fs.existsSync(attackPath)) {
+    const hasAttack =
+      fs.existsSync(attackPath) &&
+      fs.statSync(attackPath).size > 0 &&
+      (!ambientHash || getMd5(attackPath) !== ambientHash)
+    const hasReact =
+      fs.existsSync(reactPath) &&
+      fs.statSync(reactPath).size > 0 &&
+      (!ambientHash || getMd5(reactPath) !== ambientHash)
+
+    if (!hasAttack) {
       missingPowerBattles.push(`pow_${card.id}_attack.swf`)
     } else if (ambientHash && getMd5(attackPath) === ambientHash) {
       duplicateAmbientBattles.push(`pow_${card.id}_attack.swf`)
     }
 
-    if (!fs.existsSync(reactPath)) {
+    if (!hasReact) {
       missingPowerBattles.push(`pow_${card.id}_react.swf`)
     } else if (ambientHash && getMd5(reactPath) === ambientHash) {
       duplicateAmbientBattles.push(`pow_${card.id}_react.swf`)
     }
+
+    if (!hasAttack || !hasReact) {
+      hasPower = false
+    }
+  }
+
+  if (hasIcon && hasPower) {
+    dealableIds.push(card.id)
   }
 }
 
+const dealableOutPath = path.join(rootDir, 'src/games/card-jitsu/engine/deck/dealable-ids.json')
+fs.writeFileSync(dealableOutPath, JSON.stringify(dealableIds, null, 2), 'utf8')
+console.log(`Wrote ${dealableIds.length} dealable card IDs to ${dealableOutPath}`)
+
 console.log('=== CARD-JITSU ASSET INTEGRITY REPORT ===')
 console.log(`Total cards registered: ${cards.length}`)
+console.log(`Dealable cards: ${dealableIds.length}`)
 console.log(`Missing card icons (${missingIcons.length} / ${cards.length}):`)
 if (missingIcons.length > 0) {
   console.log(`  IDs: ${missingIcons.slice(0, 10).join(', ')}${missingIcons.length > 10 ? ` ... (+${missingIcons.length - 10} more)` : ''}`)
@@ -124,3 +150,4 @@ if (hasErrors) {
   console.log('\n[PASS] All Card-Jitsu assets verified.')
   process.exit(0)
 }
+

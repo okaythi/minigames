@@ -1,5 +1,6 @@
 import rawCards from './cards.json'
 import starterDeckRows from './starter-deck.json'
+import dealableIds from './dealable-ids.json'
 import type { CardData, CardStore, OwnedCard } from '../../types'
 
 export const ALL_CARDS: readonly CardData[] = rawCards.map((c) => ({
@@ -15,6 +16,16 @@ export const ALL_CARDS: readonly CardData[] = rawCards.map((c) => ({
 
 export const CARD_BY_ID: ReadonlyMap<number, CardData> = new Map(
   ALL_CARDS.map((c) => [c.id, c]),
+)
+
+export const DEALABLE_IDS = new Set<number>(dealableIds)
+
+export const DEALABLE_CARDS: readonly CardData[] = ALL_CARDS.filter((c) =>
+  DEALABLE_IDS.has(c.id),
+)
+
+export const DEALABLE_CARD_BY_ID: ReadonlyMap<number, CardData> = new Map(
+  DEALABLE_CARDS.map((c) => [c.id, c]),
 )
 
 export class DefaultCardStore implements CardStore {

@@ -20,6 +20,54 @@ export const RULE_SET: Record<NinjaElement, NinjaElement> = {
   s: 'w',
 }
 
+export const RuleSet = RULE_SET
+
+export const DiscardElements: Record<number, NinjaElement> = {
+  4: 's',
+  5: 'w',
+  6: 'f',
+}
+
+export const DiscardColors: Record<number, string> = {
+  7: 'r',
+  8: 'b',
+  9: 'g',
+  10: 'y',
+  11: 'o',
+  12: 'p',
+}
+
+export const Replacements: Record<number, readonly [NinjaElement, NinjaElement]> = {
+  16: ['w', 'f'],
+  17: ['s', 'w'],
+  18: ['f', 's'],
+}
+
+export const PowerLimiters: Record<number, NinjaElement> = {
+  13: 's',
+  14: 'f',
+  15: 'w',
+}
+
+export const OnPlayed = new Set<number>([1, 16, 17, 18])
+export const CurrentRound = new Set<number>([4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18])
+export const AffectsOwnPlayer = new Set<number>([2])
+
+export interface ActivePowerCard {
+  readonly powerId: number
+  readonly player: number
+  readonly opponent: number
+  readonly card: CardData
+}
+
+export interface ActiveCardState {
+  element: NinjaElement
+  value: number
+  readonly card: CardData
+  readonly player: number
+  readonly opponent: number
+}
+
 const ELEMENT_NAMES: Record<NinjaElement, string> = {
   f: 'Fire',
   w: 'Water',
@@ -188,4 +236,237 @@ export function checkWinCondition(wonCards: readonly CardData[]): WinConditionRe
   }
 
   return { won: false }
+}
+
+/**
+ * Houdini adjust_card_values:
+ * Applies previous round's stored powers to modify values before clash.
+ */
+export function adjustCardValues(
+  firstCard: ActiveCardState,
+  secondCard: ActiveCardState,
+  powers: ReadonlyMap<number, ActivePowerCard>,
+): void {
+  for (const [, powerCard] of powers) {
+    if (powerCard.card.powerId === 1 && firstCard.element === secondCard.element) {
+      const swapVal = firstCard.value
+      firstCard.value = secondCard.value
+      secondCard.value = swapVal
+    }
+    if (powerCard.card.powerId === 2) {
+      if (powerCard.player === firstCard.player) {
+        firstCard.value += 2
+      } else {
+        secondCard.value += 2
+      }
+    }
+    if (powerCard.card.powerId === 3) {
+      if (powerCard.player === firstCard.player) {
+        secondCard.value -= 2
+      } else {
+        firstCard.value -= 2
+      }
+    }
+  }
+}
+
+/**
+ * Houdini on_played_effects:
+ * Powers 16, 17, 18 replace elements immediately. Power 1 stored for next round.
+ */
+export function onPlayedEffects(
+  firstCard: ActiveCardState,
+  secondCard: ActiveCardState,
+  powers: Map<number, ActivePowerCard>,
+): void {
+  const cards = [firstCard, secondCard]
+  for (const played of cards) {
+    const powerId = played.card.powerId
+    if (!powerId || !OnPlayed.has(powerId)) continue
+    const currentRound = CurrentRound.has(powerId)
+    if (!currentRound) {
+      powers.set(powerId, {
+        powerId,
+        player: played.player,
+        opponent: played.opponent,
+        card: played.card,
+      })
+    } else {
+      const rep = Replacements[powerId]
+      if (rep) {
+        const [original, replacement] = rep
+        if (firstCard.element === original) firstCard.element = replacement
+        if (secondCard.element === original) secondCard.element = replacement
+      }
+    }
+  }
+}
+
+/**
+ * Houdini get_winner_seat_id:
+ * Element superiority (RuleSet), then numeric value comparison. Returns winning seat or -1 on tie.
+ */
+export function getWinnerSeatId(
+  firstCard: ActiveCardState,
+  secondCard: ActiveCardState,
+): number {
+  if (firstCard.element !== secondCard.element) {
+    return RuleSet[firstCard.element] === secondCard.element
+      ? firstCard.player
+      : secondCard.player
+  }
+  if (firstCard.value > secondCard.value) return firstCard.player
+  if (secondCard.value > firstCard.value) return secondCard.player
+  return -1
+}
+
+/**
+ * Discards a card from opponent's bank matching power conditions.
+ */
+export function discardOpponentCard(
+  powerId: number,
+  bank: CardData[],
+  discards: number[],
+  dealtCards: { dealtId: number; card: CardData }[],
+): boolean {
+  const elem = DiscardElements[powerId]
+  if (elem) {
+    for (let i = bank.length - 1; i >= 0; i--) {
+      if (bank[i]!.element === elem) {
+        const discarded = bank.splice(i, 1)[0]!
+        const dIdx = dealtCards.findIndex((d) => d.card.id === discarded.id)
+        if (dIdx !== -1) {
+          discards.push(dealtCards[dIdx]!.dealtId)
+          dealtCards.splice(dIdx, 1)
+        } else {
+          discards.push(discarded.id)
+        }
+        return true
+      }
+    }
+  }
+  const color = DiscardColors[powerId]
+  if (color) {
+    for (let i = bank.length - 1; i >= 0; i--) {
+      if (bank[i]!.color === color) {
+        const discarded = bank.splice(i, 1)[0]!
+        const dIdx = dealtCards.findIndex((d) => d.card.id === discarded.id)
+        if (dIdx !== -1) {
+          discards.push(dealtCards[dIdx]!.dealtId)
+          dealtCards.splice(dIdx, 1)
+        } else {
+          discards.push(discarded.id)
+        }
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * Houdini on_scored_effects:
+ * Powers 2, 3, 13, 14, 15 stored for next round; powers 4–12 discard opponent cards.
+ */
+export function onScoredEffects(
+  winnerSeatId: number,
+  firstCard: ActiveCardState,
+  secondCard: ActiveCardState,
+  powers: Map<number, ActivePowerCard>,
+  opponentBank: CardData[],
+  discards: number[],
+  opponentDealtCards: { dealtId: number; card: CardData }[],
+): void {
+  if (winnerSeatId === -1) return
+  const winnerCard = firstCard.player === winnerSeatId ? firstCard : secondCard
+  const powerId = winnerCard.card.powerId
+  if (!powerId || OnPlayed.has(powerId)) return
+
+  const currentRound = CurrentRound.has(powerId)
+  if (!currentRound) {
+    powers.set(powerId, {
+      powerId,
+      player: winnerCard.player,
+      opponent: winnerCard.opponent,
+      card: winnerCard.card,
+    })
+  } else {
+    discardOpponentCard(powerId, opponentBank, discards, opponentDealtCards)
+  }
+}
+
+/**
+ * Houdini has_cards_to_play:
+ * Checks if PowerLimiters (13: 's', 14: 'f', 15: 'w') lockout opponent.
+ */
+export function hasCardsToPlay(
+  seatId: number,
+  hand: readonly { dealtId: number; card: CardData }[],
+  powers: ReadonlyMap<number, ActivePowerCard>,
+): boolean {
+  for (const [powerIdStr, limiterElem] of Object.entries(PowerLimiters)) {
+    const powerId = Number(powerIdStr)
+    const powerCard = powers.get(powerId)
+    if (powerCard && powerCard.opponent === seatId) {
+      for (const item of hand) {
+        if (item.card.element !== limiterElem) {
+          return true
+        }
+      }
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * Houdini get_winning_cards:
+ * Returns dealtIds of winning triad and method ('same-element' or 'three-elements').
+ */
+export function getWinningCombo(
+  wonDealtCards: readonly { dealtId: number; card: CardData }[],
+): { winningDealtIds: number[]; winMethod: 'same-element' | 'three-elements' } | null {
+  const byElem: Record<NinjaElement, { dealtId: number; card: CardData }[]> = {
+    f: [],
+    w: [],
+    s: [],
+  }
+  for (const item of wonDealtCards) {
+    byElem[item.card.element].push(item)
+  }
+
+  // 1. Same element, 3 distinct colors
+  for (const elem of ['f', 'w', 's'] as const) {
+    const cards = byElem[elem]
+    const colorCards: { dealtId: number; card: CardData }[] = []
+    const usedColors = new Set<string>()
+    for (const item of cards) {
+      if (!usedColors.has(item.card.color)) {
+        usedColors.add(item.card.color)
+        colorCards.push(item)
+        if (colorCards.length === 3) {
+          return {
+            winningDealtIds: colorCards.map((c) => c.dealtId),
+            winMethod: 'same-element',
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Three different elements, 3 distinct colors
+  for (const f of byElem.f) {
+    for (const w of byElem.w) {
+      if (f.card.color === w.card.color) continue
+      for (const s of byElem.s) {
+        if (s.card.color === f.card.color || s.card.color === w.card.color) continue
+        return {
+          winningDealtIds: [f.dealtId, w.dealtId, s.dealtId],
+          winMethod: 'three-elements',
+        }
+      }
+    }
+  }
+
+  return null
 }
