@@ -31,8 +31,11 @@ if (fs.existsSync(mtascPath)) {
   ])
   console.log('[build-swfs] Compiled card_bootstrap.swf successfully.')
 
-  // 2. Build Menu SWF (targeting award.swf Sprite 133 menus)
-  const awardIn = path.join(projectRoot, 'public', 'games', 'card-jitsu', 'card', 'award', 'award.swf')
+  // 2. Build Menu SWF and Award SWF (targeting award Sprite 133 menus)
+  const templatePath = path.join(projectRoot, 'public', 'games', 'card-jitsu', 'card', 'award', 'award_template.swf')
+  const awardPath = path.join(projectRoot, 'public', 'games', 'card-jitsu', 'card', 'award', 'award.swf')
+  const awardIn = fs.existsSync(templatePath) ? templatePath : awardPath
+
   const menuOut = path.join(projectRoot, 'public', 'games', 'card-jitsu', 'card_menu.swf')
   execFileSync(mtascPath, [
     '-swf',
@@ -52,6 +55,26 @@ if (fs.existsSync(mtascPath)) {
     path.join(swfSrcPath, 'Menu.as'),
   ])
   console.log('[build-swfs] Compiled card_menu.swf successfully.')
+
+  // 3. Build Award SWF with Award.as
+  execFileSync(mtascPath, [
+    '-swf',
+    awardIn,
+    '-out',
+    awardPath,
+    '-version',
+    '8',
+    '-keep',
+    '-cp',
+    std8Path,
+    '-cp',
+    stdPath,
+    '-cp',
+    swfSrcPath,
+    '-main',
+    path.join(swfSrcPath, 'Award.as'),
+  ])
+  console.log('[build-swfs] Compiled award.swf successfully.')
 } else {
   console.log('[build-swfs] MTASC not found in node_modules/.tmp, using committed SWF binaries.')
 }

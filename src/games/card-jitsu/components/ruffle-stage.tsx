@@ -91,13 +91,130 @@ export function RuffleStage({
   const [error, setError] = useState<string | null>(null)
   const [promptData, setPromptData] = useState<PromptData | null>(null)
   const [matchEndOpen, setMatchEndOpen] = useState(false)
+  const [awardActive, setAwardActive] = useState<number | null>(null)
+  const awardActiveRef = useRef<number | null>(null)
+  awardActiveRef.current = awardActive
   // The SWF chooses when a match-end prompt appears, after its own battle and
   // power-card animations finish. This revision only refreshes the already
   // open panel when the asynchronous progression receipt arrives.
   const [, setSessionRevision] = useState(0)
 
-  const returnToDojo = async () => {
+  type StageMovie = 'match' | 'menu' | 'award'
 
+  const loadMovie = async (
+    player: RufflePlayerElement,
+    movie: StageMovie,
+    awardRank?: number,
+  ) => {
+    setLoading(true)
+    setError(null)
+    try {
+      let options: RuffleLoadOptions
+      if (movie === 'match') {
+        options = {
+          url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
+          allowScriptAccess: true,
+          publicPath: '/games/card-jitsu/ruffle/',
+          polyfills: false,
+          autoplay: 'on',
+          unmuteOverlay: 'hidden',
+          letterbox: 'on',
+          scale: 'showAll',
+          forceScale: true,
+          salign: '',
+          forceAlign: true,
+          quality: 'high',
+          logLevel: 'info',
+          parameters: {
+            nick: session.getPlayerNick(),
+            mode: session.isSenseiMode() ? 'MODE_SEN' : 'MODE_EXP',
+            color: session.getPlayerColor(),
+            rank: session.getPlayerBeltRank(),
+          },
+        }
+      } else if (movie === 'award') {
+        options = {
+          url: `/games/card-jitsu/card/award/award.swf?v=${BUILD_ID}`,
+          allowScriptAccess: true,
+          publicPath: '/games/card-jitsu/ruffle/',
+          polyfills: false,
+          autoplay: 'on',
+          unmuteOverlay: 'hidden',
+          letterbox: 'on',
+          scale: 'showAll',
+          forceScale: true,
+          salign: '',
+          forceAlign: true,
+          quality: 'high',
+          logLevel: 'info',
+          parameters: {
+            nick: session.getPlayerNick(),
+            color: String(session.getPlayerColor()),
+            rank: String(awardRank ?? 1),
+          },
+        }
+      } else {
+        options = {
+          url: `/games/card-jitsu/card_menu.swf?v=${BUILD_ID}`,
+          allowScriptAccess: true,
+          publicPath: '/games/card-jitsu/ruffle/',
+          polyfills: false,
+          autoplay: 'on',
+          unmuteOverlay: 'hidden',
+          letterbox: 'on',
+          scale: 'showAll',
+          forceScale: true,
+          salign: '',
+          forceAlign: true,
+          quality: 'high',
+          logLevel: 'info',
+          parameters: {
+            nick: session.getPlayerNick(),
+            introSeen: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
+            hasCards: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
+            rank: String(session.getPlayerBeltRank()),
+            color: String(session.getPlayerColor()),
+          },
+        }
+      }
+
+      await player.load(options)
+    } catch (err) {
+      console.error('[Card-Jitsu Ruffle Load Error]', err)
+      setError(err instanceof Error ? err.message : 'Unknown Flash emulator error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const finishAwardCeremony = () => {
+    if (awardActiveRef.current === null) return
+    setAwardActive(null)
+    awardActiveRef.current = null
+    const player = playerRef.current
+    if (player && player.isConnected) {
+      try {
+        player.pause?.()
+      } catch {}
+    }
+    window.stopMusic?.()
+    onExitRef.current?.()
+  }
+
+  const playAwardCeremony = async (awardRank: number) => {
+    setAwardActive(awardRank)
+    awardActiveRef.current = awardRank
+    const player = playerRef.current
+    if (player && player.isConnected) {
+      try {
+        player.pause?.()
+      } catch {}
+      window.stopMusic?.()
+      await loadMovie(player, 'award', awardRank)
+    }
+  }
+
+  const returnToDojo = async () => {
     // 1. await onMatchEnd
     try {
       await session.waitForMatchEnd()
@@ -105,7 +222,15 @@ export function RuffleStage({
       console.warn('[Card-Jitsu] Error waiting for match end:', err)
     }
 
-    // 2. unload card.swf
+    // 2. Check if a new belt was earned in this match
+    const progression = session.getMatchProgression()
+    const awardRank = progression?.awardRank
+    if (awardRank !== undefined && awardRank > 0) {
+      await playAwardCeremony(awardRank)
+      return
+    }
+
+    // 3. unload card.swf
     const player = playerRef.current
     if (player && player.isConnected) {
       try {
@@ -113,10 +238,10 @@ export function RuffleStage({
       } catch {}
     }
 
-    // 3. stop music
+    // 4. stop music
     window.stopMusic?.()
 
-    // 4. menu
+    // 5. menu
     onExitRef.current?.()
   }
 
@@ -140,65 +265,6 @@ export function RuffleStage({
     void session.waitForMatchEnd().finally(() => {
       setSessionRevision((revision) => revision + 1)
     })
-  }
-
-  const loadMovie = async (player: RufflePlayerElement, isMatch: boolean) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const options: RuffleLoadOptions = isMatch
-        ? {
-            url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
-            allowScriptAccess: true,
-            publicPath: '/games/card-jitsu/ruffle/',
-            polyfills: false,
-            autoplay: 'on',
-            unmuteOverlay: 'hidden',
-            letterbox: 'on',
-            scale: 'showAll',
-            forceScale: true,
-            salign: '',
-            forceAlign: true,
-            quality: 'high',
-            logLevel: 'info',
-            parameters: {
-              nick: session.getPlayerNick(),
-              mode: session.isSenseiMode() ? 'MODE_SEN' : 'MODE_EXP',
-              color: session.getPlayerColor(),
-              rank: session.getPlayerBeltRank(),
-            },
-          }
-        : {
-            url: `/games/card-jitsu/card_menu.swf?v=${BUILD_ID}`,
-            allowScriptAccess: true,
-            publicPath: '/games/card-jitsu/ruffle/',
-            polyfills: false,
-            autoplay: 'on',
-            unmuteOverlay: 'hidden',
-            letterbox: 'on',
-            scale: 'showAll',
-            forceScale: true,
-            salign: '',
-            forceAlign: true,
-            quality: 'high',
-            logLevel: 'info',
-            parameters: {
-              nick: session.getPlayerNick(),
-              introSeen: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
-              hasCards: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
-              rank: String(session.getPlayerBeltRank()),
-              color: String(session.getPlayerColor()),
-            },
-          }
-
-
-      await player.load(options)
-    } catch (err) {
-      console.error('[Card-Jitsu Ruffle Load Error]', err)
-      setError(err instanceof Error ? err.message : 'Unknown Flash emulator error')
-    } finally {
-      setLoading(false)
-    }
   }
 
   useEffect(() => {
@@ -332,12 +398,22 @@ export function RuffleStage({
           })
         }
 
+        window.onAwardComplete = (rank?: number) => {
+          console.log('[flash→ts onAwardComplete]', rank)
+          if (cancelled) return
+          finishAwardCeremony()
+        }
+
         window.onFlashExit = (roomId?: number) => {
           console.log('[flash→ts onFlashExit]', roomId)
           if (cancelled) return
           setPromptData(null)
           setMatchEndOpen(false)
-          onExitRef.current?.()
+          if (awardActiveRef.current !== null) {
+            finishAwardCeremony()
+          } else {
+            onExitRef.current?.()
+          }
         }
 
         window.stopMusic = () => {
@@ -355,7 +431,7 @@ export function RuffleStage({
         } catch {}
         if (cancelled) return
 
-        await loadMovie(player, inMatchRef.current)
+        await loadMovie(player, inMatchRef.current ? 'match' : 'menu')
         if (cancelled) return
         schedule()
       } catch (err) {
@@ -377,6 +453,7 @@ export function RuffleStage({
       window.onFlashGameScore = () => {}
       window.onFlashPrompt = () => {}
       window.onFlashExit = () => {}
+      window.onAwardComplete = () => {}
       window.stopMusic = () => {}
 
       const player = playerElement
@@ -399,9 +476,12 @@ export function RuffleStage({
       isFirstRender.current = false
       return
     }
+    if (awardActiveRef.current !== null) {
+      return
+    }
     const player = playerRef.current
     if (player && player.isConnected) {
-      void loadMovie(player, inMatch)
+      void loadMovie(player, inMatch ? 'match' : 'menu')
     }
   }, [inMatch])
 
@@ -420,11 +500,25 @@ export function RuffleStage({
         {/* Imperatively managed by Ruffle — keep this element childless in JSX. */}
         <div className="nx-card-jitsu-ruffle-host" ref={hostRef} />
 
+        {awardActive !== null && (
+          <button
+            type="button"
+            className="nx-card-jitsu-award-skip"
+            onClick={finishAwardCeremony}
+          >
+            Return to Dojo
+          </button>
+        )}
+
         {loading && (
           <div className="nx-card-jitsu-loading-overlay">
             <div className="nx-card-jitsu-spinner" />
             <div className="nx-card-jitsu-loading-text">
-              {inMatch ? 'Entering Dojo • Initializing Card-Jitsu' : 'Visiting Sensei • Entering Dojo'}
+              {awardActive !== null
+                ? 'Belt Ceremony • Sensei Awaits'
+                : inMatch
+                  ? 'Entering Dojo • Initializing Card-Jitsu'
+                  : 'Visiting Sensei • Entering Dojo'}
             </div>
             <div className="nx-card-jitsu-loading-sub">
               Executing authentic Disney Flash engine via WebAssembly...

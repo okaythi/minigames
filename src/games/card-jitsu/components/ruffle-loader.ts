@@ -42,6 +42,7 @@ declare global {
     onFlashGameScore?: (score: number) => void
     onFlashPrompt?: (...args: readonly unknown[]) => void
     onFlashExit?: (roomId?: number) => void
+    onAwardComplete?: (rank?: number) => void
     onMenuSelect?: (mode: string) => void
     onIntroComplete?: () => void
     stopMusic?: () => void
