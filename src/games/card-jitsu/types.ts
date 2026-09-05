@@ -107,6 +107,21 @@ export interface MatchEndDecision {
   readonly awardRank?: number
 }
 
+/**
+ * Persistence status for the end-of-match presentation. The game engine keeps
+ * playing state separate from this server-authoritative reward receipt so the
+ * player never sees progress claimed as saved when a request failed.
+ */
+export interface MatchProgressionReceipt {
+  readonly status: 'saving' | 'saved' | 'not-saved'
+  readonly rank?: number
+  readonly progress?: number
+  readonly matchesWon?: number
+  readonly progressAwarded?: number
+  readonly awardRank?: number
+  readonly message?: string
+}
+
 export type OnMatchEndCallback = (
   result: MatchEndResult,
 ) => MatchEndDecision | Promise<MatchEndDecision>

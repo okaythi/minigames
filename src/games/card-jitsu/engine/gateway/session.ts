@@ -2,6 +2,8 @@ import type {
   CardData,
   CardJitsuPhase,
   CardStore,
+  MatchEndResult,
+  MatchProgressionReceipt,
   MatchStats,
   NinjaBelt,
   OwnedCard,
@@ -27,6 +29,7 @@ import { BELT_TO_RANK, RANK_TO_BELT, getBeltRank, getRankBelt } from '../progres
 import { selectOpponent, type BotOpponent } from '../opponents/roster'
 import { BotDeck } from '../opponents/bot-deck'
 import { BOT_TIERS, clampTemperature } from '../opponents/tiers'
+import { canPlayCard } from '../rules'
 import { MatchFlow, type DealtCard } from './match-flow'
 import type { GameMode, SessionConfig } from './session-types'
 
@@ -63,6 +66,7 @@ export class CardJitsuSession {
   private botHistory: CardData[] = []
   private playerSelectedCard: CardData | null = null
   private oppSelectedCard: CardData | null = null
+  private matchProgression: MatchProgressionReceipt | null = null
 
   private config: SessionConfig
   private flashBridge: ((msg: string) => void) | null = null
@@ -184,6 +188,14 @@ export class CardJitsuSession {
   public getMode(): GameMode { return this.config.mode }
   public getOpponentNick(): string { return this.botNick }
   public getBotDeck(): BotDeck | null { return this.botDeck }
+  public getMatchResult(): MatchEndResult | null { return this.matchFlow.matchResult }
+  public getMatchProgression(): MatchProgressionReceipt | null { return this.matchProgression }
+
+  /** Updates the visual receipt only after the authoritative match endpoint responds. */
+  public setMatchProgression(receipt: MatchProgressionReceipt | null): void {
+    this.matchProgression = receipt
+    this.notify()
+  }
 
   private introSeen = false
   private inventory = new Set<number>()
@@ -275,6 +287,7 @@ export class CardJitsuSession {
     this.botHistory = []
     this.playerSelectedCard = null
     this.oppSelectedCard = null
+    this.matchProgression = null
     this.playerDealtMap.clear()
     this.oppDealtMap.clear()
     this.senseiMoveMap.clear()
@@ -303,6 +316,10 @@ export class CardJitsuSession {
       this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(rank)
       this.botDeck = new BotDeck(tier, resolvedTemp)
     }
+    // MatchFlow survives between menu selections, so update its result mode
+    // before reset. Otherwise a session initially opened at the Sensei menu
+    // can submit a normal AI match as `sensei` and suppress its XP reward.
+    this.matchFlow.setIsSensei(this.isSenseiMode())
     this.matchFlow.reset()
     this.phase = 'choosing'
     this.notify()
@@ -367,6 +384,10 @@ export class CardJitsuSession {
     if (this.matchFlow.matchEnded) return
     const pCard = this.playerDealtMap.get(playerDealtId)
     if (!pCard) return
+    if (!canPlayCard(PLAYER_SEAT, pCard, this.matchFlow.powers)) {
+      console.warn('[Card-Jitsu] Ignored a blocked card selection.', { dealtId: playerDealtId, element: pCard.element })
+      return
+    }
 
     this.playerDealtMap.delete(playerDealtId)
     this.playerSelectedCard = pCard
@@ -398,7 +419,14 @@ export class CardJitsuSession {
   }
 
   private scheduleBotTurn(playerDealtId: number, playerCard: CardData): void {
-    const oppEntries = Array.from(this.oppDealtMap.entries())
+    // A limiter targets the opponent, which can be the AI. Do not give its
+    // policy a forbidden card to choose from; full lockouts end at the close
+    // of the scoring round before another card is dealt.
+    const oppEntries = Array.from(this.oppDealtMap.entries()).filter(([, card]) =>
+      canPlayCard(OPP_SEAT, card, this.matchFlow.powers),
+    )
+    if (oppEntries.length === 0) return
+
     const botContext: BotContext = {
       hand: oppEntries.map(([dealtId, card]) => ({ dealtId, card })),
       myBank: [...this.matchFlow.oppWonCards],
@@ -428,9 +456,9 @@ export class CardJitsuSession {
   }
 
   private async triggerClash(pId: number, pCard: CardData, oId: number, oCard: CardData): Promise<void> {
-    const pHand = Array.from(this.playerDealtMap.entries()).map(([dealtId, card]) => ({ dealtId, card }))
-    const oHand = Array.from(this.oppDealtMap.entries()).map(([dealtId, card]) => ({ dealtId, card }))
-    const ended = await this.matchFlow.executeClash(pId, pCard, oId, oCard, pHand, oHand)
+    const playerHand = Array.from(this.playerDealtMap.entries()).map(([dealtId, card]) => ({ dealtId, card }))
+    const opponentHand = Array.from(this.oppDealtMap.entries()).map(([dealtId, card]) => ({ dealtId, card }))
+    const ended = await this.matchFlow.executeClash(pId, pCard, oId, oCard, playerHand, opponentHand)
     this.phase = ended ? 'game-over' : 'choosing'
     this.notify()
   }

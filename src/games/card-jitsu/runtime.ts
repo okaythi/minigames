@@ -11,6 +11,7 @@ import type {
   CardStore,
   MatchEndDecision,
   MatchEndResult,
+  MatchProgressionReceipt,
   MatchStats,
   NinjaBelt,
   OnMatchEndCallback,
@@ -132,6 +133,8 @@ export const createCardJitsuRuntime = (
     },
     onMatchEnd: async (result: MatchEndResult): Promise<MatchEndDecision> => {
       let awardRank: number | undefined
+      session.setMatchProgression({ status: 'saving' })
+
       try {
         const matchId = crypto.randomUUID()
         const opponent = session.getOpponentNick()
@@ -140,47 +143,93 @@ export const createCardJitsuRuntime = (
           opponent,
           ...result,
         }
-        const res = await fetch('/api/card-jitsu/match', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        if (res.ok) {
+
+        // Match progression is a real account reward, not a best-effort UI
+        // update. Bound the request so a lost connection cannot strand the
+        // end screen, and explicitly show an unsaved receipt on failure.
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => controller.abort(), 1_800)
+        let res: Response
+        try {
+          res = await fetch('/api/card-jitsu/match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          })
+        } finally {
+          window.clearTimeout(timeout)
+        }
+
+        if (!res.ok) {
+          const message = res.status === 401
+            ? 'Sign in to save Ninja progress.'
+            : 'Could not save this match. Please try again.'
+          session.setMatchProgression({ status: 'not-saved', message })
+        } else {
           const data = (await res.json()) as { ok: boolean } & CardJitsuMatchResponse
+          if (!data.ok || !Number.isFinite(data.rank) || !Number.isFinite(data.progress) || !Number.isFinite(data.matchesWon)) {
+            throw new Error('The match service returned an invalid progression receipt.')
+          }
+
+          const previousProgress = currentProgress
           currentRank = data.rank
           currentProgress = data.progress
           totalWins = data.matchesWon
           awardRank = data.awardRank
           session.setPlayerRank(data.rank)
-          if (data.rank > 0) {
+          // `NinjaBelt` covers the nine coloured belts only. Do not clamp a
+          // rank-10 Ninja Master back to Black by calling setPlayerBelt(black).
+          if (data.rank >= 1 && data.rank <= 9) {
             playerBelt = getRankBelt(data.rank)
             session.setPlayerBelt(playerBelt)
           }
+
+          const receipt: MatchProgressionReceipt = {
+            status: 'saved',
+            rank: data.rank,
+            progress: data.progress,
+            matchesWon: data.matchesWon,
+            progressAwarded: Number.isFinite(data.progressAwarded)
+              ? Math.max(0, data.progressAwarded)
+              : Math.max(0, data.progress - previousProgress),
+            ...(awardRank !== undefined ? { awardRank } : {}),
+          }
+          session.setMatchProgression(receipt)
           store.update((prev) => ({
             ...prev,
             score: totalWins,
             best: Math.max(prev.best ?? 0, totalWins),
           }))
-          if (awardRank !== undefined) {
-            void refreshProfile()
-          }
+          // This refreshes once-only opponent eligibility as well as ensuring
+          // the next match begins from the saved, server-authoritative state.
+          void refreshProfile()
         }
       } catch (err) {
         console.error('[Card-Jitsu] Error recording match result:', err)
+        session.setMatchProgression({
+          status: 'not-saved',
+          message: 'Could not save this match. Check your connection and try again.',
+        })
       }
 
-      if (result.winner === 'player') {
-        deps.current.finishRun(totalWins, { won: true })
-      } else {
-        deps.current.finishRun(totalWins, { won: false })
-      }
+      deps.current.finishRun(totalWins, { won: result.winner === 'player' })
 
+      let productDecision: MatchEndDecision = {}
       if (options?.onMatchEnd) {
-        const decision = await options.onMatchEnd(result)
-        return decision ?? (awardRank !== undefined ? { awardRank } : {})
+        try {
+          productDecision = (await options.onMatchEnd(result)) ?? {}
+        } catch (err) {
+          // A product hook must not suppress the belt ceremony after its
+          // authoritative progression has already been saved.
+          console.error('[Card-Jitsu] Product onMatchEnd error:', err)
+        }
       }
 
-      return awardRank !== undefined ? { awardRank } : {}
+      return {
+        ...(awardRank !== undefined ? { awardRank } : {}),
+        ...productDecision,
+      }
     },
   })
 
@@ -203,7 +252,7 @@ export const createCardJitsuRuntime = (
           session.setEligibleOpponents(profile.eligibleOpponents)
         }
         session.setPlayerRank(profile.rank)
-        if (profile.rank > 0) {
+        if (profile.rank >= 1 && profile.rank <= 9) {
           playerBelt = getRankBelt(profile.rank)
           session.setPlayerBelt(playerBelt)
         }

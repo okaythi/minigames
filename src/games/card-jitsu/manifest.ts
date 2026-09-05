@@ -33,7 +33,7 @@ export const manifest: GameManifest = {
     },
     {
       title: 'Power Cards',
-      body: 'Special power cards grant tactical boosts for the following round: inverting values so lower numbers win, boosting your card value by +2, or freezing an element.',
+      body: 'Special power cards can alter this clash or set up the next: turn Water into Fire for one round, make lower same-element values win, boost your card by +2, or freeze an element.',
     },
     {
       title: 'Authentic Sensei AI',

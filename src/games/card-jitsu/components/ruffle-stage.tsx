@@ -21,6 +21,7 @@ interface PromptData {
   readonly title: string
   readonly message: string
   readonly buttonLabel: string
+  readonly confirmsLeave: boolean
 }
 
 const PROMPT_TITLES: Record<string, string> = {
@@ -29,6 +30,38 @@ const PROMPT_TITLES: Record<string, string> = {
   player_quit_prompt: 'Player Quit',
   quit_game_prompt: 'Leave Game',
   game_over: 'Game Over',
+}
+
+const BELT_NAMES = [
+  'Novice',
+  'White Belt',
+  'Yellow Belt',
+  'Orange Belt',
+  'Green Belt',
+  'Blue Belt',
+  'Red Belt',
+  'Purple Belt',
+  'Brown Belt',
+  'Black Belt',
+  'Ninja Master',
+] as const
+
+function outcomeLabel(winMethod: 'same-element' | 'three-elements' | 'no-cards' | 'forfeit'): string {
+  switch (winMethod) {
+    case 'same-element':
+      return 'Three colours of one element'
+    case 'three-elements':
+      return 'Fire, Water & Snow triad'
+    case 'no-cards':
+      return 'No playable cards remained'
+    case 'forfeit':
+      return 'Match forfeited'
+  }
+}
+
+function beltName(rank: number | undefined): string | null {
+  if (rank === undefined) return null
+  return BELT_NAMES[Math.max(0, Math.min(BELT_NAMES.length - 1, rank))] ?? null
 }
 
 export function RuffleStage({
@@ -57,9 +90,13 @@ export function RuffleStage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [promptData, setPromptData] = useState<PromptData | null>(null)
+  const [matchEndOpen, setMatchEndOpen] = useState(false)
+  // The SWF chooses when a match-end prompt appears, after its own battle and
+  // power-card animations finish. This revision only refreshes the already
+  // open panel when the asynchronous progression receipt arrives.
+  const [, setSessionRevision] = useState(0)
 
-  const handlePromptOk = async () => {
-    setPromptData(null)
+  const returnToDojo = async () => {
 
     // 1. await onMatchEnd
     try {
@@ -81,6 +118,28 @@ export function RuffleStage({
 
     // 4. menu
     onExitRef.current?.()
+  }
+
+  const handlePromptOk = async () => {
+    setPromptData(null)
+    await returnToDojo()
+  }
+
+  const handleMatchEndContinue = async () => {
+    setMatchEndOpen(false)
+    await returnToDojo()
+  }
+
+  const showMatchEnd = () => {
+    setPromptData(null)
+    setMatchEndOpen(true)
+    // Do not use the engine's `game-over` phase as a visual trigger. A final
+    // power-card movie can still be playing at that point; onFlashPrompt is
+    // the SWF's reliable animation-complete signal. If persistence finishes
+    // afterwards, repaint just the receipt in the open result panel.
+    void session.waitForMatchEnd().finally(() => {
+      setSessionRevision((revision) => revision + 1)
+    })
   }
 
   const loadMovie = async (player: RufflePlayerElement, isMatch: boolean) => {
@@ -236,32 +295,48 @@ export function RuffleStage({
         window.onFlashPrompt = (...args: readonly unknown[]) => {
           console.log('[flash→ts onFlashPrompt]', JSON.stringify(args))
           if (cancelled) return
+          // The authentic SWF opens a generic `{player} won/lost` prompt as
+          // soon as it receives czo. Replace only completed-match prompts
+          // with the richer, server-receipt-backed result panel below.
+          if (session.getMatchResult() !== null || session.getPhase() === 'game-over') {
+            showMatchEnd()
+            return
+          }
           const flat = (args as unknown[]).flat(Infinity)
           const strings = flat.filter((x): x is string => typeof x === 'string' && x.length > 0)
           const rawMessage = strings[0] ?? 'Match concluded.'
           const rawButton = strings.find((s) => s.toLowerCase() === 'ok') ?? strings[1] ?? 'OK'
+          const promptText = strings.join(' ').toLowerCase()
+          const confirmsLeave = /quit|leave|exit|close/.test(promptText)
 
-          let title = 'Game Over'
+          let title = confirmsLeave ? 'Leave this match?' : 'Card-Jitsu'
           for (const [key, titleText] of Object.entries(PROMPT_TITLES)) {
             if (
               strings.some((s) => s.toLowerCase().includes(key)) ||
               rawMessage.toLowerCase().includes(key)
             ) {
-              title = titleText
+              title = confirmsLeave ? 'Leave this match?' : titleText
               break
             }
           }
 
           setPromptData({
             title,
-            message: rawMessage,
-            buttonLabel: rawButton.toUpperCase() === 'OK' ? 'OK' : rawButton,
+            message: confirmsLeave
+              ? 'Your current match will end and you will return to the Dojo menu.'
+              : rawMessage,
+            buttonLabel: confirmsLeave
+              ? 'Leave match'
+              : rawButton.toUpperCase() === 'OK' ? 'Close' : rawButton,
+            confirmsLeave,
           })
         }
 
         window.onFlashExit = (roomId?: number) => {
           console.log('[flash→ts onFlashExit]', roomId)
           if (cancelled) return
+          setPromptData(null)
+          setMatchEndOpen(false)
           onExitRef.current?.()
         }
 
@@ -330,6 +405,11 @@ export function RuffleStage({
     }
   }, [inMatch])
 
+  const matchResult = session.getMatchResult()
+  const progression = session.getMatchProgression()
+  const playerWon = matchResult?.winner === 'player'
+  const currentBeltName = beltName(progression?.rank)
+
   return (
     <div
       className="nx-card-jitsu-stage-container"
@@ -367,15 +447,118 @@ export function RuffleStage({
           </div>
         )}
 
-        {promptData !== null && (
-          <div className="nx-card-jitsu-modal-overlay" role="dialog" aria-modal="true">
-            <div className="nx-card-jitsu-modal-card">
-              <h2 className="nx-card-jitsu-modal-title">{promptData.title}</h2>
-              <p className="nx-card-jitsu-modal-body">{promptData.message}</p>
-              <div className="nx-card-jitsu-modal-actions">
+        {matchEndOpen && matchResult !== null && (
+          <div className="nx-card-jitsu-results-overlay" role="dialog" aria-modal="true" aria-labelledby="card-jitsu-result-title">
+            <section className={`nx-card-jitsu-results-card ${playerWon ? 'is-victory' : 'is-defeat'}`}>
+              <div className="nx-card-jitsu-results-knot" aria-hidden="true">◆</div>
+              <div className="nx-card-jitsu-results-heading">
+                <p className="nx-card-jitsu-results-eyebrow">{matchResult.mode === 'sensei' ? 'Sensei challenge' : 'Card-Jitsu match'}</p>
+                <h2 id="card-jitsu-result-title">{playerWon ? 'Match won' : 'Match lost'}</h2>
+              </div>
+
+              <div className="nx-card-jitsu-results-score" aria-label="Match score">
+                <div>
+                  <span>{session.getPlayerNick()}</span>
+                  <strong>{matchResult.playerBank.length}</strong>
+                  <small>cards won</small>
+                </div>
+                <span className="nx-card-jitsu-results-versus">VS</span>
+                <div>
+                  <span>{session.getOpponentNick()}</span>
+                  <strong>{matchResult.opponentBank.length}</strong>
+                  <small>cards won</small>
+                </div>
+              </div>
+
+              <dl className="nx-card-jitsu-results-details">
+                <div>
+                  <dt>Win condition</dt>
+                  <dd>{outcomeLabel(matchResult.winMethod)}</dd>
+                </div>
+                <div>
+                  <dt>Rounds played</dt>
+                  <dd>{matchResult.rounds}</dd>
+                </div>
+                {matchResult.flawless && playerWon && (
+                  <div>
+                    <dt>Bonus</dt>
+                    <dd>Flawless victory</dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className={`nx-card-jitsu-progress-receipt is-${progression?.status ?? 'saving'}`}>
+                {progression?.status === 'saved' ? (
+                  <>
+                    <span className="nx-card-jitsu-progress-mark" aria-hidden="true">✓</span>
+                    <div>
+                      <p>Progress saved</p>
+                      <strong>
+                        {progression.awardRank !== undefined
+                          ? `${beltName(progression.awardRank) ?? 'New belt'} earned`
+                          : progression.progressAwarded && progression.progressAwarded > 0
+                            ? `+${progression.progressAwarded} Ninja XP`
+                            : 'No Ninja XP for this match'}
+                      </strong>
+                      {currentBeltName !== null && progression.progress !== undefined && (
+                        <small>{currentBeltName} · {progression.progress} total XP</small>
+                      )}
+                    </div>
+                  </>
+                ) : progression?.status === 'not-saved' ? (
+                  <>
+                    <span className="nx-card-jitsu-progress-mark" aria-hidden="true">!</span>
+                    <div>
+                      <p>Progress not saved</p>
+                      <strong>{progression.message ?? 'This match could not be recorded.'}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="nx-card-jitsu-progress-spinner" aria-hidden="true" />
+                    <div>
+                      <p>Progress</p>
+                      <strong>Saving…</strong>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="nx-card-jitsu-results-continue"
+                onClick={() => {
+                  void handleMatchEndContinue()
+                }}
+              >
+                Return to Dojo
+              </button>
+            </section>
+          </div>
+        )}
+
+        {promptData !== null && !matchEndOpen && (
+          <div className="nx-card-jitsu-results-overlay" role="dialog" aria-modal="true" aria-labelledby="card-jitsu-prompt-title">
+            <section className={`nx-card-jitsu-results-card nx-card-jitsu-confirm-card ${promptData.confirmsLeave ? 'is-confirm' : 'is-neutral'}`}>
+              <div className="nx-card-jitsu-results-knot" aria-hidden="true">◆</div>
+              <div className="nx-card-jitsu-results-heading">
+                <p className="nx-card-jitsu-results-eyebrow">Card-Jitsu</p>
+                <h2 id="card-jitsu-prompt-title">{promptData.title}</h2>
+              </div>
+              <p className="nx-card-jitsu-confirm-message">{promptData.message}</p>
+              <div className="nx-card-jitsu-confirm-actions">
+                {promptData.confirmsLeave && (
+                  <button
+                    type="button"
+                    className="nx-card-jitsu-results-cancel"
+                    onClick={() => setPromptData(null)}
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="nx-btn nx-btn-primary"
+                  className="nx-card-jitsu-results-continue"
                   onClick={() => {
                     void handlePromptOk()
                   }}
@@ -383,7 +566,7 @@ export function RuffleStage({
                   {promptData.buttonLabel}
                 </button>
               </div>
-            </div>
+            </section>
           </div>
         )}
       </div>

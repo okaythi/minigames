@@ -224,8 +224,8 @@ Student bots represent other penguins training in the Dojo. Matchmaking selects 
 | Level | Belts (Ranks) | Rules Model | Lookahead Search | Payoff & Pruning |
 |---|---|---|---|---|
 | **0 (Ignore)** | White–Orange (1–3) | Evaluates candidate cards with `BASE_RULES` (`RULE_SET`, identity element replacement, standard value comparison). | Ignores active modifiers entirely (`EMPTY_POWERS`). Power cards are evaluated as vanilla normal cards. | Discard powers and value limiters yield zero additional payoff. |
-| **1 (Static 1-Step)** | Green–Red (4–6) | Clashes evaluated under `effectiveRules(activePowers, 1)`: element replacement, reversal, and `sameElementOutcome(v, e, rules)`. | Future plies do not advance powers; un-scored/future effects are approximated. | Scored power cards receive static $+0.5 \cdot \text{BASE}$ hold bonus; discard powers evaluate one-step potential delta $(\Phi(\text{opp}) - \Phi(\text{simOpp})) \cdot \frac{W_{\text{TRIAD}}}{2}$. |
-| **2 (Full Search Advance)** | Purple–Black (7–9) | Full dynamic rules under `effectiveRules(activePowers, 1)` and opponent distribution rational overlay updated to post-reversal/replacement rules. | Every search branch advances powers via pure `advancePowers(powers, played, scored)`. Powers take effect in child nodes. | Discard planning, combo sequencing (e.g. Reverse into Snow), and bank vulnerability penalty ($-0.05 \cdot \text{maxConcentration}$) in Rank 9 tie-breaking. |
+| **1 (Static 1-Step)** | Green–Red (4–6) | Clashes evaluated under `effectiveRules(activePowers, 1)`: Power 1 reverses same-element values only; the Fire → Snow → Water → Fire elemental order is unchanged. | Future plies do not advance powers; un-scored/future effects are approximated. | Scored power cards receive static $+0.5 \cdot \text{BASE}$ hold bonus; discard powers evaluate one-step potential delta $(\Phi(\text{opp}) - \Phi(\text{simOpp})) \cdot \frac{W_{\text{TRIAD}}}{2}$. |
+| **2 (Full Search Advance)** | Purple–Black (7–9) | Full dynamic rules under `effectiveRules(activePowers, 1)`; Powers 16–18 change matching elements in their own round and do not persist. | Every search branch advances powers via pure `advancePowers(powers, played, scored)`. Next-round powers take effect in child nodes. | Discard planning, value-reversal sequencing, and bank vulnerability penalty ($-0.05 \cdot \text{maxConcentration}$) in Rank 9 tie-breaking. |
 
 #### Unified `StrategicPolicy`
 All ranks $\ge 3$ operate using a single parameterized `StrategicPolicy`:
@@ -296,9 +296,9 @@ Implementation files:
   3. **Competitive Policy**: Sensei evaluates turns using `ExpectimaxPolicy` without knowing the player's pick ahead of time.
   4. **Ninja Mask Award**: Defeating Sensei at Black Belt awards Rank 10 (Ninja Master) and grants the Ninja Mask (Club Penguin item ID `104`).
 
-### 5.3 Progression Invariant: Zero XP / Progress in Sensei Mode
-- **Zero XP Guarantee**: Matches against Sensei **never** award progress nor XP (`applyMatchProgression` strictly awards 0 XP on both wins and losses). Sensei is a master teacher and challenge matches do not yield Dojo training experience.
-- **Master Advancement**: Defeating Sensei at Rank 9 (Black Belt) in `sensei` mode awards Rank 10 (Ninja Master) with progress unchanged. For players below Rank 9 who challenge Sensei, neither progress nor rank can advance under any circumstance.
+### 5.3 Progression Invariant: Training Progress from Sensei Losses
+- **Training XP**: A Sensei win below Black Belt awards the challenger **+1 XP**, matching Houdini's `ninja_progress(p, won=False)` path. This can award a coloured belt when an XP threshold is reached.
+- **Master Advancement**: Defeating Sensei at Rank 9 (Black Belt) in `sensei` mode awards Rank 10 (Ninja Master) with progress unchanged. Below Black Belt, the counter-deal prevents a normal player victory, so there is no win-based rank shortcut.
 
 ---
 
@@ -365,7 +365,7 @@ Card-Jitsu state is fully server-authoritative and persisted in Cloudflare D1 vi
 ### 7.2 API Endpoints
 - **`GET /api/card-jitsu/profile`**: Returns ninja rank, progress, color, intro state, owned cards, and dynamically computed `eligibleOpponents`.
 - **`POST /api/card-jitsu/intro-complete`**: Persists intro completion and grants the starter deck (`[1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89]`).
-- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Awards exp (+5 win, +1 loss), calculates rank thresholds, and returns `awardRank`.
+- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Standard Dojo wins award +5 XP and losses +1 XP; Sensei losses below Black Belt award +1 training XP, and a Black-Belt Sensei win awards Ninja Master. The response includes the actual `progressAwarded` receipt and any `awardRank`.
 - **`POST /api/card-jitsu/color`**: Updates penguin body color.
 
 ### 7.3 Experience & Threshold Formula
