@@ -54,8 +54,20 @@ export class MatchFlow {
   public senseiCardPlayed = false
   public matchEnded = false
   public matchEndPromise: Promise<void> = Promise.resolve()
+  private isSensei: boolean
 
-  constructor(private readonly options: MatchFlowOptions) {}
+  constructor(private readonly options: MatchFlowOptions) {
+    this.isSensei = options.isSensei
+  }
+
+  /**
+   * A session is created for the Dojo menu, then may start either a belt or a
+   * Sensei match. Keep the result's mode aligned with the match that actually
+   * started instead of the menu's initial mode.
+   */
+  public setIsSensei(isSensei: boolean): void {
+    this.isSensei = isSensei
+  }
 
   public reset(): void {
     this.round = 1
@@ -197,7 +209,7 @@ export class MatchFlow {
 
     const matchResult: MatchEndResult = {
       winner: isPlayerWin ? 'player' : 'opponent',
-      mode: this.options.isSensei ? 'sensei' : 'belts',
+      mode: this.isSensei ? 'sensei' : 'belts',
       rounds: this.round,
       playerBank: [...this.playerWonCards],
       opponentBank: [...this.oppWonCards],

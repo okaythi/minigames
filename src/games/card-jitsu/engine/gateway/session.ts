@@ -315,6 +315,10 @@ export class CardJitsuSession {
       this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(rank)
       this.botDeck = new BotDeck(tier, resolvedTemp)
     }
+    // MatchFlow survives between menu selections, so update its result mode
+    // before reset. Otherwise a session initially opened at the Sensei menu
+    // can submit a normal AI match as `sensei` and suppress its XP reward.
+    this.matchFlow.setIsSensei(this.isSenseiMode())
     this.matchFlow.reset()
     this.phase = 'choosing'
     this.notify()

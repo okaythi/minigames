@@ -148,15 +148,13 @@ export interface ProgressionOutputState {
 
 /**
  * Authoritative progression calculation:
- * - Every completed match below Black Belt grants progression:
- *   - Win: +5 XP and matchesWon + 1
- *   - Loss: +1 XP
- *   This includes a Sensei challenge. Although the pre-Black-Belt Sensei is
- *   designed to counter every card, a completed player win must not be saved
- *   without its normal reward.
- * - Defeating Sensei when starting at rank 9 awards rank 10 (Ninja Master).
- * - Rank up when progress >= threshold(rank + 1) (capped at rank 9).
- * - No XP is gained when rank >= 9.
+ * - 'sensei' mode: Sensei wins grant the normal +1 training XP while the
+ *   challenger is below Black Belt. Defeating Sensei at rank 9 awards rank 10.
+ * - 'belts' mode:
+ *   - Win: +5 exp, matchesWon + 1
+ *   - Loss: +1 exp
+ *   - Rank up when progress >= threshold(rank + 1) (capped at rank 9)
+ *   - No exp gained when rank >= 9
  */
 export function applyMatchProgression(
   current: ProgressionInputState,
@@ -169,18 +167,27 @@ export function applyMatchProgression(
 
   const playerWon = match.winner === 'player'
 
-  // Ninja Master is the one special Sensei reward: it applies only when the
-  // challenge was won while already a Black Belt. Other completed Sensei
-  // results follow the same win/loss progression as a standard Dojo match.
-  if (match.mode === 'sensei' && rank === 9 && playerWon) {
-    rank = 10
-    awardRank = 10
-    matchesWon += 1
+  if (match.mode === 'sensei') {
+    // Houdini's Sensei handler awards normal loss progress to a challenger.
+    // Below Black Belt Sensei's counter-deal is unbeatable, so a player win is
+    // not a valid normal outcome. At Black Belt, a win earns Ninja Master.
+    if (rank === 9 && playerWon) {
+      rank = 10
+      awardRank = 10
+      matchesWon += 1
+    } else if (!playerWon && rank < 9) {
+      progress += 1
+      while (rank < 9 && progress >= getThresholdForRank(rank + 1)) {
+        rank++
+        awardRank = rank
+      }
+    }
+
     return {
       rank,
       progress,
       matchesWon,
-      awardRank,
+      ...(awardRank !== undefined ? { awardRank } : {}),
     }
   }
 

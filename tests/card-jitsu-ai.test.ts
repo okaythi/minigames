@@ -414,6 +414,24 @@ describe('Card-Jitsu AI & Engine Overhaul (§6 Verification)', () => {
       expect(packets.some((packet) => packet.includes('%power%1%0%16%'))).toBe(true)
     })
 
+    it('keeps the recorded match mode in sync with the selected mode', async () => {
+      // The Dojo session begins at the Sensei/menu mode, then the player can
+      // select a normal AI match. Its persisted result must remain `belts`.
+      const session = new CardJitsuSession({
+        playerBelt: 'green',
+        mode: 'sensei',
+      })
+      const flow = (session as unknown as { matchFlow: MatchFlow }).matchFlow
+
+      session.startMatch('belts')
+      await flow.finalizeMatchEnd(PLAYER_SEAT, 'same-element')
+      expect(session.getMatchResult()?.mode).toBe('belts')
+
+      session.startMatch('sensei')
+      await flow.finalizeMatchEnd(PLAYER_SEAT, 'same-element')
+      expect(session.getMatchResult()?.mode).toBe('sensei')
+    })
+
     it('finalizes a completed match through the progression callback and preserves its result receipt', async () => {
       const completed: CardData[] = []
       const flow = new MatchFlow({

@@ -296,9 +296,9 @@ Implementation files:
   3. **Competitive Policy**: Sensei evaluates turns using `ExpectimaxPolicy` without knowing the player's pick ahead of time.
   4. **Ninja Mask Award**: Defeating Sensei at Black Belt awards Rank 10 (Ninja Master) and grants the Ninja Mask (Club Penguin item ID `104`).
 
-### 5.3 Progression Invariant: Completed Sensei Matches
-- **Training XP**: A Sensei victory below Black Belt awards the challenger **+1 XP**, matching Houdini's `ninja_progress(p, won=False)` path. If the completed game reports a player victory below Black Belt, it awards the standard **+5 XP** and a match win rather than recording a zero-reward result. This keeps the persisted reward consistent with the match result even if a counter-deal is bypassed.
-- **Master Advancement**: Defeating Sensei at Rank 9 (Black Belt) in `sensei` mode awards Rank 10 (Ninja Master) with progress unchanged.
+### 5.3 Progression Invariant: Training Progress from Sensei Losses
+- **Training XP**: A Sensei win below Black Belt awards the challenger **+1 XP**, matching Houdini's `ninja_progress(p, won=False)` path. This can award a coloured belt when an XP threshold is reached.
+- **Master Advancement**: Defeating Sensei at Rank 9 (Black Belt) in `sensei` mode awards Rank 10 (Ninja Master) with progress unchanged. Below Black Belt, the counter-deal prevents a normal player victory, so there is no win-based rank shortcut.
 
 ---
 
@@ -365,7 +365,7 @@ Card-Jitsu state is fully server-authoritative and persisted in Cloudflare D1 vi
 ### 7.2 API Endpoints
 - **`GET /api/card-jitsu/profile`**: Returns ninja rank, progress, color, intro state, owned cards, and dynamically computed `eligibleOpponents`.
 - **`POST /api/card-jitsu/intro-complete`**: Persists intro completion and grants the starter deck (`[1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89]`).
-- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Every completed match below Black Belt awards +5 XP for a win or +1 XP for a loss, including a Sensei challenge. A Black-Belt Sensei win awards Ninja Master. The response includes the actual `progressAwarded` receipt and any `awardRank`.
+- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Standard Dojo wins award +5 XP and losses +1 XP; Sensei losses below Black Belt award +1 training XP, and a Black-Belt Sensei win awards Ninja Master. The response includes the actual `progressAwarded` receipt and any `awardRank`.
 - **`POST /api/card-jitsu/color`**: Updates penguin body color.
 
 ### 7.3 Experience & Threshold Formula
