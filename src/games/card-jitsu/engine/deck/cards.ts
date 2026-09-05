@@ -52,10 +52,14 @@ export const DEALABLE_CARD_BY_ID: ReadonlyMap<number, DealableCard> = new Map(
 )
 
 export class DefaultCardStore implements CardStore {
-  constructor(private readonly owned: readonly OwnedCard[] = starterDeckRows) {}
+  constructor(private owned: readonly OwnedCard[] = starterDeckRows) {}
 
   getOwned(): readonly OwnedCard[] {
     return this.owned
+  }
+
+  setOwned(cards: readonly OwnedCard[]): void {
+    this.owned = cards
   }
 }
 

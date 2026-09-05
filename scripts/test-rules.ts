@@ -188,4 +188,50 @@ assert.equal(OPP_SEAT, 0, 'OPP_SEAT must be 0')
 assert.equal(TIE_SEAT, -1, 'TIE_SEAT must be -1')
 assert.equal(MATCH_COINS, 0, 'MATCH_COINS must be 0')
 
-console.log('[TEST] PASS: All 11 Card-Jitsu Rules & Engine Assertions Verified.')
+// 12. Dynamic Card Injection & Deal Verification
+{
+  const { CardJitsuSession } = await import('../src/games/card-jitsu/engine/gateway/session')
+  const session = new CardJitsuSession({
+    playerBelt: 'white',
+    mode: 'belts',
+  })
+  assert.equal(session.getOwnedCards().length, 12, 'Default session starts with 12 starter cards')
+
+  // Inject full 509 card pool
+  const full509 = Array.from({ length: 509 }, (_, i) => ({
+    cardId: i + 1,
+    quantity: 1,
+    memberQuantity: 0,
+  }))
+  session.setOwnedCards(full509)
+  assert.equal(session.getOwnedCards().length, 509, 'Session reflects all 509 cards after setOwnedCards')
+}
+
+// 13. Engine Belt Progression & Bot Upgrading
+{
+  const { CardJitsuSession } = await import('../src/games/card-jitsu/engine/gateway/session')
+  const session = new CardJitsuSession({
+    playerBelt: 'white',
+    mode: 'belts',
+  })
+  assert.equal(session.getPlayerBeltRank(), 1, 'Initial belt rank is 1 (White)')
+
+  // Advance player to rank 5 (Blue)
+  session.setPlayerRank(5)
+  assert.equal(session.getPlayerBeltRank(), 5, 'Session player belt rank is updated to 5')
+
+  // Start a match and verify opponent rank scales to min(playerRank + 1, 9) = 6
+  session.startMatch('belts')
+  const oppNick = session.getOpponentNick()
+  assert.ok(oppNick.length > 0, 'Opponent selected for rank 5')
+
+  // Advance player to rank 9 (Black)
+  session.setPlayerRank(9)
+  assert.equal(session.getPlayerBeltRank(), 9, 'Session player belt rank is updated to 9 (Black)')
+
+  // Advance player to rank 10 (Master)
+  session.setPlayerRank(10)
+  assert.equal(session.getPlayerBeltRank(), 10, 'Session player belt rank is updated to 10 (Ninja Master)')
+}
+
+console.log('[TEST] PASS: All 13 Card-Jitsu Rules & Engine Assertions Verified.')

@@ -37,10 +37,10 @@ class Menu {
         menus.gotoAndStop(1);
 
         // Parameters from FlashVars or host environment
-        var introParam:String = (root.introSeen != undefined) ? String(root.introSeen) : "0";
-        var cardsParam:String = (root.hasCards != undefined) ? String(root.hasCards) : "0";
-        introSeen = (introParam == "1");
-        hasCards = (cardsParam == "1" || introSeen);
+        var scope:MovieClip = (_root.introSeen != undefined) ? _root : root;
+
+        introSeen = toBool(scope.introSeen);
+        hasCards = toBool(scope.hasCards) || introSeen;
 
         // Populate global SHELL mock with isItemInMyInventory(821)
         var SHELL:Object = _global.SHELL;
@@ -58,12 +58,28 @@ class Menu {
             return [];
         };
 
+        ExternalInterface.addCallback("showMainMenu", this, showMainMenu);
+        ExternalInterface.addCallback("showIntro", this, showIntro);
+        ExternalInterface.addCallback("setIntroState", this, function(intro:Boolean, cards:Boolean):Void {
+            self.introSeen = intro;
+            self.hasCards = (cards || intro);
+            if (self.hasCards) {
+                self.showMainMenu();
+            } else {
+                self.showIntro();
+            }
+        });
+
         // If player has not seen intro or lacks starter deck 821, start first-login sequence
         if (!SHELL.isItemInMyInventory(821)) {
             showIntro();
         } else {
             showMainMenu();
         }
+    }
+
+    private function toBool(val:Object):Boolean {
+        return val == true || val == 1 || val == "true" || val == "1";
     }
 
     private function setSenseiAnim(frame:String):Void {

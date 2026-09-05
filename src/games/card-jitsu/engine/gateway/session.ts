@@ -4,6 +4,7 @@ import type {
   CardStore,
   MatchStats,
   NinjaBelt,
+  OwnedCard,
 } from '../../types'
 import { DEALABLE_IDS, DefaultCardStore } from '../deck/cards'
 import { executeDealRound } from '../deal/deal-strategy'
@@ -22,7 +23,7 @@ import {
   buildPickPacket,
   buildStampInfoPacket,
 } from '../protocol/packets'
-import { BELT_TO_RANK, RANK_TO_BELT, getBeltRank } from '../progression'
+import { BELT_TO_RANK, RANK_TO_BELT, getBeltRank, getRankBelt } from '../progression'
 import { selectOpponent, type BotOpponent } from '../opponents/roster'
 import { MatchFlow, type DealtCard } from './match-flow'
 import type { GameMode, SessionConfig } from './session-types'
@@ -41,7 +42,7 @@ export {
 }
 
 export class CardJitsuSession {
-  private readonly store: CardStore
+  private store: CardStore
   private readonly matchFlow: MatchFlow
   private phase: CardJitsuPhase = 'dialogue'
   private nextDealtId = 1
@@ -50,6 +51,7 @@ export class CardJitsuSession {
   private botNick = 'Ninja Student'
   private botColor = 2
   private botPolicy: BotPolicy | null = null
+  private playerRank = 0
 
   private playerDealtMap = new Map<number, CardData>()
   private oppDealtMap = new Map<number, CardData>()
@@ -62,9 +64,18 @@ export class CardJitsuSession {
   private flashBridge: ((msg: string) => void) | null = null
   private listeners: Set<(stats: MatchStats, phase: CardJitsuPhase) => void> = new Set()
 
+  private readyResolver: (() => void) | null = null
+  public readonly readyPromise: Promise<void>
+
   constructor(config: SessionConfig) {
+    this.readyPromise = new Promise<void>((resolve) => {
+      this.readyResolver = resolve
+    })
     this.config = config
     this.store = config.cardStore ?? new DefaultCardStore()
+    if (config.playerBelt) {
+      this.playerRank = getBeltRank(config.playerBelt)
+    }
 
     if (config.introSeen !== undefined) {
       this.setIntroSeen(config.introSeen)
@@ -120,7 +131,37 @@ export class CardJitsuSession {
     const c = this.config.playerColor ?? 1
     return c === 14 || c < 1 || c > 15 ? 1 : c
   }
-  public getPlayerBeltRank(): number { return getBeltRank(this.config.playerBelt) }
+  public getPlayerBeltRank(): number {
+    return this.playerRank > 0 ? this.playerRank : getBeltRank(this.config.playerBelt)
+  }
+
+  public setPlayerRank(rank: number): void {
+    this.playerRank = rank
+    if (rank >= 1 && rank <= 9) {
+      this.config = { ...this.config, playerBelt: getRankBelt(rank) }
+    } else if (rank === 10) {
+      this.config = { ...this.config, playerBelt: 'black' }
+    }
+    this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(Math.min(this.getPlayerBeltRank() + 1, 9))
+    this.notify()
+  }
+
+  public setEligibleOpponents(opponents: readonly string[]): void {
+    this.config = { ...this.config, eligibleOpponents: opponents }
+  }
+
+  public setOwnedCards(cards: readonly OwnedCard[]): void {
+    if (this.store instanceof DefaultCardStore) {
+      this.store.setOwned(cards)
+    } else {
+      this.store = new DefaultCardStore(cards)
+    }
+  }
+
+  public getOwnedCards(): readonly OwnedCard[] {
+    return this.store.getOwned()
+  }
+
   public getMode(): GameMode { return this.config.mode }
   public getOpponentNick(): string { return this.botNick }
 
@@ -138,6 +179,21 @@ export class CardJitsuSession {
     }
   }
 
+  public addInventoryItem(id: number): void {
+    this.inventory.add(id)
+  }
+
+  public markReady(): void {
+    if (this.readyResolver) {
+      this.readyResolver()
+      this.readyResolver = null
+    }
+  }
+
+  public async waitForReady(): Promise<void> {
+    await this.readyPromise
+  }
+
   public hasItemInInventory(id: number): boolean {
     return this.inventory.has(id)
   }
@@ -145,6 +201,12 @@ export class CardJitsuSession {
   public async completeIntro(): Promise<void> {
     this.introSeen = true
     this.inventory.add(821)
+    const starterCards: readonly OwnedCard[] = [1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89].map((cardId) => ({
+      cardId,
+      quantity: 1,
+      memberQuantity: 0,
+    }))
+    this.setOwnedCards(starterCards)
     try {
       const res = await fetch('/api/card-jitsu/intro-complete', {
         method: 'POST',

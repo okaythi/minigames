@@ -149,6 +149,7 @@ export const createCardJitsuRuntime = (
           currentProgress = data.progress
           totalWins = data.matchesWon
           awardRank = data.awardRank
+          session.setPlayerRank(data.rank)
           if (data.rank > 0) {
             playerBelt = getRankBelt(data.rank)
             session.setPlayerBelt(playerBelt)
@@ -158,6 +159,9 @@ export const createCardJitsuRuntime = (
             score: totalWins,
             best: Math.max(prev.best ?? 0, totalWins),
           }))
+          if (awardRank !== undefined) {
+            void refreshProfile()
+          }
         }
       } catch (err) {
         console.error('[Card-Jitsu] Error recording match result:', err)
@@ -179,24 +183,38 @@ export const createCardJitsuRuntime = (
   })
 
   const refreshProfile = async (): Promise<CardJitsuProfileResponse | null> => {
-    const profile = await fetchCardJitsuProfile()
-    if (profile) {
-      currentRank = profile.rank
-      currentProgress = profile.progress
-      totalWins = profile.matchesWon
-      eligibleOpponents = profile.eligibleOpponents
-      session.setIntroSeen(profile.introSeen)
-      if (profile.rank > 0) {
-        playerBelt = getRankBelt(profile.rank)
-        session.setPlayerBelt(playerBelt)
+    try {
+      const profile = await fetchCardJitsuProfile()
+      if (profile) {
+        currentRank = profile.rank
+        currentProgress = profile.progress
+        totalWins = profile.matchesWon
+        eligibleOpponents = profile.eligibleOpponents
+        const hasCards = profile.cards.length > 0
+        const introSeen = profile.introSeen || hasCards
+        session.setIntroSeen(introSeen)
+        if (hasCards) {
+          session.addInventoryItem(821)
+          session.setOwnedCards(profile.cards)
+        }
+        if (profile.eligibleOpponents.length > 0) {
+          session.setEligibleOpponents(profile.eligibleOpponents)
+        }
+        session.setPlayerRank(profile.rank)
+        if (profile.rank > 0) {
+          playerBelt = getRankBelt(profile.rank)
+          session.setPlayerBelt(playerBelt)
+        }
+        store.update((prev) => ({
+          ...prev,
+          score: totalWins,
+          best: Math.max(prev.best ?? 0, totalWins),
+        }))
       }
-      store.update((prev) => ({
-        ...prev,
-        score: totalWins,
-        best: Math.max(prev.best ?? 0, totalWins),
-      }))
+      return profile
+    } finally {
+      session.markReady()
     }
-    return profile
   }
 
 

@@ -125,8 +125,8 @@ export function RuffleStage({
             logLevel: 'info',
             parameters: {
               nick: session.getPlayerNick(),
-              introSeen: String(session.getIntroSeen()),
-              hasCards: session.hasItemInInventory(821) ? '1' : '0',
+              introSeen: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
+              hasCards: (session.getIntroSeen() || session.hasItemInInventory(821)) ? '1' : '0',
               rank: String(session.getPlayerBeltRank()),
               color: String(session.getPlayerColor()),
             },
@@ -270,6 +270,15 @@ export function RuffleStage({
         }
 
         host.replaceChildren(player)
+
+        // Await server-authoritative profile before loading movie FlashVars
+        try {
+          await Promise.race([
+            session.waitForReady(),
+            new Promise((resolve) => setTimeout(resolve, 2000)),
+          ])
+        } catch {}
+        if (cancelled) return
 
         await loadMovie(player, inMatchRef.current)
         if (cancelled) return
