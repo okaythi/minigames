@@ -6,16 +6,18 @@ import {
   bankPotential,
   applyPowerToBanks,
   VALUE_CDF_BY_ELEMENT,
+  type EffectiveRules,
+  effectiveRules,
+  advancePowers,
+  sameElementOutcome,
+  POWER_CLASS,
+  RULE_SET,
+  type ActivePowerState,
 } from '../rules'
 import type { DealtCard } from '../gateway/match-flow'
 import { BOT_TIERS, type PolicyParams } from '../opponents/tiers'
 
-export interface ActivePowerState {
-  readonly powerId: number
-  readonly player: number
-  readonly opponent: number
-  readonly card: CardData
-}
+export type { ActivePowerState }
 
 export interface BotContext {
   readonly hand: readonly DealtCard[]
@@ -42,6 +44,43 @@ function bankKey(bank: readonly CardData[]): string {
     .sort()
     .join('')
 }
+
+function powersKey(powers: ReadonlyMap<number, ActivePowerState>): string {
+  if (powers.size === 0) return ''
+  let k = ''
+  for (const [id, state] of powers) {
+    k += `${id}_${state.player};`
+  }
+  return k
+}
+
+function maxConcentration(bank: readonly CardData[]): number {
+  if (bank.length < 2) return 0
+  let f = 0, w = 0, s = 0
+  const colorCounts: Record<string, number> = {}
+  for (const c of bank) {
+    if (c.element === 'f') f++
+    else if (c.element === 'w') w++
+    else s++
+    colorCounts[c.color] = (colorCounts[c.color] || 0) + 1
+  }
+  let maxElem = Math.max(f, w, s)
+  let maxCol = 0
+  for (const col in colorCounts) {
+    if (colorCounts[col]! > maxCol) maxCol = colorCounts[col]!
+  }
+  const maxC = Math.max(maxElem, maxCol)
+  return maxC >= 2 ? maxC : 0
+}
+
+const BASE_RULES: EffectiveRules = {
+  beats: RULE_SET,
+  replace: { f: 'f', w: 'w', s: 's' },
+  valueDelta: [0, 0],
+  lowestWins: false,
+}
+
+const EMPTY_POWERS: ReadonlyMap<number, ActivePowerState> = new Map<number, ActivePowerState>()
 
 /**
  * Tier 1–2 Policy: Uniform random selection
@@ -86,12 +125,15 @@ export class StrategicPolicy implements BotPolicy {
     const memo = new Map<string, number>()
     const utilities: { dealtId: number; utility: number }[] = []
 
+    const startPowers = this.params.powerAwareness === 0 ? EMPTY_POWERS : ctx.activePowers
+
     for (const item of ctx.hand) {
       const u = this.evaluateCandidate(
         item.card,
         ctx.hand.filter((c) => c.dealtId !== item.dealtId).map((c) => c.card),
         ctx.myBank,
         ctx.oppBank,
+        startPowers,
         pOpp,
         this.params.horizon,
         memo,
@@ -101,12 +143,30 @@ export class StrategicPolicy implements BotPolicy {
 
     // 4. Action selection based on precision parameter
     if (this.params.precision === Infinity) {
-      // Argmax with uniform tie-break among candidates within ε of max
       let maxU = -Infinity
       for (const u of utilities) {
         if (u.utility > maxU) maxU = u.utility
       }
       const candidates = utilities.filter((u) => u.utility >= maxU - EPSILON)
+
+      // Bank vulnerability tie-breaker (awareness 2, rank 9 tie-breaker only)
+      if (this.params.powerAwareness === 2 && candidates.length > 1) {
+        const candidateScores = candidates.map((cand) => {
+          const item = ctx.hand.find((h) => h.dealtId === cand.dealtId)!
+          const resultingBank = [...ctx.myBank, item.card]
+          const concentration = maxConcentration(resultingBank)
+          const adjUtility = cand.utility - 0.05 * concentration
+          return { dealtId: cand.dealtId, score: adjUtility }
+        })
+        let bestScore = -Infinity
+        for (const cs of candidateScores) {
+          if (cs.score > bestScore) bestScore = cs.score
+        }
+        const bestCandidates = candidateScores.filter((cs) => cs.score >= bestScore - 1e-6)
+        const chosenIdx = Math.floor(ctx.rng() * bestCandidates.length)
+        return bestCandidates[chosenIdx]!.dealtId
+      }
+
       const chosenIdx = Math.floor(ctx.rng() * candidates.length)
       return candidates[chosenIdx]!.dealtId
     }
@@ -158,33 +218,36 @@ export class StrategicPolicy implements BotPolicy {
     // 2. Rational overlay, weight s = modelStrength
     const s = this.params.modelStrength
     if (s > 0) {
+      const rules =
+        this.params.powerAwareness === 2
+          ? effectiveRules(ctx.activePowers, 1)
+          : BASE_RULES
+
       const oppFinishers = finishingElements(ctx.oppBank)
       if (oppFinishers.size > 0) {
-        const uVal = 1 / oppFinishers.size
-        p = {
-          f: (1 - s) * p.f + (oppFinishers.has('f') ? s * uVal : 0),
-          w: (1 - s) * p.w + (oppFinishers.has('w') ? s * uVal : 0),
-          s: (1 - s) * p.s + (oppFinishers.has('s') ? s * uVal : 0),
+        // F = finishingElements(oppBank) -> rational set { e : rules.replace[e] in F }
+        const rationalSet = ALL_ELEMENTS.filter((e) => oppFinishers.has(rules.replace[e]))
+        if (rationalSet.length > 0) {
+          const uVal = 1 / rationalSet.length
+          p = {
+            f: (1 - s) * p.f + (rationalSet.includes('f') ? s * uVal : 0),
+            w: (1 - s) * p.w + (rationalSet.includes('w') ? s * uVal : 0),
+            s: (1 - s) * p.s + (rationalSet.includes('s') ? s * uVal : 0),
+          }
         }
       } else {
         const myFinishers = finishingElements(ctx.myBank)
         if (myFinishers.size > 0) {
-          // Find elements that beat our finishing elements: B = { e : e beats g, g ∈ G }
-          const blockers = new Set<NinjaElement>()
-          for (const elem of ALL_ELEMENTS) {
-            for (const g of myFinishers) {
-              if (doesElementBeat(elem, g)) {
-                blockers.add(elem)
-              }
-            }
-          }
-          if (blockers.size > 0) {
-            const uVal = 1 / blockers.size
+          // G = finishingElements(myBank) -> block set { e : rules.beats[rules.replace[e]] in G' } where G' = { rules.replace[g] : g in G }
+          const gPrime = new Set(Array.from(myFinishers).map((g) => rules.replace[g]))
+          const blockers = ALL_ELEMENTS.filter((e) => gPrime.has(rules.beats[rules.replace[e]]))
+          if (blockers.length > 0) {
+            const uVal = 1 / blockers.length
             const halfS = s / 2
             p = {
-              f: (1 - halfS) * p.f + (blockers.has('f') ? halfS * uVal : 0),
-              w: (1 - halfS) * p.w + (blockers.has('w') ? halfS * uVal : 0),
-              s: (1 - halfS) * p.s + (blockers.has('s') ? halfS * uVal : 0),
+              f: (1 - halfS) * p.f + (blockers.includes('f') ? halfS * uVal : 0),
+              w: (1 - halfS) * p.w + (blockers.includes('w') ? halfS * uVal : 0),
+              s: (1 - halfS) * p.s + (blockers.includes('s') ? halfS * uVal : 0),
             }
           }
         }
@@ -205,6 +268,7 @@ export class StrategicPolicy implements BotPolicy {
     remainingHand: readonly CardData[],
     myBank: readonly CardData[],
     oppBank: readonly CardData[],
+    powers: ReadonlyMap<number, ActivePowerState>,
     pOpp: Record<NinjaElement, number>,
     horizon: number,
     memo: Map<string, number>,
@@ -221,6 +285,7 @@ export class StrategicPolicy implements BotPolicy {
         remainingHand,
         myBank,
         oppBank,
+        powers,
         pOpp,
         horizon,
         memo,
@@ -237,37 +302,67 @@ export class StrategicPolicy implements BotPolicy {
     remainingHand: readonly CardData[],
     myBank: readonly CardData[],
     oppBank: readonly CardData[],
+    powers: ReadonlyMap<number, ActivePowerState>,
     pOpp: Record<NinjaElement, number>,
     horizon: number,
     memo: Map<string, number>,
   ): number {
+    const rules =
+      this.params.powerAwareness >= 1
+        ? effectiveRules(powers, 1)
+        : BASE_RULES
+
+    const ce = rules.replace[candidate.element]
+    const ee = rules.replace[oppElem]
+
     // Win outcome evaluation
     const evalWin = (): number => {
       if (checkWinCondition([...myBank, candidate]).won) {
         return W_TRIAD
       }
-      let simMy = [...myBank, candidate]
+      const simMy = [...myBank, candidate]
       let simOpp = [...oppBank]
-      if (candidate.powerId !== 0) {
-        const sim = applyPowerToBanks(candidate.powerId, simMy, simOpp)
-        simMy = sim.myBank
-        simOpp = sim.oppBank
+      let discardDelta = 0
+
+      if (this.params.powerAwareness >= 1 && candidate.powerId !== 0) {
+        const pClass = POWER_CLASS.get(candidate.powerId)
+        if (pClass === 'DISCARD') {
+          const sim = applyPowerToBanks(candidate.powerId, simMy, oppBank)
+          simOpp = sim.oppBank
+          discardDelta = (bankPotential(oppBank) - bankPotential(simOpp)) * (W_TRIAD / 2)
+        }
       }
+
+      let staticBonus = 0
+      if (candidate.powerId !== 0) {
+        const pClass = POWER_CLASS.get(candidate.powerId)
+        if (pClass !== 'DISCARD') {
+          if (this.params.powerAwareness === 1 || (this.params.powerAwareness === 2 && horizon === 0)) {
+            staticBonus = 0.5 * BASE
+          }
+        }
+      }
+
       const deltaMe = bankPotential(simMy) - bankPotential(myBank)
-      const immediateScore = BASE + deltaMe
+      const immediateScore = BASE + deltaMe + discardDelta + staticBonus
 
       if (horizon <= 0 || remainingHand.length === 0) {
         return immediateScore
       }
 
       // Plies beyond: recursive expectimax
-      const nextU = this.searchMax(remainingHand, simMy, simOpp, pOpp, horizon - 1, memo)
+      const nextPowers =
+        this.params.powerAwareness === 2
+          ? advancePowers(powers, { seat: 1, card: candidate }, { seat: 1, card: candidate })
+          : EMPTY_POWERS
+
+      const nextU = this.searchMax(remainingHand, simMy, simOpp, nextPowers, pOpp, horizon - 1, memo)
       return immediateScore + DISCOUNT * nextU
     }
 
     // Loss outcome evaluation: worst-case opponent color c*
     const evalLoss = (): number => {
-      const worst = this.getWorstCaseOpponentCard(oppBank, oppElem)
+      const worst = this.getWorstCaseOpponentCard(oppBank, ee)
       if (worst.wouldWin) {
         return -W_TRIAD
       }
@@ -279,56 +374,86 @@ export class StrategicPolicy implements BotPolicy {
         return immediateScore
       }
 
-      const nextU = this.searchMax(remainingHand, myBank, simOpp, pOpp, horizon - 1, memo)
+      const nextPowers =
+        this.params.powerAwareness === 2
+          ? advancePowers(powers, { seat: 1, card: candidate }, null)
+          : EMPTY_POWERS
+
+      const nextU = this.searchMax(remainingHand, myBank, simOpp, nextPowers, pOpp, horizon - 1, memo)
       return immediateScore + DISCOUNT * nextU
     }
 
-    // Resolve based on elemental rules
-    if (doesElementBeat(candidate.element, oppElem)) {
+    // Resolve based on rules.beats
+    if (rules.beats[ce] === ee) {
       return evalWin()
     }
-    if (doesElementBeat(oppElem, candidate.element)) {
+    if (rules.beats[ee] === ce) {
       return evalLoss()
     }
 
-    // Same element: integrate over VALUE_CDF_BY_ELEMENT
-    const dist = VALUE_CDF_BY_ELEMENT[oppElem]
-    const pWin = dist.pWin(candidate.value)
-    const pTie = dist.pTie(candidate.value)
-    const pLoss = dist.pLoss(candidate.value)
+    // Same element: integrate over modified CDF mixture
+    const outcome = sameElementOutcome(candidate.value, ce, rules)
 
     // Immediate payoffs
-    const wouldWinMe = checkWinCondition([...myBank, candidate]).won
-    let simMy = [...myBank, candidate]
-    let simOppAfterMe = [...oppBank]
-    if (candidate.powerId !== 0) {
-      const sim = applyPowerToBanks(candidate.powerId, simMy, simOppAfterMe)
-      simMy = sim.myBank
-      simOppAfterMe = sim.oppBank
-    }
-    const winPayoff = wouldWinMe ? W_TRIAD : BASE + (bankPotential(simMy) - bankPotential(myBank))
+    let winPayoff: number
+    const simMy = [...myBank, candidate]
+    let simOpp = [...oppBank]
 
-    const worst = this.getWorstCaseOpponentCard(oppBank, oppElem)
-    const lossPayoff = worst.wouldWin ? -W_TRIAD : -BASE - (bankPotential([...oppBank, worst.card]) - bankPotential(oppBank))
+    if (checkWinCondition([...myBank, candidate]).won) {
+      winPayoff = W_TRIAD
+    } else {
+      let discardDelta = 0
+      if (this.params.powerAwareness >= 1 && candidate.powerId !== 0) {
+        const pClass = POWER_CLASS.get(candidate.powerId)
+        if (pClass === 'DISCARD') {
+          const sim = applyPowerToBanks(candidate.powerId, simMy, oppBank)
+          simOpp = sim.oppBank
+          discardDelta = (bankPotential(oppBank) - bankPotential(simOpp)) * (W_TRIAD / 2)
+        }
+      }
+      let staticBonus = 0
+      if (candidate.powerId !== 0) {
+        const pClass = POWER_CLASS.get(candidate.powerId)
+        if (pClass !== 'DISCARD') {
+          if (this.params.powerAwareness === 1 || (this.params.powerAwareness === 2 && horizon === 0)) {
+            staticBonus = 0.5 * BASE
+          }
+        }
+      }
+      winPayoff = BASE + (bankPotential(simMy) - bankPotential(myBank)) + discardDelta + staticBonus
+    }
+
+    const worst = this.getWorstCaseOpponentCard(oppBank, ee)
+    const lossPayoff = worst.wouldWin
+      ? -W_TRIAD
+      : -BASE - (bankPotential([...oppBank, worst.card]) - bankPotential(oppBank))
     const tiePayoff = 0
 
-    const expectedImmediate = pWin * winPayoff + pLoss * lossPayoff + pTie * tiePayoff
+    const expectedImmediate = outcome.win * winPayoff + outcome.loss * lossPayoff + outcome.tie * tiePayoff
 
     if (horizon <= 0 || remainingHand.length === 0) {
       return expectedImmediate
     }
 
-    // State transition applies the assumed outcome per §3.5
+    // State transition applies the assumed outcome per §3.5 & §5
     let nextMy = myBank
     let nextOpp = oppBank
-    if (pWin > pLoss) {
+    let scoredBranch: { seat: number; card: CardData } | null = null
+
+    if (outcome.win > outcome.loss) {
       nextMy = simMy
-      nextOpp = simOppAfterMe
-    } else if (pLoss > pWin) {
+      nextOpp = simOpp
+      scoredBranch = { seat: 1, card: candidate }
+    } else if (outcome.loss > outcome.win) {
       nextOpp = [...oppBank, worst.card]
     }
 
-    const nextU = this.searchMax(remainingHand, nextMy, nextOpp, pOpp, horizon - 1, memo)
+    const nextPowers =
+      this.params.powerAwareness === 2
+        ? advancePowers(powers, { seat: 1, card: candidate }, scoredBranch)
+        : EMPTY_POWERS
+
+    const nextU = this.searchMax(remainingHand, nextMy, nextOpp, nextPowers, pOpp, horizon - 1, memo)
     return expectedImmediate + DISCOUNT * nextU
   }
 
@@ -336,6 +461,7 @@ export class StrategicPolicy implements BotPolicy {
     hand: readonly CardData[],
     myBank: readonly CardData[],
     oppBank: readonly CardData[],
+    powers: ReadonlyMap<number, ActivePowerState>,
     pOpp: Record<NinjaElement, number>,
     horizon: number,
     memo: Map<string, number>,
@@ -346,14 +472,15 @@ export class StrategicPolicy implements BotPolicy {
       return bankPotential(myBank) - bankPotential(oppBank)
     }
 
-    const stateKey = `${horizon}:${hand.map((c) => c.id).sort((a, b) => a - b).join(',')}:${bankKey(myBank)}:${bankKey(oppBank)}`
+    const pKey = powers.size === 0 ? '' : powersKey(powers)
+    const stateKey = `${horizon}:${hand.map((c) => c.id).sort((a, b) => a - b).join(',')}:${bankKey(myBank)}:${bankKey(oppBank)}:${pKey}`
     const cached = memo.get(stateKey)
     if (cached !== undefined) return cached
 
     let maxVal = -Infinity
     for (const card of hand) {
       const nextHand = hand.filter((c) => c.id !== card.id)
-      const u = this.evaluateCandidate(card, nextHand, myBank, oppBank, pOpp, horizon, memo)
+      const u = this.evaluateCandidate(card, nextHand, myBank, oppBank, powers, pOpp, horizon, memo)
       if (u > maxVal) maxVal = u
     }
 

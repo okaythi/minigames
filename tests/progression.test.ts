@@ -102,14 +102,43 @@ describe('Card-Jitsu Progression Engine — Houdini & Disney Parity', () => {
       expect(res.awardRank).toBeUndefined()
     })
 
-    it('awards rank 10 (Ninja Master) upon beating Sensei at rank 9 in sensei mode', () => {
+    it('awards rank 10 (Ninja Master) upon beating Sensei at rank 9 in sensei mode with zero XP gain', () => {
       const state = { rank: 9, progress: 225, matchesWon: 50 }
       const res = applyMatchProgression(state, { winner: 'player', mode: 'sensei' })
 
       expect(res.rank).toBe(10)
-      expect(res.progress).toBe(225)
+      expect(res.progress).toBe(225) // Zero XP granted
       expect(res.matchesWon).toBe(51)
       expect(res.awardRank).toBe(10)
+    })
+
+    it('NEVER grants progress nor XP in matches with Sensei at ranks < 9', () => {
+      // White Belt testing against Sensei
+      const lossAtRank1 = applyMatchProgression(
+        { rank: 1, progress: 8, matchesWon: 2 },
+        { winner: 'opponent', mode: 'sensei' },
+      )
+      expect(lossAtRank1.progress).toBe(8)
+      expect(lossAtRank1.rank).toBe(1)
+      expect(lossAtRank1.awardRank).toBeUndefined()
+
+      // Even if a player somehow won at lower rank, zero XP and zero belt advancement
+      const winAtRank3 = applyMatchProgression(
+        { rank: 3, progress: 32, matchesWon: 8 },
+        { winner: 'player', mode: 'sensei' },
+      )
+      expect(winAtRank3.progress).toBe(32)
+      expect(winAtRank3.rank).toBe(3)
+      expect(winAtRank3.awardRank).toBeUndefined()
+
+      // Rank 0 test
+      const lossAtRank0 = applyMatchProgression(
+        { rank: 0, progress: 2, matchesWon: 0 },
+        { winner: 'opponent', mode: 'sensei' },
+      )
+      expect(lossAtRank0.progress).toBe(2)
+      expect(lossAtRank0.rank).toBe(0)
+      expect(lossAtRank0.awardRank).toBeUndefined()
     })
   })
 

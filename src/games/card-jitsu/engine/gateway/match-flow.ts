@@ -6,16 +6,14 @@ import type {
   OnMatchEndCallback,
 } from '../../types'
 import {
-  type ActiveCardState,
-  type ActivePowerCard,
+  type ActivePowerState,
   AffectsOwnPlayer,
   OnPlayed,
-  adjustCardValues,
   resolveClash,
   getWinningCombo,
   hasCardsToPlay,
-  onPlayedEffects,
-  onScoredEffects,
+  advancePowers,
+  discardOpponentCard,
 } from '../rules'
 import {
   PLAYER_SEAT,
@@ -48,7 +46,7 @@ export class MatchFlow {
   public oppWonCards: CardData[] = []
   public playerWonDealtCards: DealtCard[] = []
   public oppWonDealtCards: DealtCard[] = []
-  public powers = new Map<number, ActivePowerCard>()
+  public powers: ReadonlyMap<number, ActivePowerState> = new Map<number, ActivePowerState>()
   public discards: number[] = []
   public lastClash: ClashResult | null = null
   public matchWinner: 'player' | 'sensei' | null = null
@@ -64,7 +62,7 @@ export class MatchFlow {
     this.oppWonCards = []
     this.playerWonDealtCards = []
     this.oppWonDealtCards = []
-    this.powers.clear()
+    this.powers = new Map<number, ActivePowerState>()
     this.discards = []
     this.lastClash = null
     this.matchWinner = null
@@ -80,32 +78,6 @@ export class MatchFlow {
     playerHand: readonly DealtCard[],
     oppHand: readonly DealtCard[],
   ): Promise<boolean> {
-    const first: ActiveCardState = {
-      element: pCard.element,
-      value: pCard.value,
-      card: pCard,
-      player: PLAYER_SEAT,
-      opponent: OPP_SEAT,
-    }
-    const second: ActiveCardState = {
-      element: oCard.element,
-      value: oCard.value,
-      card: oCard,
-      player: OPP_SEAT,
-      opponent: PLAYER_SEAT,
-    }
-
-    adjustCardValues(first, second, this.powers)
-    this.powers.clear()
-    onPlayedEffects(first, second, this.powers)
-
-    if (pCard.powerId && OnPlayed.has(pCard.powerId)) {
-      this.options.onSendRaw(buildPowerPacket(PLAYER_SEAT, OPP_SEAT, pCard.powerId))
-    }
-    if (oCard.powerId && OnPlayed.has(oCard.powerId)) {
-      this.options.onSendRaw(buildPowerPacket(OPP_SEAT, PLAYER_SEAT, oCard.powerId))
-    }
-
     const clashWinner = resolveClash(pCard, oCard, this.powers)
     const winnerSeatId: SeatId | typeof TIE_SEAT =
       clashWinner === 1 ? PLAYER_SEAT : clashWinner === -1 ? OPP_SEAT : TIE_SEAT
@@ -116,12 +88,23 @@ export class MatchFlow {
       winningCard = pCard
       this.playerWonCards.push(pCard)
       this.playerWonDealtCards.push({ dealtId: pId, card: pCard })
-      onScoredEffects(winnerSeatId, first, second, this.powers, this.oppWonCards, this.discards, this.oppWonDealtCards)
+      if (pCard.powerId) {
+        discardOpponentCard(pCard.powerId, this.oppWonCards, this.discards, this.oppWonDealtCards)
+      }
     } else if (winnerSeatId === OPP_SEAT) {
       winningCard = oCard
       this.oppWonCards.push(oCard)
       this.oppWonDealtCards.push({ dealtId: oId, card: oCard })
-      onScoredEffects(winnerSeatId, first, second, this.powers, this.playerWonCards, this.discards, this.playerWonDealtCards)
+      if (oCard.powerId) {
+        discardOpponentCard(oCard.powerId, this.playerWonCards, this.discards, this.playerWonDealtCards)
+      }
+    }
+
+    if (pCard.powerId && OnPlayed.has(pCard.powerId)) {
+      this.options.onSendRaw(buildPowerPacket(PLAYER_SEAT, OPP_SEAT, pCard.powerId))
+    }
+    if (oCard.powerId && OnPlayed.has(oCard.powerId)) {
+      this.options.onSendRaw(buildPowerPacket(OPP_SEAT, PLAYER_SEAT, oCard.powerId))
     }
 
     if (winnerSeatId !== TIE_SEAT && winningCard?.powerId && !OnPlayed.has(winningCard.powerId)) {
@@ -132,13 +115,30 @@ export class MatchFlow {
       this.discards = []
     }
 
+    // Authoritative power state mutation solely through advancePowers
+    const scoredCard =
+      winnerSeatId === PLAYER_SEAT
+        ? { seat: PLAYER_SEAT, card: pCard }
+        : winnerSeatId === OPP_SEAT
+          ? { seat: OPP_SEAT, card: oCard }
+          : null
+
+    this.powers = advancePowers(
+      this.powers,
+      [
+        { seat: PLAYER_SEAT, card: pCard },
+        { seat: OPP_SEAT, card: oCard },
+      ],
+      scoredCard,
+    )
+
     if (pCard.id === 256 || oCard.id === 256) this.senseiCardPlayed = true
 
     this.lastClash = {
       playerCard: pCard,
       senseiCard: oCard,
       winner: winnerSeatId === PLAYER_SEAT ? 'player' : winnerSeatId === OPP_SEAT ? 'sensei' : 'tie',
-      reason: first.element !== second.element ? 'element' : first.value === second.value ? 'tie' : 'value',
+      reason: pCard.element !== oCard.element ? 'element' : pCard.value === oCard.value ? 'tie' : 'value',
       ...(winningCard?.powerId && winningCard.powerId > 0 ? { powerTriggered: winningCard.powerId } : {}),
       message: winnerSeatId === PLAYER_SEAT ? `${pCard.name ?? 'Player'} wins!` : winnerSeatId === OPP_SEAT ? `${oCard.name ?? 'Opponent'} wins!` : 'Clash tie!',
     }

@@ -1,12 +1,10 @@
 import type { CardData } from '../../types'
 import {
   checkWinCondition,
-  adjustCardValues,
-  onPlayedEffects,
-  onScoredEffects,
-  getWinnerSeatId,
-  type ActiveCardState,
-  type ActivePowerCard,
+  resolveClash,
+  advancePowers,
+  discardOpponentCard,
+  type ActivePowerState,
 } from '../rules'
 import { BOT_TIERS } from '../opponents/tiers'
 import { BotDeck } from '../opponents/bot-deck'
@@ -70,7 +68,7 @@ export function simulateHeadlessMatch(
   const historyA: CardData[] = []
   const historyB: CardData[] = []
 
-  let powers = new Map<number, ActivePowerCard>()
+  let powers: ReadonlyMap<number, ActivePowerState> = new Map<number, ActivePowerState>()
   let nextDealtId = 1
   let round = 1
 
@@ -129,45 +127,39 @@ export function simulateHeadlessMatch(
     historyA.push(cardA)
     historyB.push(cardB)
 
-    const first: ActiveCardState = {
-      element: cardA.element,
-      value: cardA.value,
-      card: cardA,
-      player: 1,
-      opponent: 0,
-    }
-    const second: ActiveCardState = {
-      element: cardB.element,
-      value: cardB.value,
-      card: cardB,
-      player: 0,
-      opponent: 1,
-    }
+    const clashWinner = resolveClash(cardA, cardB, powers)
+    let scoredCard: { seat: number; card: CardData } | null = null
 
-    adjustCardValues(first, second, powers)
-    const nextPowers = new Map<number, ActivePowerCard>()
-    onPlayedEffects(first, second, nextPowers)
-
-    const winnerSeat = getWinnerSeatId(first, second)
-    const discards: number[] = []
-
-    if (winnerSeat === 1) {
+    if (clashWinner === 1) {
       bankA.push(cardA)
-      const oppDealt = bankB.map((c, i) => ({ dealtId: i, card: c }))
-      onScoredEffects(1, first, second, nextPowers, bankB, discards, oppDealt)
+      if (cardA.powerId !== 0) {
+        const oppDealt = bankB.map((c, i) => ({ dealtId: i, card: c }))
+        discardOpponentCard(cardA.powerId, bankB, [], oppDealt)
+      }
       if (checkWinCondition(bankA).won) {
         return { winner: 'a', rounds: round }
       }
-    } else if (winnerSeat === 0) {
+      scoredCard = { seat: 1, card: cardA }
+    } else if (clashWinner === -1) {
       bankB.push(cardB)
-      const oppDealt = bankA.map((c, i) => ({ dealtId: i, card: c }))
-      onScoredEffects(0, first, second, nextPowers, bankA, discards, oppDealt)
+      if (cardB.powerId !== 0) {
+        const oppDealt = bankA.map((c, i) => ({ dealtId: i, card: c }))
+        discardOpponentCard(cardB.powerId, bankA, [], oppDealt)
+      }
       if (checkWinCondition(bankB).won) {
         return { winner: 'b', rounds: round }
       }
+      scoredCard = { seat: 0, card: cardB }
     }
 
-    powers = nextPowers
+    powers = advancePowers(
+      powers,
+      [
+        { seat: 1, card: cardA },
+        { seat: 0, card: cardB },
+      ],
+      scoredCard,
+    )
     round++
   }
 

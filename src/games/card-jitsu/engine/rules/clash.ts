@@ -7,14 +7,26 @@ import {
   type ActivePowerState,
   DiscardElements,
   DiscardColors,
+  Replacements,
+  POWER_CLASS,
+  advancePowers,
+  type PowerClass,
   onPlayedEffects,
 } from './powers'
 import { checkWinCondition } from './combos'
+
+export { advancePowers, POWER_CLASS, type PowerClass }
 
 export const RULE_SET: Readonly<Record<NinjaElement, NinjaElement>> = {
   f: 's',
   w: 'f',
   s: 'w',
+} as const
+
+export const REVERSED_RULE_SET: Readonly<Record<NinjaElement, NinjaElement>> = {
+  s: 'f',
+  f: 'w',
+  w: 's',
 } as const
 
 export const RuleSet = RULE_SET
@@ -96,6 +108,104 @@ export function getWinnerSeatId(
   return TIE_SEAT
 }
 
+export interface EffectiveRules {
+  readonly beats: Readonly<Record<NinjaElement, NinjaElement>>       // post-reversal
+  readonly replace: Readonly<Record<NinjaElement, NinjaElement>>     // identity unless REPLACE active
+  readonly valueDelta: readonly [me: number, opp: number]
+  readonly lowestWins: boolean
+}
+
+const DEFAULT_EFFECTIVE_RULES: EffectiveRules = {
+  beats: RULE_SET,
+  replace: { f: 'f', w: 'w', s: 's' },
+  valueDelta: [0, 0],
+  lowestWins: false,
+}
+
+const effectiveRulesCache = new Map<string, EffectiveRules>()
+
+export function effectiveRules(
+  powers: ReadonlyMap<number, ActivePowerState>,
+  mySeat: number,
+): EffectiveRules {
+  if (powers.size === 0) return DEFAULT_EFFECTIVE_RULES
+
+  let cacheKey = `${mySeat}:`
+  for (const [id, state] of powers) {
+    cacheKey += `${id}_${state.player};`
+  }
+  const cached = effectiveRulesCache.get(cacheKey)
+  if (cached !== undefined) return cached
+
+  let reversed = false
+  let replace: Record<NinjaElement, NinjaElement> = { f: 'f', w: 'w', s: 's' }
+  let meDelta = 0
+  let oppDelta = 0
+
+  for (const power of powers.values()) {
+    const pClass = POWER_CLASS.get(power.powerId)
+    if (pClass === 'REVERSE') {
+      reversed = true
+    } else if (pClass === 'REPLACE') {
+      const rep = Replacements[power.powerId]
+      if (rep) {
+        const [orig, repl] = rep
+        replace = { ...replace, [orig]: repl }
+      }
+    } else if (pClass === 'VALUE') {
+      if (power.powerId === 2) {
+        if (power.player === mySeat) {
+          meDelta += 2
+        } else {
+          oppDelta += 2
+        }
+      } else if (power.powerId === 3) {
+        if (power.player === mySeat) {
+          oppDelta -= 2
+        } else {
+          meDelta -= 2
+        }
+      }
+    }
+  }
+
+  const result: EffectiveRules = {
+    beats: reversed ? REVERSED_RULE_SET : RULE_SET,
+    replace,
+    valueDelta: [meDelta, oppDelta] as const,
+    lowestWins: reversed,
+  }
+
+  effectiveRulesCache.set(cacheKey, result)
+  return result
+}
+
+/**
+ * Authoritative clash resolution under effective modified rules:
+ * - Elements evaluated through rules.replace
+ * - Elemental superiority determined through rules.beats (post-reversal)
+ * - Same-element clash evaluated via valueDelta and lowestWins
+ */
+export function resolveClashWith(a: CardData, b: CardData, rules: EffectiveRules): 1 | 0 | -1 {
+  const elemA = rules.replace[a.element] ?? a.element
+  const elemB = rules.replace[b.element] ?? b.element
+
+  if (elemA !== elemB) {
+    if (rules.beats[elemA] === elemB) return 1
+    if (rules.beats[elemB] === elemA) return -1
+    return 0
+  }
+
+  const valA = a.value + rules.valueDelta[0]
+  const valB = b.value + rules.valueDelta[1]
+
+  if (valA === valB) return 0
+  if (rules.lowestWins) {
+    return valA < valB ? 1 : -1
+  }
+  return valA > valB ? 1 : -1
+}
+
 /**
  * Single authoritative clash resolver returning 1 (a wins), -1 (b wins), or 0 (tie).
  * Consistently used across MatchFlow, bot policies, and headless simulation.
@@ -105,29 +215,7 @@ export function resolveClash(
   b: CardData,
   powers: ReadonlyMap<number, ActivePowerState> = new Map(),
 ): 1 | 0 | -1 {
-  const first: ActiveCardState = {
-    element: a.element,
-    value: a.value,
-    card: a,
-    player: 1,
-    opponent: 0,
-  }
-  const second: ActiveCardState = {
-    element: b.element,
-    value: b.value,
-    card: b,
-    player: 0,
-    opponent: 1,
-  }
-
-  adjustCardValues(first, second, powers)
-  const tempNextPowers = new Map<number, ActivePowerCard>()
-  onPlayedEffects(first, second, tempNextPowers)
-
-  const winner = getWinnerSeatId(first, second)
-  if (winner === 1) return 1
-  if (winner === 0) return -1
-  return 0
+  return resolveClashWith(a, b, effectiveRules(powers, 1))
 }
 
 /**
@@ -291,6 +379,34 @@ export const VALUE_CDF_BY_ELEMENT: Readonly<Record<NinjaElement, ReturnType<type
   f: computeValueDistribution('f'),
   w: computeValueDistribution('w'),
   s: computeValueDistribution('s'),
+}
+
+/**
+ * Evaluates win/tie/loss probabilities for same-element clashes taking active rules into account:
+ * - Applies valueDelta = [me, opp] to shift the effective value difference.
+ * - Inverts win/loss probabilities when lowestWins is true.
+ */
+export function sameElementOutcome(
+  v: number,
+  e: NinjaElement,
+  rules: EffectiveRules,
+): { win: number; tie: number; loss: number } {
+  const dist = VALUE_CDF_BY_ELEMENT[e]
+  const netVal = v + rules.valueDelta[0] - rules.valueDelta[1]
+
+  if (rules.lowestWins) {
+    return {
+      win: dist.pLoss(netVal),
+      tie: dist.pTie(netVal),
+      loss: dist.pWin(netVal),
+    }
+  }
+
+  return {
+    win: dist.pWin(netVal),
+    tie: dist.pTie(netVal),
+    loss: dist.pLoss(netVal),
+  }
 }
 
 export interface ActiveEffects {

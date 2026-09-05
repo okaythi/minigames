@@ -148,11 +148,12 @@ export interface ProgressionOutputState {
 
 /**
  * Authoritative progression calculation:
- * - Win: +5 exp, matchesWon + 1
- * - Loss: +1 exp
- * - Rank up when progress >= threshold(rank + 1) (capped at rank 9)
- * - No exp gained when rank >= 9
- * - At rank 9, beating Sensei in 'sensei' mode awards rank 10
+ * - 'sensei' mode: NEVER grants progress nor XP. Beating Sensei at rank 9 awards rank 10.
+ * - 'belts' mode:
+ *   - Win: +5 exp, matchesWon + 1
+ *   - Loss: +1 exp
+ *   - Rank up when progress >= threshold(rank + 1) (capped at rank 9)
+ *   - No exp gained when rank >= 9
  */
 export function applyMatchProgression(
   current: ProgressionInputState,
@@ -164,6 +165,21 @@ export function applyMatchProgression(
   let awardRank: number | undefined = undefined
 
   const playerWon = match.winner === 'player'
+
+  if (match.mode === 'sensei') {
+    // Matches with Sensei NEVER grant progress nor XP
+    if (rank === 9 && playerWon) {
+      rank = 10
+      awardRank = 10
+      matchesWon += 1
+    }
+    return {
+      rank,
+      progress,
+      matchesWon,
+      ...(awardRank !== undefined ? { awardRank } : {}),
+    }
+  }
 
   if (playerWon) {
     matchesWon += 1
@@ -177,9 +193,6 @@ export function applyMatchProgression(
       rank++
       awardRank = rank
     }
-  } else if (rank === 9 && match.mode === 'sensei' && playerWon) {
-    rank = 10
-    awardRank = 10
   }
 
   return {

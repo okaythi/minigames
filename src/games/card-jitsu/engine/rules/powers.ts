@@ -48,6 +48,81 @@ export const OnPlayed = new Set<number>([1, 16, 17, 18])
 export const CurrentRound = new Set<number>([4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18])
 export const AffectsOwnPlayer = new Set<number>([2])
 
+export type PowerClass = 'REVERSE' | 'REPLACE' | 'VALUE' | 'DISCARD'
+
+/**
+ * Authoritative Power Taxonomy:
+ * Classifies all 18 power IDs present in POWER_POOL based on extracted engine rule maps:
+ * - REVERSE: on played, next round, element order inverted (Power 1)
+ * - REPLACE: on played, next round, element replacement (Powers 16, 17, 18)
+ * - VALUE: on scored, next round, numeric delta / limiters (Powers 2, 3, 13, 14, 15)
+ * - DISCARD: on scored, immediate, bank card discard (Powers 4–12)
+ */
+export const POWER_CLASS: ReadonlyMap<number, PowerClass> = new Map<number, PowerClass>([
+  [1, 'REVERSE'],
+  [2, 'VALUE'],
+  [3, 'VALUE'],
+  [4, 'DISCARD'],
+  [5, 'DISCARD'],
+  [6, 'DISCARD'],
+  [7, 'DISCARD'],
+  [8, 'DISCARD'],
+  [9, 'DISCARD'],
+  [10, 'DISCARD'],
+  [11, 'DISCARD'],
+  [12, 'DISCARD'],
+  [13, 'VALUE'],
+  [14, 'VALUE'],
+  [15, 'VALUE'],
+  [16, 'REPLACE'],
+  [17, 'REPLACE'],
+  [18, 'REPLACE'],
+])
+
+/**
+ * Pure state transition function advancing active powers between rounds:
+ * - Consumed powers from the completed round expire immediately.
+ * - Played powers of class REVERSE or REPLACE trigger on played and take effect next round.
+ * - Scored powers of class VALUE trigger on scored and take effect next round.
+ * - Scored powers of class DISCARD execute immediately and do not enter next round's active powers.
+ */
+export function advancePowers(
+  powers: ReadonlyMap<number, ActivePowerState>,
+  played: { seat: number; card: CardData } | readonly { seat: number; card: CardData }[],
+  scored: { seat: number; card: CardData } | null,
+): ReadonlyMap<number, ActivePowerState> {
+  const nextPowers = new Map<number, ActivePowerState>()
+
+  const playedList = Array.isArray(played) ? played : [played]
+  for (const item of playedList) {
+    if (item.card.powerId !== 0) {
+      const pClass = POWER_CLASS.get(item.card.powerId)
+      if (pClass === 'REVERSE' || pClass === 'REPLACE') {
+        nextPowers.set(item.card.powerId, {
+          powerId: item.card.powerId,
+          player: item.seat,
+          opponent: item.seat === 1 ? 0 : 1,
+          card: item.card,
+        })
+      }
+    }
+  }
+
+  if (scored && scored.card.powerId !== 0) {
+    const pClass = POWER_CLASS.get(scored.card.powerId)
+    if (pClass === 'VALUE') {
+      nextPowers.set(scored.card.powerId, {
+        powerId: scored.card.powerId,
+        player: scored.seat,
+        opponent: scored.seat === 1 ? 0 : 1,
+        card: scored.card,
+      })
+    }
+  }
+
+  return nextPowers
+}
+
 /**
  * Houdini on_played_effects (ninja.py L201-L218):
  * Powers 16, 17, 18 replace elements immediately. Power 1 stored for next round.
