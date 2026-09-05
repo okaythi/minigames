@@ -253,12 +253,18 @@ export const DOJO_STORE_CONFIG = {
   animation: {
     /** Duration in ms for the chest shaking/rumbling anticipation */
     chestWobbleDurationMs: 650,
+    /** Duration in ms of the lid-swing + light-burst once the seal breaks */
+    chestLidOpenDurationMs: 750,
     /** Number of particle sparkles emitted when the chest opens */
-    burstParticleCount: 38,
-    /** Interval in ms between flipping each normal card */
+    burstParticleCount: 90,
+    /** Interval in ms between launching each normal card out of the chest */
     normalCardFlipIntervalMs: 150,
+    /** Flight time in ms for a normal card travelling chest -> slot */
+    cardFlightMs: 620,
     /** Dramatic suspense pause in ms before revealing the 10th power card */
-    powerCardSuspenseMs: 700,
+    powerCardSuspenseMs: 750,
+    /** Flight time in ms for the power card's slow, majestic arc */
+    powerCardFlightMs: 850,
     /** Duration in ms for the power card golden aura expansion */
     powerCardGlowDurationMs: 1200,
     /** Enable synthesized Web Audio pentatonic chimes on chest burst and flips */

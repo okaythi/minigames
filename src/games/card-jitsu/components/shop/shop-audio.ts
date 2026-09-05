@@ -114,3 +114,62 @@ export function playCandySpend(): void {
   osc.start(now)
   osc.stop(now + 0.26)
 }
+
+/**
+ * Rising "whoosh" as a card rockets out of the chest.
+ */
+export function playCardLaunch(): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  const now = ctx.currentTime
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(180, now)
+  osc.frequency.exponentialRampToValueAtTime(760, now + 0.16)
+
+  gain.gain.setValueAtTime(0.001, now)
+  gain.gain.linearRampToValueAtTime(0.1, now + 0.05)
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
+
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+
+  osc.start(now)
+  osc.stop(now + 0.24)
+}
+
+/**
+ * Percussive "BAM" the moment a card slams into its slot.
+ */
+export function playBam(pitch = 1): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  const now = ctx.currentTime
+
+  const thump = ctx.createOscillator()
+  const thumpGain = ctx.createGain()
+  thump.type = 'sine'
+  thump.frequency.setValueAtTime(150 * pitch, now)
+  thump.frequency.exponentialRampToValueAtTime(52 * pitch, now + 0.12)
+  thumpGain.gain.setValueAtTime(0.22, now)
+  thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16)
+  thump.connect(thumpGain)
+  thumpGain.connect(ctx.destination)
+  thump.start(now)
+  thump.stop(now + 0.18)
+
+  const click = ctx.createOscillator()
+  const clickGain = ctx.createGain()
+  click.type = 'triangle'
+  click.frequency.setValueAtTime(940 * pitch, now)
+  clickGain.gain.setValueAtTime(0.07, now)
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05)
+  click.connect(clickGain)
+  clickGain.connect(ctx.destination)
+  click.start(now)
+  click.stop(now + 0.06)
+}

@@ -32,8 +32,8 @@ export const onRequestPut = async ({ request, env }: PagesContext): Promise<Resp
   }
 
   const colorId = Number(body.colorId)
-  // Validates 1–15, ≠14 (14 is Sensei only)
-  if (!Number.isInteger(colorId) || colorId < 1 || colorId > 15 || colorId === 14) {
+  // Validates 1–16, ≠14 (14 is Sensei only; 15 = Aqua, 16 = Arctic White)
+  if (!Number.isInteger(colorId) || colorId < 1 || colorId > 16 || colorId === 14) {
     return jsonResponse(400, { ok: false, error: 'invalid-color-id' })
   }
 

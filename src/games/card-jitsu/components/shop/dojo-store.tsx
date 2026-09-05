@@ -44,6 +44,9 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
   })
   const [ownedCards, setOwnedCards] = useState<readonly OwnedCard[]>([])
   const [activeDrawnCards, setActiveDrawnCards] = useState<readonly DrawnCard[] | null>(null)
+  // Remounts the chest ceremony for each purchase so the full sequence
+  // (seal -> burst -> card fireworks) replays for every pack.
+  const [purchaseSeq, setPurchaseSeq] = useState(0)
 
   // Fetch shop state and card collection
   const fetchShopData = useCallback(async () => {
@@ -184,7 +187,14 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
           setUserCandy(data.candy)
           broadcastCandyUpdate(data.candy)
         }
+        // The first-pack welcome deal is one-shot; flip the store panel to
+        // the post-purchase price immediately instead of waiting for a
+        // reload, so the promo can never be re-shown at the old price.
+        if (data.pack) {
+          setPackInfo(data.pack)
+        }
         setActiveDrawnCards(data.cards)
+        setPurchaseSeq((seq) => seq + 1)
 
         // Refresh Card-Jitsu engine deck
         if (runtime?.refreshProfile) {
@@ -249,7 +259,9 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
         <div className="dojo-store-col-left">
           {activeDrawnCards ? (
             <ChestOpeningView
+              key={`chest-ceremony-${purchaseSeq}`}
               cards={activeDrawnCards}
+              packPrice={packInfo.price}
               onFinish={() => setActiveDrawnCards(null)}
               onOpenAnother={() => void handleBuyPack()}
               canOpenAnother={userCandy >= packInfo.price}

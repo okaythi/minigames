@@ -71,5 +71,12 @@ export interface BuyPackResponse {
   readonly ok: boolean
   readonly candy?: number
   readonly cards?: readonly DrawnCard[]
+  /**
+   * Fresh pack pricing after this purchase. The first pack is discounted
+   * (firstPurchasePromo), so a successful buy must flip the store UI to the
+   * regular price immediately - otherwise the promo button stays on screen
+   * until reload and misrepresents what the next purchase costs.
+   */
+  readonly pack?: ShopPackInfo
   readonly error?: string
 }

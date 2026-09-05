@@ -112,8 +112,11 @@ export const createCardJitsuRuntime = (
     options?.player?.nick ?? currentUser?.nickname ?? currentUser?.username ?? 'Ninja'
   const profileColor = (currentUser as { colorId?: number } | null)?.colorId
   const candidateColor = options?.player?.colorId ?? profileColor ?? 1
+  // 14 is Sensei's reserved gray; the Dojo Store catalogue runs 1–16
+  // (15 = Aqua, 16 = Arctic White), matching SHELL.getPlayerHexFromId in the
+  // patched card_bootstrap.swf.
   const playerColor =
-    candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 15 ? candidateColor : 1
+    candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 16 ? candidateColor : 1
 
   const session = new CardJitsuSession({
     playerBelt,

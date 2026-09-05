@@ -5,6 +5,7 @@ import { identifyPlayer } from '../../stats/identity'
 import { storeFor, type StatsEnv } from '../../stats/store-for'
 import { jsonResponse } from '../../stats/respond'
 import { DOJO_STORE_CONFIG, calculateCardWeight } from '../../../../shared/card-jitsu-store-config'
+import { buildPackInfo } from './pack-info'
 import rawCards from '../../../../src/games/card-jitsu/engine/deck/cards.json'
 import dealableIds from '../../../../src/games/card-jitsu/engine/deck/dealable-ids.json'
 import type { BuyPackResponse, DrawnCard } from '../../../../shared/card-jitsu-shop-protocol'
@@ -178,6 +179,9 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     ok: true,
     candy: newCandy,
     cards: drawnCardResults,
+    // The welcome deal applies to exactly one pack; the UI must immediately
+    // switch to the regular price so the promo button cannot be reused.
+    pack: buildPackInfo(false),
   }
 
   return jsonResponse(200, response)

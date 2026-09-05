@@ -500,16 +500,6 @@ export function RuffleStage({
         {/* Imperatively managed by Ruffle — keep this element childless in JSX. */}
         <div className="nx-card-jitsu-ruffle-host" ref={hostRef} />
 
-        {awardActive !== null && (
-          <button
-            type="button"
-            className="nx-card-jitsu-award-skip"
-            onClick={finishAwardCeremony}
-          >
-            Return to Dojo
-          </button>
-        )}
-
         {loading && (
           <div className="nx-card-jitsu-loading-overlay">
             <div className="nx-card-jitsu-spinner" />

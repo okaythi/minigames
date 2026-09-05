@@ -5,6 +5,7 @@ import { identifyPlayer } from '../../stats/identity'
 import { storeFor, type StatsEnv } from '../../stats/store-for'
 import { jsonResponse } from '../../stats/respond'
 import { DOJO_STORE_CONFIG } from '../../../../shared/card-jitsu-store-config'
+import { buildPackInfo } from './pack-info'
 import type { CardJitsuShopStateResponse, ShopColorItem } from '../../../../shared/card-jitsu-shop-protocol'
 
 interface PagesContext {
@@ -43,24 +44,6 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
   const packsPurchased = (ninja as { packsPurchased?: number } | undefined)?.packsPurchased ?? 0
   const isFirstPurchase = packsPurchased === 0
 
-  const packPrice = isFirstPurchase
-    ? DOJO_STORE_CONFIG.firstPurchasePromo.actualPrice
-    : DOJO_STORE_CONFIG.pack.price
-
-  const packOriginalPrice = isFirstPurchase
-    ? DOJO_STORE_CONFIG.firstPurchasePromo.fullPrice
-    : DOJO_STORE_CONFIG.pack.originalPrice
-
-  const packPromoTagline = isFirstPurchase
-    ? DOJO_STORE_CONFIG.firstPurchasePromo.promoTagline
-    : DOJO_STORE_CONFIG.pack.promoTagline
-
-  const discountPercent =
-    packOriginalPrice !== undefined && packOriginalPrice > packPrice
-      ? Math.round(((packOriginalPrice - packPrice) / packOriginalPrice) * 100)
-      : 0
-  const promoBadge = discountPercent > 0 ? `${discountPercent}% OFF` : undefined
-
   const colors: ShopColorItem[] = DOJO_STORE_CONFIG.colors.map((c) => {
     const isOwned = ownedColorSet.has(c.id) || c.defaultUnlocked === true
     const isEquipped = c.id === equippedColorId
@@ -90,19 +73,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     equippedColorId,
     ownedColorIds: Array.from(ownedColorSet),
     colors,
-    pack: {
-      price: packPrice,
-      ...(packOriginalPrice !== undefined ? { originalPrice: packOriginalPrice } : {}),
-      isPromoActive: isFirstPurchase || DOJO_STORE_CONFIG.pack.isPromoActive,
-      ...(promoBadge !== undefined ? { promoBadge } : {}),
-      ...(packPromoTagline !== undefined ? { promoTagline: packPromoTagline } : {}),
-      isFirstPurchasePromo: isFirstPurchase,
-      name: DOJO_STORE_CONFIG.pack.name,
-      description: DOJO_STORE_CONFIG.pack.description,
-      iconUrl: DOJO_STORE_CONFIG.pack.iconUrl,
-      normalCardsCount: DOJO_STORE_CONFIG.packRules.normalCardsCount,
-      powerCardsCount: DOJO_STORE_CONFIG.packRules.powerCardsCount,
-    },
+    pack: buildPackInfo(isFirstPurchase),
   }
 
   return jsonResponse(200, response)

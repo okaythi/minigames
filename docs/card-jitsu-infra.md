@@ -62,7 +62,7 @@ External products can dynamically configure every player attribute:
 | Field | Range / Type | Purpose / Wire Impact |
 |---|---|---|
 | `nick` | `string` | Displayed above the player's 5 cards and in the match-end dialogue. Wire packet: `jz [0, nick, color, rank]`. |
-| `colorId` | `1` to `15` | Sets the player penguin's body color in Flash: `1=Blue, 2=Green, 3=Pink, 4=Black, 5=Red, 6=Orange, 7=Yellow, 8=Purple, 9=Brown, 10=Peach, 11=Dark Green, 12=Light Blue, 13=Lime, 14=Sensei Gray, 15=Aqua`. |
+| `colorId` | `1` to `16` | Sets the player penguin's body color in Flash: `1=Blue, 2=Green, 3=Pink, 4=Black, 5=Red, 6=Orange, 7=Yellow, 8=Purple, 9=Brown, 10=Peach, 11=Dark Green, 12=Light Blue, 13=Lime, 14=Sensei Gray (reserved, clamps to Blue for players), 15=Aqua, 16=Arctic White`. The hex lookup lives in `SHELL.getPlayerHexFromId` inside `card_bootstrap.swf` (kept in sync by `scripts/patch-bootstrap-swf.mjs` and the AS2 source in `swf-src/Bootstrap.as`). |
 | `beltRank` | `1` to `9` | Sets the player's current belt rank: `1=White, 2=Yellow, 3=Orange, 4=Green, 5=Blue, 6=Red, 7=Purple, 8=Brown, 9=Black`. Determines the belt asset worn by the player penguin on the mat. |
 | `cardStore` | `CardStore` | Controls the pool of cards owned by the player. |
 
