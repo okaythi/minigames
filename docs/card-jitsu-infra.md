@@ -64,10 +64,15 @@ External products can dynamically configure every player attribute:
 | `beltRank` | `1` to `9` | Sets the player's current belt rank: `1=White, 2=Yellow, 3=Orange, 4=Green, 5=Blue, 6=Red, 7=Purple, 8=Brown, 9=Black`. Determines the belt asset worn by the player penguin on the mat. |
 | `cardStore` | `CardStore` | Controls the pool of cards owned by the player. |
 
-### 2.3 Custom Card Stores & Deck Manipulation
+### 2.3 Card Stores & D1 Persistence Synchronization
 
-By default, players draw from `DefaultCardStore` (Starter Deck: 10 starter cards + 2 random power cards from the dealable media pool).
-External products can implement the `CardStore` interface to inject booster pack cards, member cards, or custom unlocked decks:
+By default, the TypeScript runtime boots with [`DefaultCardStore`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/cards.ts#L54-L64) seeded from [`starter-deck.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/starter-deck.json) (12 cards: 9 normal cards and 3 power cards `[73, 81, 89]`).
+
+Upon user authentication and profile load:
+1. `GET /api/card-jitsu/profile` retrieves the user's authoritative card collection from Cloudflare D1 table `cj_card`.
+2. The runtime forwards `profile.cards` to the active session via [`session.setOwnedCards(profile.cards)`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts#L152-L158).
+3. For special/test accounts like `@test`, all 509 cards (104 power cards + 405 normal cards) are injected directly into the session's dealing pool.
+4. For new players, completing the Sensei dialogue triggers `POST /api/card-jitsu/intro-complete`, idempotently inserting the 12 starter cards into `cj_card` and granting inventory item `821`.
 
 ```ts
 export interface OwnedCard {
@@ -81,22 +86,8 @@ export interface CardStore {
 }
 ```
 
-**Example Custom Card Store**:
-```ts
-class CustomUserInventoryCardStore implements CardStore {
-  constructor(private userCards: number[]) {}
+*Safety Guarantee*: The engine validates owned cards against `DEALABLE_CARDS` ([`dealable-ids.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/dealable-ids.json)). Any cards lacking complete media (icon SWF or power animations) are filtered at session startup with a warning, preventing game-breaking clashing hangs.
 
-  getOwned(): readonly OwnedCard[] {
-    return this.userCards.map(id => ({
-      cardId: id,
-      quantity: 1,
-      memberQuantity: 0
-    }))
-  }
-}
-```
-
-*Safety Guarantee*: The engine validates owned cards against `DEALABLE_CARDS` (`dealable-ids.json`). Any cards lacking complete media (icon SWF or power animations) are filtered at session startup with a warning, preventing game-breaking clashing hangs.
 
 ---
 
@@ -185,13 +176,18 @@ const runtime = createCardJitsuRuntime(deps, {
 
 ---
 
-## 4. Artificial Intelligence Architecture
+## 4. Artificial Intelligence Architecture & Decision Making
 
 Card-Jitsu features two distinct AI systems: **Dojo Student Bot Opponents** (progressive belt tiers for "Earn your belts") and **Sensei** (the Master of the Dojo).
 
+Implementation files:
+- **Decision Policies**: [`src/games/card-jitsu/engine/ai/bot-policy.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/ai/bot-policy.ts)
+- **Opponent Roster & Matchmaking**: [`src/games/card-jitsu/engine/opponents/roster.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts)
+- **Turn Scheduling & Bridge**: [`src/games/card-jitsu/engine/gateway/session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts)
+
 ### 4.1 Dojo Student Bot Opponents (4 Difficulty Tiers & Roster)
 
-Student bots represent other penguins training in the Dojo. In this implementation (product decision), bot matchmaking selects an opponent from the authentic student roster (`roster.json`) with belt rank equal to `min(playerBelt + 1, 9)`, authentic penguin colors, and tier-specific deck restrictions:
+Student bots represent other penguins training in the Dojo. Matchmaking selects an opponent from the authentic student roster ([`roster.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.json)) with belt rank equal to $\min(\text{playerBelt} + 1, 9)$, authentic penguin colors, and tier-specific deck restrictions:
 - **Tier 1 (White)**: Daffodaily5
 - **Tier 2 (Yellow)**: Happy77, Businesmoose
 - **Tier 3 (Orange)**: Graser8, Loustik005
@@ -202,7 +198,7 @@ Student bots represent other penguins training in the Dojo. In this implementati
 - **Tier 8 (Brown)**: Trainman1405, Thinknoodles
 - **Tier 9 (Black)**: Billybob, Rsnail, Watex, Saracontemporary
 
-Bots operate across four progressive difficulty tiers (`src/games/card-jitsu/engine/ai/bot-policy.ts`):
+Bots operate across four progressive difficulty tiers implemented in [`bot-policy.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/ai/bot-policy.ts):
 
 ```
 +-------------------------------------------------------------------------+
@@ -221,36 +217,36 @@ Bots operate across four progressive difficulty tiers (`src/games/card-jitsu/eng
 ```
 
 #### Tier 1: `UniformRandomPolicy` (Belts 1–2: White, Yellow)
-- Picks a random card uniformly from its dealable 5-card hand.
-- Simulates early novice students learning the elemental rules.
+- Selects a random card uniformly from its dealable 5-card hand.
+- Simulates early novice students learning the elemental rules without foresight.
 
 #### Tier 2: `GreedyHeuristicPolicy` (Belts 3–5: Orange, Green, Blue)
-- Computes immediate win potential:
-  1. Checks if any card in hand completes a winning triad (3 same-element different-color, or 1 of each element all different colors).
-  2. Checks if the player is one card away from winning, and prioritizes elements that counter the player's missing element.
-  3. Otherwise, prefers higher card values and power cards.
-- **Mistake Rate (20%)**: Has a 20% probability of lapsing into a random pick, providing realistic human error.
+- Computes immediate win and block potential:
+  1. **Winning Move**: Checks if any card in hand completes a winning triad (3 same-element different-color, or 1 of each element all different colors).
+  2. **Block Move**: Checks if the player is one card away from winning, prioritizing cards that counter the player's missing element.
+  3. **High Value / Power**: Otherwise prefers highest numerical value cards and active power cards.
+- **Mistake Rate (20%)**: Has a 20% probability of lapsing into a random pick, simulating realistic beginner mistakes.
 
 #### Tier 3: `OpponentModelPolicy` (Belts 6–8: Red, Purple, Brown)
 - Tracks player choice history over the current match:
-  - Builds an elemental frequency distribution (Fire, Water, Snow).
-  - Predicts player's next move based on unfulfilled player triads.
-  - Selects cards that counter the predicted element with highest win value.
+  - Maintains an elemental frequency vector (Fire, Water, Snow) of player plays.
+  - Predicts the player's next move based on unfulfilled player triads.
+  - Counter-picks the predicted element using its highest card.
 - **Mistake Rate (10%)**: Highly disciplined, with only a 10% blunder rate.
 
 #### Tier 4: `ExpectimaxPolicy` (Belt 9: Black Belt)
-- Evaluates a 2-ply Expectimax search tree over all potential card clash matchups.
+- Evaluates a full 2-ply Expectimax search tree over all potential card clash matchups.
 - Evaluates mat territory, blocker utility, card conservation, and power card multipliers.
 - **Mistake Rate (5%)**: Plays nearly optimal tournament-level Card-Jitsu.
 
 #### Human Realism Latency Delay
-To prevent bot picks from appearing instantaneous and robotic, the engine introduces an asynchronous human latency delay:
-- Uniform distribution between 400 ms and 1500 ms.
-- The player's pick is broadcast immediately (`pick 0 <card>`), after which the bot "deliberates" before broadcasting its own pick (`pick 1 <card>`), matching authentic online player behavior.
+To prevent bot picks from appearing instantaneous and robotic, [`session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts#L320-L335) introduces an asynchronous deliberation delay:
+- Uniform random distribution between 400 ms and 1500 ms.
+- The player's pick is broadcast immediately (`pick 1 <cardSlot>`), after which the bot "deliberates" before broadcasting its own pick (`pick 0 <cardSlot>`), matching authentic online player interaction.
 
 ---
 
-## 5. Sensei's Two Distinct AIs
+## 5. Sensei's Dual AI Modes
 
 Sensei is the ancient guardian of the Dojo. In authentic Disney Card-Jitsu, Sensei does not use standard matchmaking—his AI depends entirely on whether the player has earned the Black Belt:
 
@@ -271,35 +267,126 @@ Sensei is the ancient guardian of the Dojo. In authentic Disney Card-Jitsu, Sens
                      +---------------+  +---------------------+
 ```
 
-### 5.1 Sensei Below Black Belt (Houdini: `ninja.py` L268–L278 pairing at deal)
-- If player rank < 9 (Black Belt), Houdini pairs Sensei's hand at deal time using `get_win_card(player_card)` (`ninja.py` L270).
-- For each dealt player card, Sensei is dealt a counter card that beats it by element (Fire > Snow, Snow > Water, Water > Fire), or has a higher value in the same element.
+Implementation files:
+- **Sensei Deal Pairing**: [`src/games/card-jitsu/engine/deal/deal-strategy.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deal/deal-strategy.ts)
+- **Sensei Move Dispatch**: [`src/games/card-jitsu/engine/gateway/session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts)
 
-### 5.2 Sensei at Black Belt (Houdini: `ninja.py` L259–L264 uniform random deal)
-- Once the player reaches rank 9 (Black Belt), Houdini sets `can_beat_sensei = True` and disables pairing: Sensei draws cards uniformly at random from the standard deck (`ninja.py` L260).
-- Upon defeating Sensei at Black Belt, the Ninja Mask (Club Penguin item ID `104`) is awarded.
+### 5.1 Mode 1: Sensei Below Black Belt (Unbeatable Teacher)
+- **Houdini Reference**: `ninja.py` L268–L278 pairing at deal.
+- When `playerRank < 9`:
+  1. **Pre-Clash Hand Pairing**: During deal execution ([`executeDealRound`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deal/deal-strategy.ts#L100-L125)), Sensei's hand is generated by pairing every dealt player card to a counter card via [`getSenseiCounterCard(playerCard, usedColors)`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deal/deal-strategy.ts#L63-L77).
+  2. **Guaranteed Counter**: The counter card beats the player card by element (Fire > Snow, Snow > Water, Water > Fire), or has a higher numeric value in the same element.
+  3. **Instant Lookup Move**: When the player picks a card, Sensei resolves the mapped move immediately from `senseiMoveMap.get(playerDealtId)`.
+  4. **Power Card Lockout**: In [`drawPlayerCards()`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deal/deal-strategy.ts#L26-L61), all power cards (`powerId !== 0`) in the player's inventory are excluded from deal when `isSensei && !canBeatSensei`.
+
+### 5.2 Mode 2: Sensei at Black Belt (Fair Beat-Sensei Boss)
+- **Houdini Reference**: `ninja.py` L259–L264 uniform random deal.
+- When `playerRank >= 9` (Black Belt):
+  1. **Unpaired Fair Deal**: `canBeatSensei` becomes `true`. Sensei's hand is dealt uniformly at random from `DEALABLE_CARDS`.
+  2. **Power Cards Unlocked**: The player is permitted to draw and play all power cards against Sensei.
+  3. **Competitive Policy**: Sensei evaluates turns using `ExpectimaxPolicy` without knowing the player's pick ahead of time.
+  4. **Ninja Mask Award**: Defeating Sensei at Black Belt awards Rank 10 (Ninja Master) and grants the Ninja Mask (Club Penguin item ID `104`).
 
 ---
 
-## 6. Flash Wire Protocol Reference
+## 6. Card Dealing Subsystem (Player & AI)
 
-The table below summarizes the SmartFox wire packets exchanged between Flash and TypeScript:
+Card dealing is strictly partitioned between player inventory management and bot deck composition:
+
+Implementation files:
+- **Deal Algorithms**: [`src/games/card-jitsu/engine/deal/deal-strategy.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deal/deal-strategy.ts)
+- **Card Data & Inventory Stores**: [`src/games/card-jitsu/engine/deck/cards.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/cards.ts)
+- **Dealable Catalog & Assets**: [`src/games/card-jitsu/engine/deck/cards.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/cards.json) & [`dealable-ids.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/dealable-ids.json)
+
+### 6.1 Player Card Deal (`drawPlayerCards`)
+
+```ts
+export function drawPlayerCards(
+  store: CardStore,
+  currentHand: readonly CardData[],
+  count: number,
+  isSensei: boolean,
+  canBeatSensei: boolean,
+): DealableCard[]
+```
+
+1. **Inventory Accumulation**: Gathers all owned cards from `store.getOwned()`. Card counts are weighted by `quantity + memberQuantity`.
+2. **Media Asset Validation**: Ignores any card ID not in `DEALABLE_IDS` (all 509 catalog cards are verified dealable).
+3. **Sensei Power Gate**: If `isSensei && !canBeatSensei`, cards with `powerId !== 0` are excluded.
+4. **Hand Reservation**: Subtracts cards currently in the player's 5-card hand so duplicates do not exceed owned quantities.
+5. **Sampling Without Replacement**: Randomly samples `count` cards (5 on round 1; 1 on subsequent rounds) from the expanded deck pool.
+6. **Fallback**: If the player's owned pool is completely exhausted, draws from verified `DEALABLE_CARDS`.
+
+### 6.2 Dojo Bot Card Deal
+
+1. **Roster Composition**: Every bot in [`roster.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.json) defines exact card ranges for `deck.normal` and `deck.power`.
+2. **Integrity Validation**: [`roster.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts#L57-L110) validates that power ranges contain only power cards and normal ranges contain only normal cards.
+3. **Deck Compilation**: [`buildBotDeck(bot)`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts#L112-L154) maps ranges into `DealableCard` arrays.
+4. **Dealing**: Bot hands are sampled uniformly without replacement from `botOpponent.deckCards`.
+
+---
+
+## 7. Server-Authoritative Progression & Cloudflare D1 Architecture
+
+Card-Jitsu state is fully server-authoritative and persisted in Cloudflare D1 via Drizzle ORM:
+
+### 7.1 Database Schema (`src/db/schema.ts`)
+- **`cj_ninja`**: `user_id` (PK), `rank` (0–10), `progress` (absolute exp), `matches_won`, `color_id`, `intro_seen`, `updated_at`.
+- **`cj_card`**: `user_id`, `card_id`, `quantity`, `member_quantity` (composite PK: `user_id` + `card_id`).
+- **`cj_match`**: Audit history logging `id`, `user_id`, `opponent`, `mode`, `winner`, `rounds`, `win_method`, `flawless`, `full_dojo`, `rank_before`, `rank_after`, `progress_before`, `progress_after`, `created_at`.
+
+### 7.2 API Endpoints
+- **`GET /api/card-jitsu/profile`**: Returns ninja rank, progress, color, intro state, owned cards, and dynamically computed `eligibleOpponents`.
+- **`POST /api/card-jitsu/intro-complete`**: Persists intro completion and grants the starter deck (`[1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89]`).
+- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Awards exp (+5 win, +1 loss), calculates rank thresholds, and returns `awardRank`.
+- **`POST /api/card-jitsu/color`**: Updates penguin body color.
+
+### 7.3 Experience & Threshold Formula
+Progression uses authentic Club Penguin Houdini mathematics ([`shared/progression.ts`](file:///c:/Users/thy/Projects/minigames/shared/progression.ts)):
+$$\text{threshold}(r) = \frac{(r + 1) \cdot r}{2} \times 5$$
+
+- Rank 1 (White): 5 exp
+- Rank 2 (Yellow): 15 exp
+- Rank 3 (Orange): 30 exp
+- Rank 4 (Green): 50 exp
+- Rank 5 (Blue): 75 exp
+- Rank 6 (Red): 105 exp
+- Rank 7 (Purple): 140 exp
+- Rank 8 (Brown): 180 exp
+- Rank 9 (Black): 225 exp
+- Rank 10 (Master): Defeat Sensei at Rank 9 in `sensei` mode.
+
+### 7.4 Live Belt HUD (`BeltHud`)
+Rendered directly below the Flash stage in [`src/games/card-jitsu/components/belt-hud.tsx`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/components/belt-hud.tsx):
+- **Current Belt Badge**: 48×48px PNG + belt name.
+- **Continuous Progress Pill**: Seamless connector track spanning between current and next belts (`flex: 1`, `maxWidth: 480px`, `height: 16px`, fill: `var(--nx-orange, #f6821f)`).
+- **Next Belt Badge**: 48×48px PNG + next belt name.
+- **Zero "x/y to next" text** and **no literal arrows**.
+
+---
+
+## 8. Flash Wire Protocol Reference
+
+The table below summarizes the SmartFox wire packets exchanged between Flash and TypeScript ([`packets.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/protocol/packets.ts)):
+
+> **Seat Conventions**: Local Player is **Seat 1** (`PLAYER_SEAT`), Opponent/Bot is **Seat 0** (`OPP_SEAT`), and Tie is **Seat -1** (`TIE_SEAT`).
 
 | Packet | Direction | Arguments | Description |
 |---|---|---|---|
 | `gz` | Flash -> TS | `[roomId]` | Client requests game room initialization. |
 | `gz` | TS -> Flash | `[maxPlayers, numPlayers]` | Acknowledges room; parameters `[2, 2]`. |
-| `jz` | TS -> Flash | `[seat, nick, color, rank]` | Local player identity broadcast. Local player must be seat `0`. |
+| `jz` | TS -> Flash | `[seat, nick, color, rank]` | Player identity broadcast for seat 1 (`PLAYER_SEAT`). |
 | `uz` | Flash -> TS | `""` | Client announces ready for opponent sync. |
-| `uz` | TS -> Flash | `[p0_record, p1_record]` | Table occupancy records: `seat\|nick\|color\|rank`. |
-| `sz` | TS -> Flash | `[]` | Game start trigger. Triggers ninja walk-in animation. |
+| `uz` | TS -> Flash | `[p0_record, p1_record]` | Table occupancy records: `seat\|nick\|color\|rank` for seats 0 and 1. |
+| `sz` | TS -> Flash | `[]` | Game start trigger. Initiates ninja walk-in animation. |
 | `deal` | Flash -> TS | `["deal", count]` | Flash requests dealt cards (initial 5, or 1 replacement). |
 | `deal` | TS -> Flash | `[seat, ...cards]` | Deals cards: `dealtId\|cardId\|element\|val\|color\|power`. |
-| `pick` | Flash -> TS | `["pick", cardSlot]` | Player clicked a card to pick. |
+| `pick` | Flash -> TS | `["pick", cardSlot]` | Player clicked a card slot to pick. |
 | `pick` | TS -> Flash | `[seat, cardSlot]` | Broadcasts pick confirmation to both seats. |
 | `power`| TS -> Flash | `[seat, targetSeat, powerId]` | Broadcasts power card activation before clash. |
-| `judge`| TS -> Flash | `[winnerSeat]` | Triggers clash battle animation (`0`=player, `1`=bot, `-1`=tie). |
+| `judge`| TS -> Flash | `[winnerSeat]` | Triggers clash battle animation (`1`=player, `0`=bot, `-1`=tie). |
 | `czo`  | TS -> Flash | `[0, winnerSeat, ...ids]` | Match over (`0` = coins). Highlights winning triad cards on the mat. |
-| `cza`  | TS -> Flash | `[rank]` | Belt awarded. Triggers Sensei award popup / ceremony. |
-| `lz`   | Flash -> TS | `[]` | Player leaves match. |
+| `cza`  | TS -> Flash | `[rank]` | Belt awarded. Triggers Sensei `award.swf` ceremony. |
+| `lz`   | Flash -> TS | `[]` | Player leaves match back to Dojo. |
 | `cjsi` | TS -> Flash | `[]` | Stamp / achievement info response. |
+
