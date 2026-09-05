@@ -81,6 +81,9 @@ export function getWinningCombo(
  * Evaluates whether cards satisfy Card-Jitsu victory condition (for UI/stats).
  */
 export function checkWinCondition(wonCards: readonly CardData[]): WinConditionResult {
+  if (wonCards.length < 3) {
+    return { won: false, winningCards: [] }
+  }
   const byElement: Record<NinjaElement, CardData[]> = {
     f: [],
     w: [],
