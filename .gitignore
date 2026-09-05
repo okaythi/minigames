@@ -24,3 +24,4 @@ pnpm-debug.log*
 # Nixlabs: local state - the dev stats file and the D1/Wrangler sandbox
 .nixlabs/
 functions/.wrangler/
+scratch/

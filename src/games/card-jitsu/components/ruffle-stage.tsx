@@ -7,8 +7,25 @@ interface RuffleStageProps {
   readonly onExit?: () => void
 }
 
+export interface RuffleLoadOptions {
+  readonly url: string
+  readonly allowScriptAccess?: boolean | undefined
+  readonly publicPath?: string | undefined
+  readonly polyfills?: boolean | undefined
+  readonly autoplay?: 'on' | 'off' | 'auto' | undefined
+  readonly unmuteOverlay?: 'visible' | 'hidden' | undefined
+  readonly letterbox?: 'on' | 'off' | 'fullscreen' | undefined
+  readonly scale?: 'showAll' | 'noborder' | 'exactFit' | 'noScale' | undefined
+  readonly forceScale?: boolean | undefined
+  readonly salign?: string | undefined
+  readonly forceAlign?: boolean | undefined
+  readonly quality?: 'low' | 'medium' | 'high' | 'best' | 'autolow' | 'autohigh' | undefined
+  readonly logLevel?: 'error' | 'warn' | 'info' | 'debug' | 'trace' | undefined
+  readonly parameters?: Record<string, string | number | boolean> | undefined
+}
+
 type RufflePlayerElement = HTMLElement & {
-  readonly load: (options: Record<string, unknown>) => Promise<void>
+  readonly load: (options: RuffleLoadOptions) => Promise<void>
   readonly dispatchAirtowerMessage?: (action: string, resObj: unknown) => void
   readonly remove: () => void
 }
@@ -234,7 +251,7 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
           logLevel: 'info',
           parameters: {
             nick: session.getPlayerNick(),
-            mode: session.getMode(),
+            mode: session.isSenseiMode() ? 'MODE_SEN' : 'MODE_EXP',
             color: session.getPlayerColor(),
             rank: session.getPlayerBeltRank(),
           },

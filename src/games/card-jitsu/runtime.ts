@@ -3,7 +3,8 @@ import { getCurrentUser } from '../../services/auth-api'
 import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
 import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
-import { CardJitsuSession, BELT_TO_RANK, RANK_TO_BELT } from './engine/gateway/session'
+import { CardJitsuSession, BELT_TO_RANK } from './engine/gateway/session'
+import { getRankBelt } from './engine/progression'
 import { DefaultCardStore } from './engine/deck/cards'
 import type {
   CardJitsuPhase,
@@ -64,7 +65,7 @@ export const createCardJitsuRuntime = (
   options?: CardJitsuRuntimeOptions,
 ): CardJitsuRuntimeExtended => {
   const initialBelt = options?.player?.beltRank
-    ? RANK_TO_BELT[options.player.beltRank] ?? 'white'
+    ? getRankBelt(options.player.beltRank)
     : 'white'
   let playerBelt: NinjaBelt = initialBelt
   let difficulty: SenseiDifficulty = 'medium'
@@ -115,11 +116,9 @@ export const createCardJitsuRuntime = (
     onMatchEnd: async (result: MatchEndResult): Promise<MatchEndDecision> => {
       if (result.winner === 'player') {
         totalWins++
-        deps.current.bankBonus(50)
         store.update((prev) => ({
           ...prev,
           score: totalWins,
-          bonus: prev.bonus + 50,
           best: Math.max(prev.best ?? 0, totalWins),
         }))
         deps.current.finishRun(totalWins, { won: true, difficulty })
@@ -132,11 +131,9 @@ export const createCardJitsuRuntime = (
         const curRank = BELT_TO_RANK[playerBelt] ?? 1
         if (curRank < 9) {
           const nextRank = curRank + 1
-          const nextBelt = RANK_TO_BELT[nextRank]
-          if (nextBelt) {
-            playerBelt = nextBelt
-            defaultAwardRank = nextRank
-          }
+          const nextBelt = getRankBelt(nextRank)
+          playerBelt = nextBelt
+          defaultAwardRank = nextRank
         }
       }
 
@@ -208,11 +205,9 @@ export const createCardJitsuRuntime = (
     },
     forceWin: () => {
       totalWins++
-      deps.current.bankBonus(50)
       store.update((prev) => ({
         ...prev,
         score: totalWins,
-        bonus: prev.bonus + 50,
         status: 'over',
       }))
       session.forceWin()

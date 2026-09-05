@@ -18,13 +18,36 @@ export const CARD_BY_ID: ReadonlyMap<number, CardData> = new Map(
   ALL_CARDS.map((c) => [c.id, c]),
 )
 
-export const DEALABLE_IDS = new Set<number>(dealableIds)
+export const DEALABLE_IDS: ReadonlySet<number> = new Set<number>(dealableIds)
 
-export const DEALABLE_CARDS: readonly CardData[] = ALL_CARDS.filter((c) =>
-  DEALABLE_IDS.has(c.id),
+declare const DealableCardBrand: unique symbol
+
+/**
+ * Branded type representing a CardData whose media assets (icon SWF and power battle SWFs)
+ * have been verified to exist and conform to the SWF specification.
+ *
+ * Deal paths, decks, and bot policies strictly operate on DealableCard, ensuring
+ * unrepresentability of unplayable cards at the type level.
+ */
+export type DealableCard = CardData & { readonly [DealableCardBrand]: true }
+
+export function asDealableCard(card: CardData): DealableCard | null {
+  if (!DEALABLE_IDS.has(card.id)) return null
+  return card as DealableCard
+}
+
+export function assertDealableCard(card: CardData): DealableCard {
+  if (!DEALABLE_IDS.has(card.id)) {
+    throw new Error(`Card ${card.id} lacks verified media assets and cannot be dealt`)
+  }
+  return card as DealableCard
+}
+
+export const DEALABLE_CARDS: readonly DealableCard[] = ALL_CARDS.filter(
+  (c): c is DealableCard => DEALABLE_IDS.has(c.id),
 )
 
-export const DEALABLE_CARD_BY_ID: ReadonlyMap<number, CardData> = new Map(
+export const DEALABLE_CARD_BY_ID: ReadonlyMap<number, DealableCard> = new Map(
   DEALABLE_CARDS.map((c) => [c.id, c]),
 )
 

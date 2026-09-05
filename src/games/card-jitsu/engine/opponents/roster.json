@@ -1,0 +1,173 @@
+[
+  {
+    "name": "Daffodaily5",
+    "belt": "white",
+    "colorId": 3,
+    "deck": {
+      "normal": [[1, 30]],
+      "power": [[101, 101]]
+    }
+  },
+  {
+    "name": "Happy77",
+    "belt": "yellow",
+    "colorId": 7,
+    "deck": {
+      "normal": [[1, 50]],
+      "power": [[101, 102]]
+    }
+  },
+  {
+    "name": "Businesmoose",
+    "belt": "yellow",
+    "colorId": 6,
+    "deck": {
+      "normal": [[1, 50]],
+      "power": [[101, 102]]
+    }
+  },
+  {
+    "name": "Graser8",
+    "belt": "orange",
+    "colorId": 6,
+    "deck": {
+      "normal": [[1, 70]],
+      "power": [[101, 105]]
+    }
+  },
+  {
+    "name": "Loustik005",
+    "belt": "orange",
+    "colorId": 1,
+    "deck": {
+      "normal": [[1, 70]],
+      "power": [[101, 105]]
+    }
+  },
+  {
+    "name": "Screenhog",
+    "belt": "green",
+    "colorId": 2,
+    "deck": {
+      "normal": [[1, 90]],
+      "power": [[101, 108]]
+    }
+  },
+  {
+    "name": "Gajotz",
+    "belt": "green",
+    "colorId": 8,
+    "deck": {
+      "normal": [[1, 90]],
+      "power": [[101, 108]]
+    }
+  },
+  {
+    "name": "Pingit9",
+    "belt": "blue",
+    "colorId": 1,
+    "deck": {
+      "normal": [[1, 96], [111, 124]],
+      "power": [[101, 108]]
+    }
+  },
+  {
+    "name": "Akabob22",
+    "belt": "blue",
+    "colorId": 13,
+    "deck": {
+      "normal": [[1, 96], [111, 124]],
+      "power": [[101, 108]]
+    }
+  },
+  {
+    "name": "Oagalthorp",
+    "belt": "red",
+    "colorId": 5,
+    "deck": {
+      "normal": [[1, 96], [111, 144]],
+      "power": [[101, 110]]
+    }
+  },
+  {
+    "name": "Commando717",
+    "belt": "red",
+    "colorId": 9,
+    "deck": {
+      "normal": [[1, 96], [111, 144]],
+      "power": [[101, 110]]
+    }
+  },
+  {
+    "name": "Ch4iz",
+    "belt": "purple",
+    "colorId": 11,
+    "deck": {
+      "normal": [[1, 96], [111, 164]],
+      "power": [[101, 110], [211, 215]]
+    }
+  },
+  {
+    "name": "Microdude9",
+    "belt": "purple",
+    "colorId": 11,
+    "deck": {
+      "normal": [[1, 96], [111, 164]],
+      "power": [[101, 110], [211, 215]]
+    }
+  },
+  {
+    "name": "Trainman1405",
+    "belt": "brown",
+    "colorId": 9,
+    "deck": {
+      "normal": [[1, 96], [111, 184]],
+      "power": [[101, 110], [211, 215], [253, 255]]
+    }
+  },
+  {
+    "name": "Thinknoodles",
+    "belt": "brown",
+    "colorId": 12,
+    "deck": {
+      "normal": [[1, 96], [111, 184]],
+      "power": [[101, 110], [211, 215], [253, 255]]
+    }
+  },
+  {
+    "name": "Billybob",
+    "belt": "black",
+    "colorId": 4,
+    "deck": {
+      "normal": [[1, 96], [111, 204]],
+      "power": [[97, 110], [211, 217], [253, 255], [321, 326]]
+    }
+  },
+  {
+    "name": "Rsnail",
+    "belt": "black",
+    "colorId": 5,
+    "deck": {
+      "normal": [[1, 96], [111, 204]],
+      "power": [[97, 110], [211, 217], [253, 255], [321, 326]]
+    }
+  },
+  {
+    "name": "Watex",
+    "belt": "black",
+    "colorId": 1,
+    "deck": {
+      "normal": [[1, 96], [111, 204]],
+      "power": [[97, 110], [211, 217], [253, 255], [321, 326]]
+    }
+  },
+  {
+    "name": "Saracontemporary",
+    "belt": "black",
+    "colorId": 3,
+    "deck": {
+      "normal": [[1, 96], [111, 204]],
+      "power": [[97, 110], [211, 217], [253, 255], [321, 326]]
+    }
+  }
+]

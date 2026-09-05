@@ -10,6 +10,7 @@ import { SenseiMenu } from './components/sensei-menu'
 import { InstructionsModal } from './components/instructions-modal'
 import { DifficultyControls } from './components/difficulty-controls'
 import { DeveloperTools } from './components/developer-tools'
+import { BeltHud } from './components/belt-hud'
 import type { CardData, NinjaBelt, SenseiDifficulty } from './types'
 import { getMe } from '../../services/auth-api'
 
@@ -57,21 +58,13 @@ export default function CardJitsuGame() {
         ...runtime,
         attach: (host) => {
           const result = runtime.attach(host)
-          let lastHandIds = ''
-          const timer = setInterval(() => {
-            if (runtime.session) {
-              const stats = runtime.session.getStats()
-              const ids = stats.senseiHand.map((c) => c.id).join(',')
-              if (ids !== lastHandIds) {
-                lastHandIds = ids
-                setSenseiHand(stats.senseiHand)
-              }
-            }
-          }, 500)
+          const unsubscribe = runtime.session.subscribe((stats) => {
+            setSenseiHand(stats.senseiHand)
+          })
 
           return {
             dispose: () => {
-              clearInterval(timer)
+              unsubscribe()
               result.dispose()
             },
           }
@@ -101,8 +94,14 @@ export default function CardJitsuGame() {
         manifest,
         createRuntime: wrappedCreateRuntime,
       }}
+      renderCustomHud={(snapshot) => (
+        <BeltHud currentBelt={currentBelt} totalWins={snapshot.score} />
+      )}
       renderCustomStage={(runtime) => {
         const ext = runtime as unknown as CardJitsuRuntimeExtended
+        if (typeof window !== 'undefined') {
+          ;(window as unknown as { __cardJitsuSession?: unknown }).__cardJitsuSession = ext.session
+        }
         if (!inMatch) {
           return (
             <div style={{ position: 'relative', width: '100%' }}>
