@@ -47,7 +47,7 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
  * Usage:
  * ```ts
  * createCardJitsuRuntime(deps, {
- *   player: { nick: 'Ninja', colorId: 6, beltRank: 1 },
+ *   player: { nick: 'Ninja', colorId: 1, beltRank: 1 },
  *   cardStore: new DefaultCardStore(),
  *   mode: 'belts',
  *   onMatchEnd: async (result) => ({ awardRank: 2 }),
@@ -88,7 +88,10 @@ export const createCardJitsuRuntime = (
   const currentUser = getCurrentUser()
   const playerNick =
     options?.player?.nick ?? currentUser?.nickname ?? currentUser?.username ?? 'Ninja'
-  const playerColor = options?.player?.colorId ?? 6
+  const profileColor = (currentUser as { colorId?: number } | null)?.colorId
+  const candidateColor = options?.player?.colorId ?? profileColor ?? 1
+  const playerColor =
+    candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 15 ? candidateColor : 1
 
   const session = new CardJitsuSession({
     playerBelt,

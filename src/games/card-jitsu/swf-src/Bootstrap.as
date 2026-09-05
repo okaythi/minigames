@@ -55,7 +55,8 @@ class Bootstrap {
         var nick:String = (root.nick != undefined) ? String(root.nick) : "Ninja";
         var modeRaw:Object = (root.mode != undefined) ? root.mode : 3;
         var modeNum:Number = (modeRaw == "MODE_SEN" || modeRaw == 3 || modeRaw == "3") ? 3 : ((modeRaw == "MODE_EXP" || modeRaw == 2 || modeRaw == "2") ? 2 : 1);
-        var color:Number = (root.color != undefined) ? Number(root.color) : 6;
+        var color:Number = (root.color != undefined) ? Number(root.color) : 1;
+        if (color == 14 || color < 1 || color > 15) color = 1;
         var rank:Number = (root.rank != undefined) ? Number(root.rank) : 1;
 
         var SHELL:Object = {};
@@ -78,7 +79,7 @@ class Bootstrap {
                 case 1: return 0x003366;  // Dark Blue
                 case 2: return 0x009900;  // Green
                 case 3: return 0xFF3399;  // Pink
-                case 4: return 0x333333;  // Black
+                case 4: return 0xCC0000;  // Red
                 case 5: return 0xCC0000;  // Red
                 case 6: return 0xFF6600;  // Orange
                 case 7: return 0xFFCC00;  // Yellow

@@ -112,7 +112,10 @@ export class CardJitsuSession {
   public isSenseiMode(): boolean { return this.config.mode === 'sensei' || this.config.mode === 'MODE_SEN' }
   public getPhase(): CardJitsuPhase { return this.phase }
   public getPlayerNick(): string { return this.config.playerNick ?? 'Ninja' }
-  public getPlayerColor(): number { return this.config.playerColor ?? 6 }
+  public getPlayerColor(): number {
+    const c = this.config.playerColor ?? 1
+    return c === 14 || c < 1 || c > 15 ? 1 : c
+  }
   public getPlayerBeltRank(): number { return getBeltRank(this.config.playerBelt) }
   public getMode(): GameMode { return this.config.mode }
 

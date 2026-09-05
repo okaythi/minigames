@@ -28,6 +28,7 @@ export type UserLoginPayload = z.infer<typeof UserLoginSchema>
 
 export const UserProfileUpdateSchema = z.object({
   nickname: z.string().min(1).max(50),
+  colorId: z.number().int().min(1).max(15).optional(),
 })
 
 export type UserProfileUpdatePayload = z.infer<typeof UserProfileUpdateSchema>
@@ -36,6 +37,7 @@ export interface UserProfileResponse {
   username: string
   nickname: string | null
   pfpUrl: string | null
+  colorId?: number | null | undefined
   legacyUser: boolean
   developer: boolean
   flags: UserFlags
