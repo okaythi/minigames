@@ -1,121 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CardJitsuSession } from '../engine/gateway/session'
+import {
+  ensureRuffleLoaded,
+  type RuffleLoadOptions,
+  type RufflePlayerElement,
+} from './ruffle-loader'
 import './ruffle-stage.css'
 
 interface RuffleStageProps {
   readonly session: CardJitsuSession
+  readonly inMatch: boolean
+  readonly onStartMatch: (mode: 'belts' | 'sensei') => void
+  readonly onInstructions: () => void
   readonly onExit?: () => void
 }
 
-export interface RuffleLoadOptions {
-  readonly url: string
-  readonly allowScriptAccess?: boolean | undefined
-  readonly publicPath?: string | undefined
-  readonly polyfills?: boolean | undefined
-  readonly autoplay?: 'on' | 'off' | 'auto' | undefined
-  readonly unmuteOverlay?: 'visible' | 'hidden' | undefined
-  readonly letterbox?: 'on' | 'off' | 'fullscreen' | undefined
-  readonly scale?: 'showAll' | 'noborder' | 'exactFit' | 'noScale' | undefined
-  readonly forceScale?: boolean | undefined
-  readonly salign?: string | undefined
-  readonly forceAlign?: boolean | undefined
-  readonly quality?: 'low' | 'medium' | 'high' | 'best' | 'autolow' | 'autohigh' | undefined
-  readonly logLevel?: 'error' | 'warn' | 'info' | 'debug' | 'trace' | undefined
-  readonly parameters?: Record<string, string | number | boolean> | undefined
-}
+const BUILD_ID = '20260905_v2'
 
-type RufflePlayerElement = HTMLElement & {
-  readonly load: (options: RuffleLoadOptions) => Promise<void>
-  readonly dispatchAirtowerMessage?: (action: string, resObj: unknown) => void
-  readonly remove: () => void
-}
-
-interface RufflePlayerInstance {
-  readonly newest: () => {
-    readonly createPlayer: () => RufflePlayerElement
-  }
-  config?: Record<string, unknown> | undefined
-}
-
-declare global {
-  interface Window {
-    RufflePlayer?: RufflePlayerInstance | undefined
-    onFlashAirtowerSend?: (
-      ext: string,
-      action: string,
-      args: readonly unknown[],
-      type: string,
-      roomId: number,
-    ) => void
-    onFlashGameScore?: (score: number) => void
-    onFlashPrompt?: (...args: readonly unknown[]) => void
-    onFlashExit?: (roomId?: number) => void
-    stopMusic?: () => void
-    shimLog?: (...args: unknown[]) => void
-  }
-}
-
-const RUFFLE_SCRIPT_SRC = '/games/card-jitsu/ruffle/ruffle.js'
-const RUFFLE_SCRIPT_TIMEOUT_MS = 20_000
-
-/** Resolves once `window.RufflePlayer` is available, loading the engine script if needed. */
-async function ensureRuffleLoaded(isCancelled: () => boolean): Promise<void> {
-  if (window.RufflePlayer) return
-
-  const existingScript = document.querySelector<HTMLScriptElement>(
-    `script[src="${RUFFLE_SCRIPT_SRC}"]`,
-  )
-
-  if (existingScript === null) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script')
-      script.src = RUFFLE_SCRIPT_SRC
-      script.async = true
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error('Failed to load Ruffle WASM engine'))
-      document.head.appendChild(script)
-    })
-  }
-
-  // The script tag may exist but not have finished evaluating yet.
-  if (window.RufflePlayer) return
-
-  await new Promise<void>((resolve, reject) => {
-    const startedAt = Date.now()
-    const check = window.setInterval(() => {
-      if (window.RufflePlayer) {
-        window.clearInterval(check)
-        resolve()
-        return
-      }
-      // Stop polling if the view unmounted or the engine never showed up.
-      if (isCancelled()) {
-        window.clearInterval(check)
-        resolve()
-        return
-      }
-      if (Date.now() - startedAt > RUFFLE_SCRIPT_TIMEOUT_MS) {
-        window.clearInterval(check)
-        reject(new Error('Timed out waiting for the Ruffle WASM engine'))
-      }
-    }, 50)
-  })
-}
-
-export function RuffleStage({ session, onExit }: RuffleStageProps) {
+export function RuffleStage({
+  session,
+  inMatch,
+  onStartMatch,
+  onInstructions,
+  onExit,
+}: RuffleStageProps) {
   /**
    * Dedicated mount node for the <ruffle-player> element.
-   *
-   * IMPORTANT: React must never render children into this node. Ruffle is mounted
-   * imperatively, so if React also owned children here, clearing/appending would
-   * detach nodes React still tracks and the next commit would throw
-   * "Failed to execute 'removeChild' on 'Node'". The loading/error overlays are
-   * therefore rendered as *siblings* of this host, never inside it.
+   * Ruffle is mounted imperatively; overlays and audio are siblings.
    */
   const hostRef = useRef<HTMLDivElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const playerRef = useRef<RufflePlayerElement | null>(null)
+
   const onExitRef = useRef(onExit)
   onExitRef.current = onExit
+  const onStartMatchRef = useRef(onStartMatch)
+  onStartMatchRef.current = onStartMatch
+  const onInstructionsRef = useRef(onInstructions)
+  onInstructionsRef.current = onInstructions
+  const inMatchRef = useRef(inMatch)
+  inMatchRef.current = inMatch
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [promptData, setPromptData] = useState<{ message: string } | null>(null)
@@ -126,6 +51,57 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
       audio.play().catch(() => {
         // Ignored if browser requires stronger user gesture
       })
+    }
+  }
+
+  const loadMovie = async (player: RufflePlayerElement, isMatch: boolean) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const options: RuffleLoadOptions = isMatch
+        ? {
+            url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
+            allowScriptAccess: true,
+            publicPath: '/games/card-jitsu/ruffle/',
+            polyfills: false,
+            autoplay: 'on',
+            unmuteOverlay: 'hidden',
+            letterbox: 'on',
+            scale: 'showAll',
+            forceScale: true,
+            salign: '',
+            forceAlign: true,
+            quality: 'high',
+            logLevel: 'info',
+            parameters: {
+              nick: session.getPlayerNick(),
+              mode: session.isSenseiMode() ? 'MODE_SEN' : 'MODE_EXP',
+              color: session.getPlayerColor(),
+              rank: session.getPlayerBeltRank(),
+            },
+          }
+        : {
+            url: `/games/card-jitsu/card_menu.swf?v=${BUILD_ID}`,
+            allowScriptAccess: true,
+            publicPath: '/games/card-jitsu/ruffle/',
+            polyfills: false,
+            autoplay: 'on',
+            unmuteOverlay: 'hidden',
+            letterbox: 'on',
+            scale: 'showAll',
+            forceScale: true,
+            salign: '',
+            forceAlign: true,
+            quality: 'high',
+            logLevel: 'info',
+          }
+
+      await player.load(options)
+    } catch (err) {
+      console.error('[Card-Jitsu Ruffle Load Error]', err)
+      setError(err instanceof Error ? err.message : 'Unknown Flash emulator error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -141,7 +117,6 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
         setError(null)
 
         await ensureRuffleLoaded(isCancelled)
-
         if (cancelled) return
 
         const host = hostRef.current
@@ -154,9 +129,8 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
         const ruffle = window.RufflePlayer.newest()
         const player = ruffle.createPlayer()
         playerElement = player
+        playerRef.current = player
 
-        // Fill the stage container. Ruffle's shadow root defaults the host to a
-        // fixed 550x400 inline-block; sizing it here is reliable.
         player.setAttribute('width', '100%')
         player.setAttribute('height', '100%')
 
@@ -189,14 +163,24 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
           }
         }
 
-        // Bridge outgoing TypeScript virtual SmartFox packets to Flash.
         session.setBridge((msg: string) => {
           if (cancelled || !player.isConnected) return
           pending.push(msg)
           schedule()
         })
 
-        // Connect global ExternalInterface hooks
+        window.onMenuSelect = (mode: string) => {
+          console.log('[flash→ts onMenuSelect]', mode)
+          handleUserInteraction()
+          if (mode === 'belts') {
+            onStartMatchRef.current('belts')
+          } else if (mode === 'sensei') {
+            onStartMatchRef.current('sensei')
+          } else if (mode === 'instructions') {
+            onInstructionsRef.current()
+          }
+        }
+
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
           console.log('[flash→ts]', ext, action, JSON.stringify(args), type, roomId)
           if (cancelled) return
@@ -230,39 +214,12 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
           }
         }
 
-        // Mount player into the React-free host node.
         host.replaceChildren(player)
 
-        // Load Disney Card-Jitsu bootstrap with exact forceScale/forceAlign & logging
-        const BUILD_ID = '20260905_v1'
-        await player.load({
-          url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
-          allowScriptAccess: true,
-          publicPath: '/games/card-jitsu/ruffle/',
-          polyfills: false,
-          autoplay: 'on',
-          unmuteOverlay: 'hidden',
-          letterbox: 'on',
-          scale: 'showAll',
-          forceScale: true,   // ignore Stage.scaleMode from the SWF
-          salign: '',         // center
-          forceAlign: true,   // ignore Stage.align = "TL"
-          quality: 'high',
-          logLevel: 'info',
-          parameters: {
-            nick: session.getPlayerNick(),
-            mode: session.isSenseiMode() ? 'MODE_SEN' : 'MODE_EXP',
-            color: session.getPlayerColor(),
-            rank: session.getPlayerBeltRank(),
-          },
-        })
-
+        await loadMovie(player, inMatchRef.current)
         if (cancelled) return
         schedule()
-        setLoading(false)
       } catch (err) {
-        // Errors raised after unmount (e.g. a load() rejected because the
-        // instance was torn down) must not touch state.
         if (cancelled) return
         console.error('[Card-Jitsu Ruffle Error]', err)
         setError(err instanceof Error ? err.message : 'Unknown Flash emulator error')
@@ -275,6 +232,7 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
     return () => {
       cancelled = true
       session.setBridge(() => {})
+      window.onMenuSelect = () => {}
       window.onFlashAirtowerSend = () => {}
       window.onFlashGameScore = () => {}
       window.onFlashPrompt = () => {}
@@ -286,19 +244,29 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
 
       const player = playerElement
       playerElement = null
+      playerRef.current = null
       if (player !== null) {
         try {
-          // Element.remove() is a no-op when already detached; Ruffle destroys
-          // the instance in its disconnectedCallback.
           player.remove()
         } catch {
           // Ignore DOM removal errors
         }
       }
-      // Only clear the imperative host — never a React-managed node.
       hostRef.current?.replaceChildren()
     }
   }, [session])
+
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const player = playerRef.current
+    if (player && player.isConnected) {
+      void loadMovie(player, inMatch)
+    }
+  }, [inMatch])
 
   return (
     <div
@@ -323,7 +291,7 @@ export function RuffleStage({ session, onExit }: RuffleStageProps) {
           <div className="nx-card-jitsu-loading-overlay">
             <div className="nx-card-jitsu-spinner" />
             <div className="nx-card-jitsu-loading-text">
-              Entering Dojo &bull; Initializing Card-Jitsu
+              {inMatch ? 'Entering Dojo • Initializing Card-Jitsu' : 'Visiting Sensei • Entering Dojo'}
             </div>
             <div className="nx-card-jitsu-loading-sub">
               Executing authentic Disney Flash engine via WebAssembly...

@@ -6,7 +6,6 @@ import {
   type CardJitsuRuntimeExtended,
 } from './runtime'
 import { RuffleStage } from './components/ruffle-stage'
-import { SenseiMenu } from './components/sensei-menu'
 import { InstructionsModal } from './components/instructions-modal'
 import { DifficultyControls } from './components/difficulty-controls'
 import { DeveloperTools } from './components/developer-tools'
@@ -102,29 +101,29 @@ export default function CardJitsuGame() {
         if (typeof window !== 'undefined') {
           ;(window as unknown as { __cardJitsuSession?: unknown }).__cardJitsuSession = ext.session
         }
-        if (!inMatch) {
-          return (
-            <div style={{ position: 'relative', width: '100%' }}>
-              <SenseiMenu
-                onEarnBelts={() => {
+        return (
+          <div style={{ position: 'relative', width: '100%' }}>
+            <RuffleStage
+              session={ext.session}
+              inMatch={inMatch}
+              onStartMatch={(mode) => {
+                if (mode === 'belts') {
                   ext.startEarnBelts()
-                  setInMatch(true)
-                }}
-                onChallengeSensei={() => {
+                } else {
                   ext.startChallengeSensei()
-                  setInMatch(true)
-                }}
-                onInstructions={() => {
-                  setShowInstructions(true)
-                }}
-              />
-              {showInstructions && (
-                <InstructionsModal onClose={() => setShowInstructions(false)} />
-              )}
-            </div>
-          )
-        }
-        return <RuffleStage session={ext.session} onExit={handleExit} />
+                }
+                setInMatch(true)
+              }}
+              onInstructions={() => {
+                setShowInstructions(true)
+              }}
+              onExit={handleExit}
+            />
+            {showInstructions && (
+              <InstructionsModal onClose={() => setShowInstructions(false)} />
+            )}
+          </div>
+        )
       }}
       renderBottom={() => (
         <>
