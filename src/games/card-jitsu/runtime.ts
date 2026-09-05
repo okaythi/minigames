@@ -3,8 +3,8 @@ import { getCurrentUser } from '../../services/auth-api'
 import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
 import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
-import { CardJitsuSession, BELT_TO_RANK } from './engine/gateway/session'
-import { getRankBelt } from './engine/progression'
+import { CardJitsuSession } from './engine/gateway/session'
+import { getRankBelt } from '../../../shared/progression'
 import { DefaultCardStore } from './engine/deck/cards'
 import type {
   CardJitsuPhase,
@@ -16,6 +16,11 @@ import type {
   OnMatchEndCallback,
 } from './types'
 import type { BotPolicy } from './engine/ai/bot-policy'
+import type {
+  CardJitsuProfileResponse,
+  CardJitsuMatchPayload,
+  CardJitsuMatchResponse,
+} from '../../../shared/card-jitsu-protocol'
 
 export interface CardJitsuRuntimeOptions {
   readonly player?: {
@@ -34,26 +39,35 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly session: CardJitsuSession
   readonly getBelt: () => NinjaBelt
   readonly setBelt: (belt: NinjaBelt) => void
+  readonly getRank: () => number
+  readonly getProgress: () => number
+  readonly getMatchesWon: () => number
+  readonly getEligibleOpponents: () => readonly string[]
   readonly getStats: () => MatchStats
   readonly getPhase: () => CardJitsuPhase
   readonly startEarnBelts: () => void
   readonly startChallengeSensei: () => void
   readonly exitToMenu: () => void
+  readonly refreshProfile: () => Promise<CardJitsuProfileResponse | null>
+}
+
+/**
+ * Fetches server-authoritative Card-Jitsu profile from D1 endpoint.
+ */
+export async function fetchCardJitsuProfile(): Promise<CardJitsuProfileResponse | null> {
+  try {
+    const res = await fetch('/api/card-jitsu/profile')
+    if (!res.ok) return null
+    const data = (await res.json()) as { ok: boolean; profile: CardJitsuProfileResponse }
+    return data.profile ?? null
+  } catch (err) {
+    console.warn('[Card-Jitsu] Error fetching profile:', err)
+    return null
+  }
 }
 
 /**
  * Public Card-Jitsu runtime factory conforming to GameRuntimeFactory.
- *
- * Usage:
- * ```ts
- * createCardJitsuRuntime(deps, {
- *   player: { nick: 'Ninja', colorId: 1, beltRank: 1 },
- *   cardStore: new DefaultCardStore(),
- *   mode: 'belts',
- *   onMatchEnd: async (result) => ({ awardRank: 2 }),
- *   onExit: () => console.log('Exited match'),
- * })
- * ```
  */
 export const createCardJitsuRuntime = (
   deps: Parameters<GameRuntimeFactory>[0],
@@ -63,7 +77,10 @@ export const createCardJitsuRuntime = (
     ? getRankBelt(options.player.beltRank)
     : 'white'
   let playerBelt: NinjaBelt = initialBelt
+  let currentRank = options?.player?.beltRank ?? 0
+  let currentProgress = 0
   let totalWins = 0
+  let eligibleOpponents: readonly string[] = []
 
   const store = createStore<GameSnapshot>({
     ...emptyGameSnapshot(),
@@ -110,37 +127,77 @@ export const createCardJitsuRuntime = (
       }
     },
     onMatchEnd: async (result: MatchEndResult): Promise<MatchEndDecision> => {
+      let awardRank: number | undefined
+      try {
+        const matchId = crypto.randomUUID()
+        const opponent = session.getOpponentNick()
+        const payload: CardJitsuMatchPayload = {
+          id: matchId,
+          opponent,
+          ...result,
+        }
+        const res = await fetch('/api/card-jitsu/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { ok: boolean } & CardJitsuMatchResponse
+          currentRank = data.rank
+          currentProgress = data.progress
+          totalWins = data.matchesWon
+          awardRank = data.awardRank
+          if (data.rank > 0) {
+            playerBelt = getRankBelt(data.rank)
+            session.setPlayerBelt(playerBelt)
+          }
+          store.update((prev) => ({
+            ...prev,
+            score: totalWins,
+            best: Math.max(prev.best ?? 0, totalWins),
+          }))
+        }
+      } catch (err) {
+        console.error('[Card-Jitsu] Error recording match result:', err)
+      }
+
       if (result.winner === 'player') {
-        totalWins++
-        store.update((prev) => ({
-          ...prev,
-          score: totalWins,
-          best: Math.max(prev.best ?? 0, totalWins),
-        }))
         deps.current.finishRun(totalWins, { won: true })
       } else {
         deps.current.finishRun(totalWins, { won: false })
       }
 
-      let defaultAwardRank: number | undefined
-      if (result.winner === 'player') {
-        const curRank = BELT_TO_RANK[playerBelt] ?? 1
-        if (curRank < 9) {
-          const nextRank = curRank + 1
-          const nextBelt = getRankBelt(nextRank)
-          playerBelt = nextBelt
-          defaultAwardRank = nextRank
-        }
-      }
-
       if (options?.onMatchEnd) {
         const decision = await options.onMatchEnd(result)
-        return decision ?? (defaultAwardRank !== undefined ? { awardRank: defaultAwardRank } : {})
+        return decision ?? (awardRank !== undefined ? { awardRank } : {})
       }
 
-      return defaultAwardRank !== undefined ? { awardRank: defaultAwardRank } : {}
+      return awardRank !== undefined ? { awardRank } : {}
     },
   })
+
+  const refreshProfile = async (): Promise<CardJitsuProfileResponse | null> => {
+    const profile = await fetchCardJitsuProfile()
+    if (profile) {
+      currentRank = profile.rank
+      currentProgress = profile.progress
+      totalWins = profile.matchesWon
+      eligibleOpponents = profile.eligibleOpponents
+      if (profile.rank > 0) {
+        playerBelt = getRankBelt(profile.rank)
+        session.setPlayerBelt(playerBelt)
+      }
+      store.update((prev) => ({
+        ...prev,
+        score: totalWins,
+        best: Math.max(prev.best ?? 0, totalWins),
+      }))
+    }
+    return profile
+  }
+
+  // Pre-fetch profile before entering match/menu
+  void refreshProfile()
 
   const attach: GameViewFactory = (_host: GameHost) => {
     return {
@@ -183,6 +240,10 @@ export const createCardJitsuRuntime = (
       playerBelt = belt
       session.setPlayerBelt(belt)
     },
+    getRank: () => currentRank,
+    getProgress: () => currentProgress,
+    getMatchesWon: () => totalWins,
+    getEligibleOpponents: () => eligibleOpponents,
     getStats: () => _currentStats,
     getPhase: () => _currentPhase,
     startEarnBelts: () => {
@@ -196,6 +257,7 @@ export const createCardJitsuRuntime = (
     exitToMenu: () => {
       options?.onExit?.()
     },
+    refreshProfile,
   }
 
   return runtime

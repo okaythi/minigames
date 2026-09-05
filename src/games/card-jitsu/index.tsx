@@ -56,6 +56,8 @@ export default function CardJitsuGame() {
       renderCustomHud={(snapshot) => (
         <BeltHud
           currentBelt={runtimeRef.current?.getBelt() ?? currentBelt}
+          rank={runtimeRef.current?.getRank?.()}
+          progress={runtimeRef.current?.getProgress?.()}
           totalWins={snapshot.score}
         />
       )}

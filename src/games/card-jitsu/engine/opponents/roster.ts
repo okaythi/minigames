@@ -14,6 +14,7 @@ export interface RosterEntry {
   readonly name: string
   readonly belt: NinjaBelt
   readonly colorId: number
+  readonly onceOnly?: boolean
   readonly deck: RosterDeckSpec
 }
 

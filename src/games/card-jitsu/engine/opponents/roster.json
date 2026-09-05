@@ -3,6 +3,7 @@
     "name": "Daffodaily5",
     "belt": "white",
     "colorId": 3,
+    "onceOnly": true,
     "deck": {
       "normal": [[1, 30]],
       "power": [[101, 101]]

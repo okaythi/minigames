@@ -118,6 +118,7 @@ export class CardJitsuSession {
   }
   public getPlayerBeltRank(): number { return getBeltRank(this.config.playerBelt) }
   public getMode(): GameMode { return this.config.mode }
+  public getOpponentNick(): string { return this.botNick }
 
   public getStats(): MatchStats {
     return {

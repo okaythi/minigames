@@ -237,5 +237,43 @@ export const moderationReports = sqliteTable('moderation_reports', {
   createdAt: integer('created_at').notNull(),
   resolvedAt: integer('resolved_at'),
 })
+export const cjNinja = sqliteTable('cj_ninja', {
+  userId: text('user_id').primaryKey(),
+  rank: integer('rank').notNull().default(0),
+  progress: integer('progress').notNull().default(0),
+  matchesWon: integer('matches_won').notNull().default(0),
+  colorId: integer('color_id').notNull().default(1),
+  introSeen: integer('intro_seen').notNull().default(0),
+  updatedAt: text('updated_at').notNull(),
+})
 
+export const cjCard = sqliteTable(
+  'cj_card',
+  {
+    userId: text('user_id').notNull(),
+    cardId: integer('card_id').notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    memberQuantity: integer('member_quantity').notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.cardId] }),
+  }),
+)
 
+export const cjMatch = sqliteTable('cj_match', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  opponent: text('opponent').notNull(),
+  mode: text('mode').notNull(),
+  winner: text('winner').notNull(),
+  rounds: integer('rounds').notNull(),
+  winMethod: text('win_method').notNull(),
+  flawless: integer('flawless').notNull(),
+  fullDojo: integer('full_dojo').notNull(),
+  senseiCard: integer('sensei_card').notNull(),
+  rankBefore: integer('rank_before').notNull(),
+  rankAfter: integer('rank_after').notNull(),
+  progressBefore: integer('progress_before').notNull(),
+  progressAfter: integer('progress_after').notNull(),
+  createdAt: text('created_at').notNull(),
+})
