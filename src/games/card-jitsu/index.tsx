@@ -6,6 +6,8 @@ import {
   type CardJitsuRuntimeExtended,
 } from './runtime'
 import { RuffleStage } from './components/ruffle-stage'
+import { SenseiMenu } from './components/sensei-menu'
+import { InstructionsModal } from './components/instructions-modal'
 import { DifficultyControls } from './components/difficulty-controls'
 import { DeveloperTools } from './components/developer-tools'
 import type { CardData, NinjaBelt, SenseiDifficulty } from './types'
@@ -16,6 +18,8 @@ export default function CardJitsuGame() {
   const [difficulty, setDifficulty] = useState<SenseiDifficulty>('medium')
   const [senseiHand, setSenseiHand] = useState<readonly CardData[]>([])
   const [isThy, setIsThy] = useState(false)
+  const [inMatch, setInMatch] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
 
   const runtimeRef = useRef<CardJitsuRuntimeExtended | null>(null)
 
@@ -53,12 +57,17 @@ export default function CardJitsuGame() {
         ...runtime,
         attach: (host) => {
           const result = runtime.attach(host)
+          let lastHandIds = ''
           const timer = setInterval(() => {
             if (runtime.session) {
               const stats = runtime.session.getStats()
-              setSenseiHand(stats.senseiHand)
+              const ids = stats.senseiHand.map((c) => c.id).join(',')
+              if (ids !== lastHandIds) {
+                lastHandIds = ids
+                setSenseiHand(stats.senseiHand)
+              }
             }
-          }, 200)
+          }, 500)
 
           return {
             dispose: () => {
@@ -82,6 +91,10 @@ export default function CardJitsuGame() {
     runtimeRef.current?.setBelt(belt)
   }
 
+  const handleExit = useCallback(() => {
+    setInMatch(false)
+  }, [])
+
   return (
     <HorizontalGameTemplate
       game={{
@@ -90,7 +103,29 @@ export default function CardJitsuGame() {
       }}
       renderCustomStage={(runtime) => {
         const ext = runtime as unknown as CardJitsuRuntimeExtended
-        return <RuffleStage session={ext.session} />
+        if (!inMatch) {
+          return (
+            <div style={{ position: 'relative', width: '100%' }}>
+              <SenseiMenu
+                onEarnBelts={() => {
+                  ext.startEarnBelts()
+                  setInMatch(true)
+                }}
+                onChallengeSensei={() => {
+                  ext.startChallengeSensei()
+                  setInMatch(true)
+                }}
+                onInstructions={() => {
+                  setShowInstructions(true)
+                }}
+              />
+              {showInstructions && (
+                <InstructionsModal onClose={() => setShowInstructions(false)} />
+              )}
+            </div>
+          )
+        }
+        return <RuffleStage session={ext.session} onExit={handleExit} />
       }}
       renderBottom={() => (
         <>
