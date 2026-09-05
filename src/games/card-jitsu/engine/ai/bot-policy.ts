@@ -33,14 +33,28 @@ export interface BotPolicy {
 }
 
 function wouldWinTriad(bank: readonly CardData[], newCard: CardData): boolean {
+  if (bank.length < 2) return false
   return checkWinCondition([...bank, newCard]).won
 }
 
 function bankKey(bank: readonly CardData[]): string {
-  return bank
-    .map((c) => `${c.element}${c.color}`)
-    .sort()
-    .join('')
+  if (bank.length === 0) return ''
+  if (bank.length === 1) return bank[0]!.element + bank[0]!.color
+  const arr: string[] = []
+  for (let i = 0; i < bank.length; i++) {
+    arr.push(bank[i]!.element + bank[i]!.color)
+  }
+  arr.sort()
+  return arr.join('')
+}
+
+function handKey(hand: readonly CardData[]): string {
+  if (hand.length === 0) return ''
+  if (hand.length === 1) return String(hand[0]!.id)
+  const ids: number[] = []
+  for (let i = 0; i < hand.length; i++) ids.push(hand[i]!.id)
+  ids.sort((a, b) => a - b)
+  return ids.join(',')
 }
 
 function powersKey(powers: ReadonlyMap<number, ActivePowerState>): string {
@@ -153,7 +167,9 @@ export class StrategicPolicy implements BotPolicy {
           const item = ctx.hand.find((h) => h.dealtId === cand.dealtId)!
           const resultingBank = [...ctx.myBank, item.card]
           const concentration = maxConcentration(resultingBank)
-          const adjUtility = cand.utility - 0.05 * concentration
+          const powerBonus = item.card.powerId !== 0 ? 0.002 : 0
+          const valueBonus = 0.001 * item.card.value
+          const adjUtility = cand.utility - 0.01 * concentration + valueBonus + powerBonus
           return { dealtId: cand.dealtId, score: adjUtility }
         })
         let bestScore = -Infinity
@@ -334,10 +350,8 @@ export class StrategicPolicy implements BotPolicy {
       let staticBonus = 0
       if (candidate.powerId !== 0) {
         const pClass = POWER_CLASS.get(candidate.powerId)
-        if (pClass !== 'DISCARD') {
-          if (this.params.powerAwareness === 1 || (this.params.powerAwareness === 2 && horizon === 0)) {
-            staticBonus = 0.5 * BASE
-          }
+        if (pClass !== 'DISCARD' && this.params.powerAwareness >= 1) {
+          staticBonus = 0.5 * BASE
         }
       }
 
@@ -412,10 +426,8 @@ export class StrategicPolicy implements BotPolicy {
       let staticBonus = 0
       if (candidate.powerId !== 0) {
         const pClass = POWER_CLASS.get(candidate.powerId)
-        if (pClass !== 'DISCARD') {
-          if (this.params.powerAwareness === 1 || (this.params.powerAwareness === 2 && horizon === 0)) {
-            staticBonus = 0.5 * BASE
-          }
+        if (pClass !== 'DISCARD' && this.params.powerAwareness >= 1) {
+          staticBonus = 0.5 * BASE
         }
       }
       winPayoff = BASE + (bankPotential(simMy) - bankPotential(myBank)) + discardDelta + staticBonus
@@ -471,7 +483,7 @@ export class StrategicPolicy implements BotPolicy {
     }
 
     const pKey = powers.size === 0 ? '' : powersKey(powers)
-    const stateKey = `${horizon}:${hand.map((c) => c.id).sort((a, b) => a - b).join(',')}:${bankKey(myBank)}:${bankKey(oppBank)}:${pKey}`
+    const stateKey = `${horizon}:${handKey(hand)}:${bankKey(myBank)}:${bankKey(oppBank)}:${pKey}`
     const cached = memo.get(stateKey)
     if (cached !== undefined) return cached
 

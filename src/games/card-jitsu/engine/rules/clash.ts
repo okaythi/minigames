@@ -287,6 +287,7 @@ const bankPotentialCache = new Map<string, number>()
  */
 export function bankPotential(bank: readonly CardData[]): number {
   if (bank.length === 0) return 0
+  if (bank.length === 1) return 0.4
   const key = bank
     .map((c) => `${c.element}${c.color}`)
     .sort()
