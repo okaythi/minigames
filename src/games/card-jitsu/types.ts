@@ -42,8 +42,6 @@ export const BELT_PROGRESSION: readonly BeltInfo[] = [
   { belt: 'black', name: 'Black Belt', requiredWins: 76, colorHex: '#212121' },
 ] as const
 
-export type SenseiDifficulty = 'easy' | 'medium' | 'hard' | 'ninja'
-
 export interface CardData {
   readonly id: number
   readonly element: NinjaElement

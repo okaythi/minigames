@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { HorizontalGameTemplate } from '../template/horizontal-game-template'
 import { manifest } from './manifest'
 import {
@@ -7,40 +7,15 @@ import {
 } from './runtime'
 import { RuffleStage } from './components/ruffle-stage'
 import { InstructionsModal } from './components/instructions-modal'
-import { DifficultyControls } from './components/difficulty-controls'
-import { DeveloperTools } from './components/developer-tools'
 import { BeltHud } from './components/belt-hud'
-import type { CardData, NinjaBelt, SenseiDifficulty } from './types'
-import { getMe } from '../../services/auth-api'
+import type { NinjaBelt } from './types'
 
 export default function CardJitsuGame() {
-  const [currentBelt, setCurrentBelt] = useState<NinjaBelt>('white')
-  const [difficulty, setDifficulty] = useState<SenseiDifficulty>('medium')
-  const [senseiHand, setSenseiHand] = useState<readonly CardData[]>([])
-  const [isThy, setIsThy] = useState(false)
+  const [currentBelt] = useState<NinjaBelt>('white')
   const [inMatch, setInMatch] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
 
   const runtimeRef = useRef<CardJitsuRuntimeExtended | null>(null)
-
-  useEffect(() => {
-    // Check authenticated user for Thy developer privileges
-    void getMe().then((profile) => {
-      if (profile?.username?.toLowerCase() === 'thy') {
-        setIsThy(true)
-      }
-    })
-
-    if (typeof window !== 'undefined') {
-      const isParamThy = window.location.search.includes('user=thy')
-      const isLocalThy =
-        window.localStorage.getItem('user')?.toLowerCase() === 'thy' ||
-        window.localStorage.getItem('dev_user')?.toLowerCase() === 'thy'
-      if (isParamThy || isLocalThy) {
-        setIsThy(true)
-      }
-    }
-  }, [])
 
   // The factory must be referentially stable: `useGameRuntime` recreates the
   // runtime (and the Ruffle-backed CardJitsuSession) whenever `create` changes
@@ -57,13 +32,8 @@ export default function CardJitsuGame() {
         ...runtime,
         attach: (host) => {
           const result = runtime.attach(host)
-          const unsubscribe = runtime.session.subscribe((stats) => {
-            setSenseiHand(stats.senseiHand)
-          })
-
           return {
             dispose: () => {
-              unsubscribe()
               result.dispose()
             },
           }
@@ -72,16 +42,6 @@ export default function CardJitsuGame() {
     },
     [],
   )
-
-  const handleSelectDifficulty = (mode: SenseiDifficulty) => {
-    setDifficulty(mode)
-    runtimeRef.current?.setDifficulty(mode)
-  }
-
-  const handleSelectBelt = (belt: NinjaBelt) => {
-    setCurrentBelt(belt)
-    runtimeRef.current?.setBelt(belt)
-  }
 
   const handleExit = useCallback(() => {
     setInMatch(false)
@@ -94,7 +54,10 @@ export default function CardJitsuGame() {
         createRuntime: wrappedCreateRuntime,
       }}
       renderCustomHud={(snapshot) => (
-        <BeltHud currentBelt={currentBelt} totalWins={snapshot.score} />
+        <BeltHud
+          currentBelt={runtimeRef.current?.getBelt() ?? currentBelt}
+          totalWins={snapshot.score}
+        />
       )}
       renderCustomStage={(runtime) => {
         const ext = runtime as unknown as CardJitsuRuntimeExtended
@@ -125,24 +88,6 @@ export default function CardJitsuGame() {
           </div>
         )
       }}
-      renderBottom={() => (
-        <>
-          <DifficultyControls
-            currentBelt={currentBelt}
-            difficulty={difficulty}
-            onSelectDifficulty={handleSelectDifficulty}
-            onSelectBelt={handleSelectBelt}
-          />
-
-          {isThy && (
-            <DeveloperTools
-              senseiHand={senseiHand}
-              onForceWin={() => runtimeRef.current?.forceWin()}
-              onForceLoss={() => runtimeRef.current?.forceLoss()}
-            />
-          )}
-        </>
-      )}
     />
   )
 }

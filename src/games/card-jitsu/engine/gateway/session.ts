@@ -4,7 +4,6 @@ import type {
   CardStore,
   MatchStats,
   NinjaBelt,
-  SenseiDifficulty,
 } from '../../types'
 import { DEALABLE_IDS, DefaultCardStore } from '../deck/cards'
 import { executeDealRound } from '../deal/deal-strategy'
@@ -129,11 +128,6 @@ export class CardJitsuSession {
       lastClash: this.matchFlow.lastClash,
       matchWinner: this.matchFlow.matchWinner,
     }
-  }
-
-  public setDifficulty(difficulty: SenseiDifficulty): void {
-    this.config = { ...this.config, difficulty }
-    this.notify()
   }
 
   public setPlayerBelt(belt: NinjaBelt): void {
@@ -303,17 +297,5 @@ export class CardJitsuSession {
     const stats = this.getStats()
     this.config.onStateChange?.(stats, this.phase)
     for (const listener of this.listeners) listener(stats, this.phase)
-  }
-
-  public forceWin(): void {
-    this.matchFlow.forceWin()
-    this.phase = 'game-over'
-    this.notify()
-  }
-
-  public forceLoss(): void {
-    this.matchFlow.forceLoss()
-    this.phase = 'game-over'
-    this.notify()
   }
 }

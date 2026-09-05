@@ -1,8 +1,7 @@
-import type { CardColor, CardData, NinjaBelt, NinjaElement, SenseiDifficulty } from '../../types'
+import type { CardColor, CardData, NinjaBelt, NinjaElement } from '../../types'
 import { checkWinCondition, doesElementBeat } from '../deck/rules'
 
 export interface SenseiDecisionContext {
-  readonly difficulty: SenseiDifficulty
   readonly playerBelt: NinjaBelt
   readonly senseiHand: readonly CardData[]
   readonly playerCard: CardData // Used for cheat mode
@@ -23,13 +22,12 @@ const ALL_COLORS: readonly CardColor[] = ['r', 'b', 'g', 'y', 'o', 'p']
 /**
  * Sensei AI Decision Engine.
  * 
- * Supports both authentic Club Penguin mechanics:
- * 1. Pre-Black Belt Counter-Cheat (unbeatable counter-interception).
- * 2. Authentic 5-Card Tactical Hand (triad completion, threat neutralization, card-counting).
+ * Supports authentic Club Penguin mechanics:
+ * 1. Pre-Black Belt: Sensei is unbeatable and counters the player's card.
+ * 2. Black Belt: Sensei plays fair tactical hand evaluation (triad completion, threat neutralization, card-counting).
  */
 export function decideSenseiCard(context: SenseiDecisionContext): CardData {
   const {
-    difficulty,
     playerBelt,
     senseiHand,
     playerCard,
@@ -42,52 +40,32 @@ export function decideSenseiCard(context: SenseiDecisionContext): CardData {
     throw new Error('Sensei hand is empty')
   }
 
-  // --- 1. Ninja Difficulty Logic ---
-  if (difficulty === 'ninja') {
-    // If player is NOT a Black Belt, Sensei is unbeatable (authentic Disney CP canon)
-    if (playerBelt !== 'black') {
-      // Find a card in hand that counters player's card
-      const winningCards = senseiHand.filter(
-        (c) =>
-          doesElementBeat(c.element, playerCard.element) ||
-          (c.element === playerCard.element && c.value > playerCard.value),
-      )
+  // If player is NOT a Black Belt, Sensei is unbeatable (authentic Disney CP canon)
+  if (playerBelt !== 'black') {
+    // Find a card in hand that counters player's card
+    const winningCards = senseiHand.filter(
+      (c) =>
+        doesElementBeat(c.element, playerCard.element) ||
+        (c.element === playerCard.element && c.value > playerCard.value),
+    )
 
-      if (winningCards.length > 0) {
-        return winningCards.reduce((prev, curr) => (curr.value > prev.value ? curr : prev))
-      }
-
-      // If no counter in current hand, Sensei uses an elemental mastery card
-      return {
-        id: 9999,
-        element: COUNTER_ELEMENT[playerCard.element],
-        value: Math.min(12, playerCard.value + 2),
-        color: 'r',
-        powerId: 0,
-        name: 'Sensei Mastery Counter',
-        description: 'Sensei anticipated your exact motion',
-      }
+    if (winningCards.length > 0) {
+      return winningCards.reduce((prev, curr) => (curr.value > prev.value ? curr : prev))
     }
-    // If player IS a Black Belt, Sensei plays fair master-tier cards (can be defeated)
+
+    // If no counter in current hand, Sensei uses an elemental mastery card
+    return {
+      id: 9999,
+      element: COUNTER_ELEMENT[playerCard.element],
+      value: Math.min(12, playerCard.value + 2),
+      color: 'r',
+      powerId: 0,
+      name: 'Sensei Mastery Counter',
+      description: 'Sensei anticipated your exact motion',
+    }
   }
 
-  // --- 2. Calculate Blunder Rate based on difficulty ---
-  let blunderRate = 0
-  if (difficulty === 'easy') {
-    blunderRate = 0.60
-  } else if (difficulty === 'medium') {
-    blunderRate = 0.25
-  } else if (difficulty === 'hard') {
-    blunderRate = 0.05
-  } else if (difficulty === 'ninja') {
-    blunderRate = 0.0 // Flawless tactical play for Black Belt challenge
-  }
-
-  // Blunder play: play a low or random card from hand
-  if (Math.random() < blunderRate) {
-    const sortedLowToHigh = [...senseiHand].sort((a, b) => a.value - b.value)
-    return sortedLowToHigh[0] ?? senseiHand[0]!
-  }
+  // If player IS a Black Belt, Sensei plays fair master-tier cards (can be defeated)
 
   // --- 3. Tactical 5-Card Hand Evaluation (Grandmaster Logic) ---
 

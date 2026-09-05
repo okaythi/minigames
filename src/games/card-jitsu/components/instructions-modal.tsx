@@ -20,19 +20,19 @@ export function InstructionsModal({ onClose }: InstructionsModalProps) {
 
           <div className="nx-element-triangle">
             <div className="nx-triangle-item" style={{ color: '#e53935' }}>
-              <span style={{ fontSize: '22px' }}>🔥</span>
+              <span style={{ fontSize: '15px', fontWeight: 'bold' }}>[FIRE]</span>
               <span>FIRE</span>
               <span style={{ fontSize: '11px', color: '#666' }}>beats Snow</span>
             </div>
-            <span style={{ fontSize: '18px', color: '#888' }}>➔</span>
+            <span style={{ fontSize: '18px', color: '#888' }}>&rarr;</span>
             <div className="nx-triangle-item" style={{ color: '#00acc1' }}>
-              <span style={{ fontSize: '22px' }}>❄️</span>
+              <span style={{ fontSize: '15px', fontWeight: 'bold' }}>[SNOW]</span>
               <span>SNOW</span>
               <span style={{ fontSize: '11px', color: '#666' }}>beats Water</span>
             </div>
-            <span style={{ fontSize: '18px', color: '#888' }}>➔</span>
+            <span style={{ fontSize: '18px', color: '#888' }}>&rarr;</span>
             <div className="nx-triangle-item" style={{ color: '#1e88e5' }}>
-              <span style={{ fontSize: '22px' }}>💧</span>
+              <span style={{ fontSize: '15px', fontWeight: 'bold' }}>[WATER]</span>
               <span>WATER</span>
               <span style={{ fontSize: '11px', color: '#666' }}>beats Fire</span>
             </div>

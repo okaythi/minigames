@@ -301,7 +301,6 @@ export function RuffleStage({
 
         {error !== null && (
           <div className="nx-card-jitsu-loading-overlay">
-            <div style={{ fontSize: '32px' }}>⚠️</div>
             <div className="nx-card-jitsu-loading-text">Failed to launch Card-Jitsu</div>
             <div className="nx-card-jitsu-loading-sub">{error}</div>
             <button
@@ -318,7 +317,7 @@ export function RuffleStage({
         {promptData !== null && (
           <div className="nx-card-jitsu-modal-overlay">
             <div className="nx-card-jitsu-prompt-box">
-              <div className="nx-card-jitsu-prompt-title">🥋 Card-Jitsu</div>
+              <div className="nx-card-jitsu-prompt-title">Card-Jitsu</div>
               <div className="nx-card-jitsu-prompt-message">{promptData.message}</div>
               <button
                 type="button"

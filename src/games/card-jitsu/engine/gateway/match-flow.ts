@@ -210,19 +210,5 @@ export class MatchFlow {
       this.options.onClashDone?.(this.lastClash, true)
     }
   }
-
-  public forceWin(): void {
-    const fallback = this.playerWonDealtCards.map((c) => c.dealtId).slice(-3)
-    const ids = fallback.length === 3 ? fallback : [1, 2, 3]
-    this.options.onSendRaw(buildGameOverPacket(PLAYER_SEAT, ids))
-    void this.finalizeMatchEnd(PLAYER_SEAT, 'three-elements')
-  }
-
-  public forceLoss(): void {
-    const fallback = this.oppWonDealtCards.map((c) => c.dealtId).slice(-3)
-    const ids = fallback.length === 3 ? fallback : [1, 2, 3]
-    this.options.onSendRaw(buildGameOverPacket(OPP_SEAT, ids))
-    void this.finalizeMatchEnd(OPP_SEAT, 'three-elements')
-  }
 }
 

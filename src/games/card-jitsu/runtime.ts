@@ -14,7 +14,6 @@ import type {
   MatchStats,
   NinjaBelt,
   OnMatchEndCallback,
-  SenseiDifficulty,
 } from './types'
 import type { BotPolicy } from './engine/ai/bot-policy'
 
@@ -35,14 +34,10 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly session: CardJitsuSession
   readonly getBelt: () => NinjaBelt
   readonly setBelt: (belt: NinjaBelt) => void
-  readonly getDifficulty: () => SenseiDifficulty
-  readonly setDifficulty: (diff: SenseiDifficulty) => void
   readonly getStats: () => MatchStats
   readonly getPhase: () => CardJitsuPhase
   readonly startEarnBelts: () => void
   readonly startChallengeSensei: () => void
-  readonly forceWin: () => void
-  readonly forceLoss: () => void
   readonly exitToMenu: () => void
 }
 
@@ -68,7 +63,6 @@ export const createCardJitsuRuntime = (
     ? getRankBelt(options.player.beltRank)
     : 'white'
   let playerBelt: NinjaBelt = initialBelt
-  let difficulty: SenseiDifficulty = 'medium'
   let totalWins = 0
 
   const store = createStore<GameSnapshot>({
@@ -97,7 +91,6 @@ export const createCardJitsuRuntime = (
   const playerColor = options?.player?.colorId ?? 6
 
   const session = new CardJitsuSession({
-    difficulty,
     playerBelt,
     mode: options?.mode ?? 'sensei',
     playerNick,
@@ -121,9 +114,9 @@ export const createCardJitsuRuntime = (
           score: totalWins,
           best: Math.max(prev.best ?? 0, totalWins),
         }))
-        deps.current.finishRun(totalWins, { won: true, difficulty })
+        deps.current.finishRun(totalWins, { won: true })
       } else {
-        deps.current.finishRun(totalWins, { won: false, difficulty })
+        deps.current.finishRun(totalWins, { won: false })
       }
 
       let defaultAwardRank: number | undefined
@@ -187,11 +180,6 @@ export const createCardJitsuRuntime = (
       playerBelt = belt
       session.setPlayerBelt(belt)
     },
-    getDifficulty: () => difficulty,
-    setDifficulty: (diff: SenseiDifficulty) => {
-      difficulty = diff
-      session.setDifficulty(diff)
-    },
     getStats: () => _currentStats,
     getPhase: () => _currentPhase,
     startEarnBelts: () => {
@@ -200,21 +188,7 @@ export const createCardJitsuRuntime = (
     },
     startChallengeSensei: () => {
       deps.current.beginRun()
-      session.setDifficulty('ninja')
       session.startMatch('sensei')
-    },
-    forceWin: () => {
-      totalWins++
-      store.update((prev) => ({
-        ...prev,
-        score: totalWins,
-        status: 'over',
-      }))
-      session.forceWin()
-    },
-    forceLoss: () => {
-      store.update((prev) => ({ ...prev, status: 'over' }))
-      session.forceLoss()
     },
     exitToMenu: () => {
       options?.onExit?.()

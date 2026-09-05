@@ -5,7 +5,6 @@ import type {
   MatchStats,
   NinjaBelt,
   OnMatchEndCallback,
-  SenseiDifficulty,
   WinConditionResult,
 } from '../../types'
 import type { BotPolicy } from '../ai/bot-policy'
@@ -13,7 +12,6 @@ import type { BotPolicy } from '../ai/bot-policy'
 export type GameMode = 'sensei' | 'belts' | 'MODE_SEN' | 'MODE_EXP'
 
 export interface SessionConfig {
-  readonly difficulty: SenseiDifficulty
   readonly playerBelt: NinjaBelt
   readonly mode: GameMode
   readonly playerNick?: string | undefined
