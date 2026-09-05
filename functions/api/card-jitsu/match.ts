@@ -35,6 +35,9 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
   if (!body.id || !body.opponent || !body.winner || !body.mode) {
     return jsonResponse(400, { ok: false, error: 'missing-required-fields' })
   }
+  if ((body.winner !== 'player' && body.winner !== 'opponent') || (body.mode !== 'belts' && body.mode !== 'sensei')) {
+    return jsonResponse(400, { ok: false, error: 'invalid-match-outcome' })
+  }
 
   // Idempotency: Check if client nonce match ID was already processed
   const existingMatch = await db.select().from(cjMatch).where(eq(cjMatch.id, body.id)).get()
@@ -46,6 +49,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       rank: existingMatch.rankAfter,
       progress: existingMatch.progressAfter,
       matchesWon: currentNinja?.matchesWon ?? 0,
+      progressAwarded: Math.max(0, existingMatch.progressAfter - existingMatch.progressBefore),
     }
     return jsonResponse(200, { ok: true, ...response })
   }
@@ -116,6 +120,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     rank: outcome.rank,
     progress: outcome.progress,
     matchesWon: outcome.matchesWon,
+    progressAwarded: Math.max(0, outcome.progress - ninja.progress),
   }
 
   return jsonResponse(200, { ok: true, ...response })

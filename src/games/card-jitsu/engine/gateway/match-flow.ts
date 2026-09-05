@@ -9,7 +9,7 @@ import {
   type ActivePowerState,
   AffectsOwnPlayer,
   OnPlayed,
-  resolveClash,
+  resolveRoundClash,
   getWinningCombo,
   hasCardsToPlay,
   advancePowers,
@@ -50,6 +50,7 @@ export class MatchFlow {
   public discards: number[] = []
   public lastClash: ClashResult | null = null
   public matchWinner: 'player' | 'sensei' | null = null
+  public matchResult: MatchEndResult | null = null
   public senseiCardPlayed = false
   public matchEnded = false
   public matchEndPromise: Promise<void> = Promise.resolve()
@@ -66,8 +67,10 @@ export class MatchFlow {
     this.discards = []
     this.lastClash = null
     this.matchWinner = null
+    this.matchResult = null
     this.senseiCardPlayed = false
     this.matchEnded = false
+    this.matchEndPromise = Promise.resolve()
   }
 
   public async executeClash(
@@ -78,7 +81,11 @@ export class MatchFlow {
     playerHand: readonly DealtCard[],
     oppHand: readonly DealtCard[],
   ): Promise<boolean> {
-    const clashWinner = resolveClash(pCard, oCard, this.powers)
+    // This must happen before the winner is chosen: powers 16–18 transform
+    // the current pair of elements, while saved Power 1/2/3 effects modify
+    // this pair's values. The printed CardData remains untouched for banks.
+    const resolvedRound = resolveRoundClash(pCard, oCard, this.powers, PLAYER_SEAT, OPP_SEAT)
+    const clashWinner = resolvedRound.winner
     const winnerSeatId: SeatId | typeof TIE_SEAT =
       clashWinner === 1 ? PLAYER_SEAT : clashWinner === -1 ? OPP_SEAT : TIE_SEAT
     this.discards = []
@@ -138,7 +145,12 @@ export class MatchFlow {
       playerCard: pCard,
       senseiCard: oCard,
       winner: winnerSeatId === PLAYER_SEAT ? 'player' : winnerSeatId === OPP_SEAT ? 'sensei' : 'tie',
-      reason: pCard.element !== oCard.element ? 'element' : pCard.value === oCard.value ? 'tie' : 'value',
+      reason:
+        resolvedRound.firstCard.element !== resolvedRound.secondCard.element
+          ? 'element'
+          : resolvedRound.firstCard.value === resolvedRound.secondCard.value
+            ? 'tie'
+            : 'value',
       ...(winningCard?.powerId && winningCard.powerId > 0 ? { powerTriggered: winningCard.powerId } : {}),
       message: winnerSeatId === PLAYER_SEAT ? `${pCard.name ?? 'Player'} wins!` : winnerSeatId === OPP_SEAT ? `${oCard.name ?? 'Opponent'} wins!` : 'Clash tie!',
     }
@@ -194,14 +206,21 @@ export class MatchFlow {
       fullDojo: winnerBank.length >= 9,
       senseiCardPlayed: this.senseiCardPlayed,
     }
+    this.matchResult = matchResult
 
     let decision: MatchEndDecision = {}
     if (this.options.onMatchEnd) {
       try {
         const matchEndTask = Promise.resolve(this.options.onMatchEnd(matchResult))
-        this.matchEndPromise = matchEndTask.then(() => {})
-        const timeoutPromise = new Promise<MatchEndDecision>((resolve) => setTimeout(() => resolve({}), 2000))
-        decision = await Promise.race([matchEndTask, timeoutPromise])
+        const timeoutPromise = new Promise<MatchEndDecision>((resolve) => {
+          setTimeout(() => resolve({}), 2_000)
+        })
+        // Never make the end screen wait forever for a product integration.
+        // The callback may still finish later (and update its own persistence
+        // UI), but gameplay is allowed to close after this bounded wait.
+        const decisionTask = Promise.race([matchEndTask, timeoutPromise])
+        this.matchEndPromise = decisionTask.then(() => {}, () => {})
+        decision = await decisionTask
       } catch (err) {
         console.warn('[Card-Jitsu] onMatchEnd error:', err)
       }

@@ -4,6 +4,7 @@ import { NORMAL_POOL } from '../deck/cards'
 import {
   type ActiveCardState,
   type ActivePowerState,
+  applyCurrentRoundPlayedEffects,
   DiscardElements,
   DiscardColors,
   Replacements,
@@ -19,12 +20,6 @@ export const RULE_SET: Readonly<Record<NinjaElement, NinjaElement>> = {
   f: 's',
   w: 'f',
   s: 'w',
-} as const
-
-export const REVERSED_RULE_SET: Readonly<Record<NinjaElement, NinjaElement>> = {
-  s: 'f',
-  f: 'w',
-  w: 's',
 } as const
 
 export const RuleSet = RULE_SET
@@ -106,10 +101,63 @@ export function getWinnerSeatId(
   return TIE_SEAT
 }
 
+export interface ResolvedRoundClash {
+  /** 1 = first card, -1 = second card, 0 = tie. */
+  readonly winner: 1 | 0 | -1
+  /** Mutable only during resolution; `card` is always the original card data. */
+  readonly firstCard: ActiveCardState
+  readonly secondCard: ActiveCardState
+}
+
+/**
+ * Resolves a complete Card-Jitsu round using the Houdini ordering:
+ *
+ * 1. apply powers saved from the prior round (value swap/buffs),
+ * 2. apply current replacement cards (16–18), then
+ * 3. decide elemental superiority or same-element value.
+ *
+ * The returned active states are intentionally separate from CardData. A
+ * Water card temporarily changed to Fire can win this clash as Fire, but is
+ * still banked as Water afterwards.
+ */
+export function resolveRoundClash(
+  first: CardData,
+  second: CardData,
+  powers: ReadonlyMap<number, ActivePowerState> = new Map(),
+  firstSeat = 1,
+  secondSeat = 0,
+): ResolvedRoundClash {
+  const firstCard: ActiveCardState = {
+    element: first.element,
+    value: first.value,
+    card: first,
+    player: firstSeat,
+    opponent: secondSeat,
+  }
+  const secondCard: ActiveCardState = {
+    element: second.element,
+    value: second.value,
+    card: second,
+    player: secondSeat,
+    opponent: firstSeat,
+  }
+
+  adjustCardValues(firstCard, secondCard, powers)
+  applyCurrentRoundPlayedEffects(firstCard, secondCard)
+
+  const winningSeat = getWinnerSeatId(firstCard, secondCard)
+  return {
+    winner: winningSeat === firstSeat ? 1 : winningSeat === secondSeat ? -1 : 0,
+    firstCard,
+    secondCard,
+  }
+}
+
 export interface EffectiveRules {
-  readonly beats: Readonly<Record<NinjaElement, NinjaElement>>       // post-reversal
-  readonly replace: Readonly<Record<NinjaElement, NinjaElement>>     // identity unless REPLACE active
+  readonly beats: Readonly<Record<NinjaElement, NinjaElement>>
+  readonly replace: Readonly<Record<NinjaElement, NinjaElement>>     // identity unless a replacement is supplied by a caller
   readonly valueDelta: readonly [me: number, opp: number]
+  /** Power 1 affects same-element comparisons only; elemental priority is unchanged. */
   readonly lowestWins: boolean
 }
 
@@ -168,7 +216,9 @@ export function effectiveRules(
   }
 
   const result: EffectiveRules = {
-    beats: reversed ? REVERSED_RULE_SET : RULE_SET,
+    // Power 1 does not reverse Fire/Water/Snow. Per the original rule, it
+    // only swaps values when the two cards have the same element.
+    beats: RULE_SET,
     replace,
     valueDelta: [meDelta, oppDelta] as const,
     lowestWins: reversed,
@@ -181,8 +231,8 @@ export function effectiveRules(
 /**
  * Authoritative clash resolution under effective modified rules:
  * - Elements evaluated through rules.replace
- * - Elemental superiority determined through rules.beats (post-reversal)
- * - Same-element clash evaluated via valueDelta and lowestWins
+ * - Elemental superiority determined through rules.beats (the normal element wheel)
+ * - Same-element clash evaluated via valueDelta and Power 1's lowestWins flag
  */
 export function resolveClashWith(a: CardData, b: CardData, rules: EffectiveRules): 1 | 0 | -1 {
   const elemA = rules.replace[a.element] ?? a.element
@@ -205,15 +255,15 @@ export function resolveClashWith(a: CardData, b: CardData, rules: EffectiveRules
 }
 
 /**
- * Single authoritative clash resolver returning 1 (a wins), -1 (b wins), or 0 (tie).
- * Consistently used across MatchFlow, bot policies, and headless simulation.
+ * Single authoritative clash resolver returning 1 (a wins), -1 (b wins), or
+ * 0 (tie). It includes both previous-round and on-played power effects.
  */
 export function resolveClash(
   a: CardData,
   b: CardData,
   powers: ReadonlyMap<number, ActivePowerState> = new Map(),
 ): 1 | 0 | -1 {
-  return resolveClashWith(a, b, effectiveRules(powers, 1))
+  return resolveRoundClash(a, b, powers).winner
 }
 
 /**

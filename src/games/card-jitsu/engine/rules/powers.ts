@@ -53,8 +53,8 @@ export type PowerClass = 'REVERSE' | 'REPLACE' | 'VALUE' | 'DISCARD'
 /**
  * Authoritative Power Taxonomy:
  * Classifies all 18 power IDs present in POWER_POOL based on extracted engine rule maps:
- * - REVERSE: on played, next round, element order inverted (Power 1)
- * - REPLACE: on played, next round, element replacement (Powers 16, 17, 18)
+ * - REVERSE: on played, swaps same-element values next round (Power 1)
+ * - REPLACE: on played, changes matching elements in the current round (Powers 16, 17, 18)
  * - VALUE: on scored, next round, numeric delta / limiters (Powers 2, 3, 13, 14, 15)
  * - DISCARD: on scored, immediate, bank card discard (Powers 4–12)
  */
@@ -82,9 +82,10 @@ export const POWER_CLASS: ReadonlyMap<number, PowerClass> = new Map<number, Powe
 /**
  * Pure state transition function advancing active powers between rounds:
  * - Consumed powers from the completed round expire immediately.
- * - Played powers of class REVERSE or REPLACE trigger on played and take effect next round.
- * - Scored powers of class VALUE trigger on scored and take effect next round.
- * - Scored powers of class DISCARD execute immediately and do not enter next round's active powers.
+ * - Played REVERSE cards are retained for the next round.
+ * - Played REPLACE cards are resolved in the current round and never persist.
+ * - Scored VALUE cards trigger on scored and take effect next round.
+ * - Scored DISCARD cards execute immediately and do not enter next round's active powers.
  */
 export function advancePowers(
   _powers: ReadonlyMap<number, ActivePowerState>,
@@ -93,11 +94,14 @@ export function advancePowers(
 ): ReadonlyMap<number, ActivePowerState> {
   const nextPowers = new Map<number, ActivePowerState>()
 
-  const playedList = Array.isArray(played) ? played : [played]
+  // Match Houdini's `enumerate(self.ninjas)`: seat 0 is visited first, then
+  // seat 1. Sorting also makes the result deterministic when both cards carry
+  // the same power ID (the later seat replaces the prior entry).
+  const playedList = (Array.isArray(played) ? [...played] : [played]).sort((a, b) => a.seat - b.seat)
   for (const item of playedList) {
     if (item.card.powerId !== 0) {
       const pClass = POWER_CLASS.get(item.card.powerId)
-      if (pClass === 'REVERSE' || pClass === 'REPLACE') {
+      if (pClass === 'REVERSE') {
         nextPowers.set(item.card.powerId, {
           powerId: item.card.powerId,
           player: item.seat,
@@ -124,34 +128,53 @@ export function advancePowers(
 }
 
 /**
+ * Applies effects which exist only for the cards currently on the mat.
+ *
+ * Houdini resolves the seat-0 card before seat-1. This ordering only matters
+ * when both players use a replacement card: each replacement acts on the
+ * already transformed elements. The CardData objects remain immutable; only
+ * the transient round states are changed, so a scored card still enters its
+ * bank under its printed element.
+ */
+export function applyCurrentRoundPlayedEffects(
+  firstCard: ActiveCardState,
+  secondCard: ActiveCardState,
+): void {
+  const cards = [firstCard, secondCard].sort((a, b) => a.player - b.player)
+  for (const played of cards) {
+    const replacement = Replacements[played.card.powerId]
+    if (!replacement) continue
+
+    const [original, replace] = replacement
+    if (firstCard.element === original) firstCard.element = replace
+    if (secondCard.element === original) secondCard.element = replace
+  }
+}
+
+/**
  * Houdini on_played_effects (ninja.py L201-L218):
- * Powers 16, 17, 18 replace elements immediately. Power 1 stored for next round.
+ * replacement powers resolve now, while Power 1 is retained for next round.
+ *
+ * This compatibility helper performs both operations. MatchFlow uses
+ * `applyCurrentRoundPlayedEffects` plus `advancePowers` so lifecycle state has
+ * one owner, but the standalone helper remains useful to rule consumers.
  */
 export function onPlayedEffects(
   firstCard: ActiveCardState,
   secondCard: ActiveCardState,
   powers: Map<number, ActivePowerCard>,
 ): void {
-  const cards = [firstCard, secondCard]
-  for (const played of cards) {
+  applyCurrentRoundPlayedEffects(firstCard, secondCard)
+
+  for (const played of [firstCard, secondCard].sort((a, b) => a.player - b.player)) {
     const powerId = played.card.powerId
-    if (!powerId || !OnPlayed.has(powerId)) continue
-    const currentRound = CurrentRound.has(powerId)
-    if (!currentRound) {
-      powers.set(powerId, {
-        powerId,
-        player: played.player,
-        opponent: played.opponent,
-        card: played.card,
-      })
-    } else {
-      const rep = Replacements[powerId]
-      if (rep) {
-        const [original, replacement] = rep
-        if (firstCard.element === original) firstCard.element = replacement
-        if (secondCard.element === original) secondCard.element = replacement
-      }
-    }
+    if (!powerId || powerId !== 1) continue
+    powers.set(powerId, {
+      powerId,
+      player: played.player,
+      opponent: played.opponent,
+      card: played.card,
+    })
   }
 }
 

@@ -2,6 +2,8 @@ import type {
   CardData,
   CardJitsuPhase,
   CardStore,
+  MatchEndResult,
+  MatchProgressionReceipt,
   MatchStats,
   NinjaBelt,
   OwnedCard,
@@ -63,6 +65,7 @@ export class CardJitsuSession {
   private botHistory: CardData[] = []
   private playerSelectedCard: CardData | null = null
   private oppSelectedCard: CardData | null = null
+  private matchProgression: MatchProgressionReceipt | null = null
 
   private config: SessionConfig
   private flashBridge: ((msg: string) => void) | null = null
@@ -184,6 +187,14 @@ export class CardJitsuSession {
   public getMode(): GameMode { return this.config.mode }
   public getOpponentNick(): string { return this.botNick }
   public getBotDeck(): BotDeck | null { return this.botDeck }
+  public getMatchResult(): MatchEndResult | null { return this.matchFlow.matchResult }
+  public getMatchProgression(): MatchProgressionReceipt | null { return this.matchProgression }
+
+  /** Updates the visual receipt only after the authoritative match endpoint responds. */
+  public setMatchProgression(receipt: MatchProgressionReceipt | null): void {
+    this.matchProgression = receipt
+    this.notify()
+  }
 
   private introSeen = false
   private inventory = new Set<number>()
@@ -275,6 +286,7 @@ export class CardJitsuSession {
     this.botHistory = []
     this.playerSelectedCard = null
     this.oppSelectedCard = null
+    this.matchProgression = null
     this.playerDealtMap.clear()
     this.oppDealtMap.clear()
     this.senseiMoveMap.clear()

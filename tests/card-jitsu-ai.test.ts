@@ -20,6 +20,8 @@ import {
   type BotContext,
 } from '../src/games/card-jitsu/engine/ai/bot-policy'
 import { CardJitsuSession } from '../src/games/card-jitsu/engine/gateway/session'
+import { MatchFlow } from '../src/games/card-jitsu/engine/gateway/match-flow'
+import { PLAYER_SEAT } from '../src/games/card-jitsu/engine/protocol/packets'
 import {
   createSeededRng,
   simulateHeadlessMatch,
@@ -36,7 +38,7 @@ import {
   resolveClash,
   sameElementOutcome,
   RULE_SET,
-  REVERSED_RULE_SET,
+  resolveRoundClash,
   type EffectiveRules,
 } from '../src/games/card-jitsu/engine/rules/clash'
 
@@ -335,35 +337,24 @@ describe('Card-Jitsu AI & Engine Overhaul (§6 Verification)', () => {
 
       powers = advancePowers(powers, [{ seat: 0, card: c3 }, { seat: 1, card: c4 }], { seat: 0, card: c3 })
       expect(powers.has(1)).toBe(false)
-      expect(powers.has(16)).toBe(true)
+      // Replacements apply to the cards currently on the mat; they cannot
+      // leak into the following round.
+      expect(powers.has(16)).toBe(false)
     })
 
-    it('reversal pick: hand {f10, s2}, opp heavy fire => Awareness >= 1 picks s2, Awareness 0 picks f10', () => {
-      const f10: CardData = { id: 10, element: 'f', color: 'r', value: 10, powerId: 0 }
-      const s2: CardData = { id: 2, element: 's', color: 'b', value: 2, powerId: 0 }
-      const oppFire1: CardData = { id: 11, element: 'f', color: 'g', value: 5, powerId: 0 }
-      const oppFire2: CardData = { id: 12, element: 'f', color: 'o', value: 6, powerId: 0 }
-
+    it('Power 1 reverses values only for matching elements, never the elemental wheel', () => {
+      const f3: CardData = { id: 10, element: 'f', color: 'r', value: 3, powerId: 0 }
+      const f9: CardData = { id: 11, element: 'f', color: 'g', value: 9, powerId: 0 }
+      const s12: CardData = { id: 12, element: 's', color: 'o', value: 12, powerId: 0 }
       const reversePowers = new Map<number, ActivePowerState>([
         [1, { powerId: 1, player: 1, opponent: 0, card: { id: 73, element: 'f', color: 'y', value: 10, powerId: 1 } }],
       ])
 
-      const ctx: BotContext = {
-        hand: [{ dealtId: 1, card: f10 }, { dealtId: 2, card: s2 }],
-        myBank: [],
-        oppBank: [oppFire1, oppFire2], // Fire finisher -> P(f) = 1 under modelStrength: 1
-        oppHistory: [oppFire1, oppFire2],
-        myHistory: [],
-        activePowers: reversePowers,
-        round: 2,
-        rng: createSeededRng(1),
-      }
-
-      const policyAware = new StrategicPolicy({ precision: Infinity, horizon: 0, modelStrength: 1, powerAwareness: 1 })
-      const policyNaive = new StrategicPolicy({ precision: Infinity, horizon: 0, modelStrength: 1, powerAwareness: 0 })
-
-      expect(policyAware.pick(ctx)).toBe(2) // s2 (Snow beats Fire under reversal)
-      expect(policyNaive.pick(ctx)).toBe(1) // f10 (Fire vs Fire high value under normal)
+      // f3 and f9 swap values before comparison, so the lower printed value
+      // wins this same-element clash.
+      expect(resolveRoundClash(f3, f9, reversePowers).winner).toBe(1)
+      // Fire still beats Snow even though the Snow card has a higher value.
+      expect(resolveRoundClash(f3, s12, reversePowers).winner).toBe(1)
     })
 
     it('replacement pick w -> f: hand {s5, w5}, opp water => Awareness >= 1 picks w5', () => {
@@ -394,6 +385,54 @@ describe('Card-Jitsu AI & Engine Overhaul (§6 Verification)', () => {
       expect(resolveClashWith(s5, oppW1, rules)).toBe(-1) // s5 (Snow) vs replaced Fire -> loses
       expect(resolveClashWith(w5, oppW1, rules)).toBe(-1) // w5 (Water->Fire) vs replaced Fire (7 vs 5)
       expect(policyAware.pick(ctx)).toBe(2) // w5 preferred over certain loss
+    })
+
+    it('MatchFlow applies current-round replacement cards before it judges the winner', async () => {
+      const packets: string[] = []
+      const flow = new MatchFlow({
+        isSensei: false,
+        onSendRaw: (packet) => packets.push(packet),
+      })
+      const power16: CardData = { id: 72, element: 'f', color: 'r', value: 9, powerId: 16 }
+      const water: CardData = { id: 54, element: 'w', color: 'g', value: 6, powerId: 0 }
+      const sparePlayer: CardData = { id: 1, element: 's', color: 'b', value: 4, powerId: 0 }
+      const spareOpponent: CardData = { id: 2, element: 'f', color: 'y', value: 4, powerId: 0 }
+
+      await flow.executeClash(
+        1,
+        power16,
+        2,
+        water,
+        [{ dealtId: 3, card: sparePlayer }],
+        [{ dealtId: 4, card: spareOpponent }],
+      )
+
+      expect(flow.lastClash?.winner).toBe('player')
+      expect(flow.playerWonCards).toEqual([power16])
+      expect(flow.playerWonCards[0]?.element).toBe('f')
+      expect(flow.powers.has(16)).toBe(false)
+      expect(packets.some((packet) => packet.includes('%power%1%0%16%'))).toBe(true)
+    })
+
+    it('finalizes a completed match through the progression callback and preserves its result receipt', async () => {
+      const completed: CardData[] = []
+      const flow = new MatchFlow({
+        isSensei: false,
+        onSendRaw: () => {},
+        onMatchEnd: async (result) => {
+          completed.push(...result.playerBank)
+          return {}
+        },
+      })
+      const winningCard: CardData = { id: 1, element: 'f', color: 'r', value: 8, powerId: 0 }
+      flow.playerWonCards.push(winningCard)
+
+      await flow.finalizeMatchEnd(PLAYER_SEAT, 'same-element')
+
+      expect(completed).toEqual([winningCard])
+      expect(flow.matchResult?.winner).toBe('player')
+      expect(flow.matchResult?.winMethod).toBe('same-element')
+      await expect(flow.matchEndPromise).resolves.toBeUndefined()
     })
 
     it('lowestWins pick: hand {f3, f11}, P(f)=1 => Awareness >= 1 picks f3', () => {
@@ -456,48 +495,25 @@ describe('Card-Jitsu AI & Engine Overhaul (§6 Verification)', () => {
       expect(ratio).toBeLessThanOrEqual(0.60)
     })
 
-    it('reverse planning: myBank needs snow, hand has REVERSE + snow card, model heavy fire => Awareness 2 horizon >= 1 plays reverse first', () => {
-      const revF10: CardData = { id: 73, element: 'f', color: 'y', value: 10, powerId: 1 }
-      const snowG8: CardData = { id: 8, element: 's', color: 'g', value: 8, powerId: 0 }
+    it('Power 16 changes Water to Fire for this clash without changing the scored card', () => {
+      const waterPower: CardData = { id: 72, element: 'f', color: 'r', value: 9, powerId: 16 }
+      const normalFire: CardData = { id: 53, element: 'f', color: 'b', value: 9, powerId: 0 }
+      const waterOpponent: CardData = { id: 54, element: 'w', color: 'g', value: 6, powerId: 0 }
 
-      // myBank has 1 snow card; needs snow to advance toward triad
-      const snow1: CardData = { id: 51, element: 's', color: 'r', value: 4, powerId: 0 }
+      // Water normally douses Fire.
+      expect(resolveRoundClash(normalFire, waterOpponent).winner).toBe(-1)
 
-      // Opponent plays heavy fire
-      const oppF1: CardData = { id: 53, element: 'f', color: 'r', value: 6, powerId: 0 }
-      const oppF2: CardData = { id: 54, element: 'f', color: 'b', value: 7, powerId: 0 }
-
-      const ctx: BotContext = {
-        hand: [{ dealtId: 1, card: revF10 }, { dealtId: 2, card: snowG8 }],
-        myBank: [snow1],
-        oppBank: [oppF1, oppF2],
-        oppHistory: [oppF1, oppF2, oppF1, oppF2],
-        myHistory: [],
-        activePowers: new Map(),
-        round: 3,
-        rng: createSeededRng(42),
-      }
-
-      const policyAware2 = new StrategicPolicy({ precision: Infinity, horizon: 1, modelStrength: 1, powerAwareness: 2 })
-      // Awareness 2 recognizes that playing REVERSE now sets up Snow to beat Fire on next round
-      expect(policyAware2.pick(ctx)).toBe(1) // revF10
-
-      // Awareness 2 plays reverse with higher frequency than Awareness 1 under softmax
-      const policySoftmax2 = new StrategicPolicy({ precision: 2.0, horizon: 1, modelStrength: 1, powerAwareness: 2 })
-      const policySoftmax1 = new StrategicPolicy({ precision: 2.0, horizon: 1, modelStrength: 1, powerAwareness: 1 })
-      let revCount2 = 0
-      let revCount1 = 0
-      for (let i = 0; i < 100; i++) {
-        const testCtx = { ...ctx, rng: createSeededRng(i + 50) }
-        if (policySoftmax2.pick(testCtx) === 1) revCount2++
-        if (policySoftmax1.pick(testCtx) === 1) revCount1++
-      }
-      expect(revCount2).toBeGreaterThanOrEqual(revCount1)
+      // Power 16 turns Water into Fire before judging this pair, so 9 beats 6.
+      const waterRound = resolveRoundClash(waterPower, waterOpponent)
+      expect(waterRound.firstCard.element).toBe('f')
+      expect(waterRound.secondCard.element).toBe('f')
+      expect(waterRound.winner).toBe(1)
+      expect(waterOpponent.element).toBe('w')
     })
 
     it('sameElementOutcome verifies lowestWins inverts win/loss and valueDelta shifts win monotonically', () => {
       const normalRules: EffectiveRules = { beats: RULE_SET, replace: { f: 'f', w: 'w', s: 's' }, valueDelta: [0, 0], lowestWins: false }
-      const lowestRules: EffectiveRules = { beats: REVERSED_RULE_SET, replace: { f: 'f', w: 'w', s: 's' }, valueDelta: [0, 0], lowestWins: true }
+      const lowestRules: EffectiveRules = { beats: RULE_SET, replace: { f: 'f', w: 'w', s: 's' }, valueDelta: [0, 0], lowestWins: true }
       const buffRules: EffectiveRules = { beats: RULE_SET, replace: { f: 'f', w: 'w', s: 's' }, valueDelta: [2, 0], lowestWins: false }
       const debuffRules: EffectiveRules = { beats: RULE_SET, replace: { f: 'f', w: 'w', s: 's' }, valueDelta: [-2, 0], lowestWins: false }
 

@@ -26,6 +26,8 @@ export interface CardJitsuMatchResponse {
   readonly rank: number
   readonly progress: number
   readonly matchesWon: number
+  /** Actual absolute-EXP delta applied by the server for this match. */
+  readonly progressAwarded: number
 }
 
 export interface CardJitsuColorPayload {
