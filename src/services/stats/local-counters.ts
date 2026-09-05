@@ -69,7 +69,18 @@ export const registerScore = (slug: string, score: number): LocalCounters => {
 
 export const bankCandy = (slug: string, amount: number): LocalCounters => {
   const current = readLocalCounters(slug)
-  return patchLocalCounters(slug, { candy: Math.max(0, current.candy + amount) })
+  const nextCandy = Math.max(0, current.candy + amount)
+  for (const s of ALLOWED_SLUGS) {
+    patchLocalCounters(s, { candy: nextCandy })
+  }
+  return patchLocalCounters(slug, { candy: nextCandy })
+}
+
+export const setGlobalCandyLocal = (candy: number): void => {
+  const safe = Math.max(0, Math.floor(candy))
+  for (const s of ALLOWED_SLUGS) {
+    patchLocalCounters(s, { candy: safe })
+  }
 }
 
 function emit(): void {

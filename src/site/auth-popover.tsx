@@ -7,6 +7,7 @@ import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
 import { DeveloperBadge } from '../components/ui/developer-badge'
 import { BadgeTooltip } from '../components/ui/badge-tooltip'
+import { useStatsController } from '../services/stats/stats-provider'
 import './auth-popover.css'
 
 export function AuthPopover() {
@@ -19,6 +20,7 @@ export function AuthPopover() {
   const [submitting, setSubmitting] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { navigate } = useRouter()
+  const { totalCandy } = useStatsController()
 
   useEffect(() => {
     setUser(getCurrentUser())
@@ -144,6 +146,10 @@ export function AuthPopover() {
                       <span>⚡</span> Pioneer
                     </span>
                   )}
+                  <div className="nx-user-menu-candy" title="Candy Bank">
+                    <span>🍬</span>
+                    <span>{totalCandy.toLocaleString()} Candy</span>
+                  </div>
                 </div>
               </div>
 

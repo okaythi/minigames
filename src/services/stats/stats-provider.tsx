@@ -8,7 +8,6 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
-import { ALLOWED_SLUGS } from '../../../shared/game-slugs'
 import type {
   GameStatsRecord,
   PlayerRecord,
@@ -19,10 +18,10 @@ import { claimVisitAnnouncement } from './player-identity'
 import type { GameFinishDetails } from '../../games/template/types'
 import {
   bankCandy as bankCandyLocal,
-  patchLocalCounters,
   readLocalCounters,
   registerPlay,
   registerScore,
+  setGlobalCandyLocal,
   subscribeLocalCounters,
 } from './local-counters'
 
@@ -50,13 +49,20 @@ export interface GameStatsView {
   readonly synced: boolean
 }
 
+export function broadcastCandyUpdate(candy: number): void {
+  window.dispatchEvent(new CustomEvent('nx:candy-updated', { detail: { candy } }))
+}
+
 export interface StatsController {
   /** Distinct anonymous visitors, straight from the edge. */
   readonly uniquePlayers: number
+  /** Unified global candy bank across all games and shops. */
+  readonly totalCandy: number
   readonly view: (slug: string) => GameStatsView
   readonly beginRun: (slug: string) => void
   readonly finishRun: (slug: string, score: number, details?: GameFinishDetails) => void
   readonly bankCandy: (slug: string, amount: number) => void
+  readonly syncCandy: (candy: number) => void
   readonly refresh: () => Promise<void>
 }
 
@@ -85,10 +91,7 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
       setSynced(true)
 
       if (payload.player) {
-        for (const slug of ALLOWED_SLUGS) {
-          const remoteGameCandy = payload.player.games[slug]?.candy ?? 0
-          patchLocalCounters(slug, { candy: remoteGameCandy })
-        }
+        setGlobalCandyLocal(payload.player.candy)
       }
     })
 
@@ -164,9 +167,28 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
     [push],
   )
 
+  const syncCandy = useCallback((candy: number): void => {
+    const safe = Math.max(0, Math.floor(candy))
+    setPlayerRecord((prev) => (prev ? { ...prev, candy: safe } : prev))
+    setGlobalCandyLocal(safe)
+    setRevision((value) => value + 1)
+  }, [])
+
+  useEffect(() => {
+    const handleCandyUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ candy: number }>
+      if (typeof customEvent.detail?.candy === 'number') {
+        syncCandy(customEvent.detail.candy)
+      }
+    }
+    window.addEventListener('nx:candy-updated', handleCandyUpdate)
+    return () => window.removeEventListener('nx:candy-updated', handleCandyUpdate)
+  }, [syncCandy])
+
   const bankCandy = useCallback(
     (slug: string, amount: number): void => {
-      bankCandyLocal(slug, amount)
+      const updated = bankCandyLocal(slug, amount)
+      setPlayerRecord((prev) => (prev ? { ...prev, candy: updated.candy } : prev))
       setRevision((value) => value + 1)
       push(slug, { type: 'candy', amount })
     },
@@ -180,6 +202,9 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
       setPlayerRecord(payload.player)
       setUniquePlayers(payload.uniquePlayers)
       setSynced(true)
+      if (payload.player) {
+        setGlobalCandyLocal(payload.player.candy)
+      }
     }
     setRevision((value) => value + 1)
   }, [])
@@ -189,8 +214,7 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
       const local = readLocalCounters(slug)
       const remote: GameStatsRecord | undefined = edge?.[slug]
       const distributed = synced && remote !== undefined
-      const remoteCandy = playerRecord?.games[slug]?.candy
-      const candy = remoteCandy !== undefined ? Math.max(local.candy, remoteCandy) : local.candy
+      const candy = playerRecord !== null ? playerRecord.candy : local.candy
       return {
         // Trust the larger of the two until the edge confirms: a stale 0 is
         // worse than a number that only counts down when it must.
@@ -203,9 +227,10 @@ export function StatsProvider({ children }: { readonly children: ReactNode }) {
         synced,
       }
     }
-    return { view, beginRun, finishRun, bankCandy, refresh, uniquePlayers }
+    const totalCandy = playerRecord !== null ? playerRecord.candy : readLocalCounters('avoid-the-spikes').candy
+    return { view, beginRun, finishRun, bankCandy, syncCandy, refresh, uniquePlayers, totalCandy }
     // `revision` intentionally busts the memo when localStorage moves.
-  }, [edge, playerRecord, synced, revision, beginRun, finishRun, bankCandy, refresh, uniquePlayers])
+  }, [edge, playerRecord, synced, revision, beginRun, finishRun, bankCandy, syncCandy, refresh, uniquePlayers])
 
   return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
 }

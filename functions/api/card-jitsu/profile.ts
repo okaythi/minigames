@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
-import { users, cjNinja, cjCard, cjMatch, cjNinjaColors } from '../../../src/db/schema'
+import { users, players, cjNinja, cjCard, cjMatch, cjNinjaColors } from '../../../src/db/schema'
 import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
@@ -99,6 +99,9 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     console.warn('[Card-Jitsu Profile] Error loading owned colors:', err)
   }
 
+  const playerRow = await db.select().from(players).where(eq(players.id, playerId)).get()
+  const candy = playerRow?.candy ?? 0
+
   const profile: CardJitsuProfileResponse = {
     rank: ninja.rank,
     progress: ninja.progress,
@@ -108,6 +111,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     cards,
     eligibleOpponents,
     ownedColors,
+    candy,
   }
 
   return jsonResponse(200, { ok: true, profile })

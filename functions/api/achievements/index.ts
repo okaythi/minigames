@@ -77,7 +77,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     const globalStatsMap = new Map(globalStatsRows.map((gs) => [gs.slug, gs]))
     const totalPlays = playerGameRows.reduce((sum, pg) => sum + (pg.plays || 0), 0)
     const sumGamesCandy = playerGameRows.reduce((sum, pg) => sum + (pg.candy || 0), 0)
-    const totalCandy = Math.max(playerRow?.candy ?? 0, sumGamesCandy)
+    const totalCandy = playerRow?.candy ?? sumGamesCandy
     const gamesPlayedSlugs = playerGameRows
       .filter((pg) => (pg.plays || 0) > 0)
       .map((pg) => pg.slug)

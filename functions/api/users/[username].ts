@@ -102,7 +102,7 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
   }
 
   const sumGamesCandy = playerGameRows.reduce((sum, pg) => sum + (pg.candy || 0), 0)
-  const totalCandy = Math.max(playerRow?.candy ?? 0, sumGamesCandy)
+  const totalCandy = playerRow?.candy ?? sumGamesCandy
 
   // Derive arcade rating
   let arcadeRating = 'Novice'

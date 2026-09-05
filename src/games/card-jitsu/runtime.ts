@@ -1,4 +1,5 @@
 import { createStore } from '../../lib/observable-store'
+import { broadcastCandyUpdate } from '../../services/stats/stats-provider'
 import { getCurrentUser } from '../../services/auth-api'
 import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
@@ -254,6 +255,9 @@ export const createCardJitsuRuntime = (
         session.setPlayerRank(profile.rank)
         if (profile.colorId !== undefined && profile.colorId >= 1 && profile.colorId <= 16) {
           session.setPlayerColor(profile.colorId)
+        }
+        if (profile.candy !== undefined) {
+          broadcastCandyUpdate(profile.candy)
         }
         if (profile.rank >= 1 && profile.rank <= 9) {
           playerBelt = getRankBelt(profile.rank)

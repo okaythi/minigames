@@ -17,6 +17,7 @@ import { PackStorePanel } from './pack-store-panel'
 import { ChestOpeningView } from './chest-opening-view'
 import { ColorSelectPanel } from './color-select-panel'
 import { OwnedCardsBrowser } from './owned-cards-browser'
+import { broadcastCandyUpdate } from '../../../../services/stats/stats-provider'
 import './dojo-store.css'
 
 interface DojoStoreProps {
@@ -56,6 +57,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
       if (shopRes.ok) {
         const data = (await shopRes.json()) as CardJitsuShopStateResponse
         setUserCandy(data.candy)
+        broadcastCandyUpdate(data.candy)
         setEquippedColorId(data.equippedColorId)
         setColors(data.colors)
         setPackInfo(data.pack)
@@ -76,6 +78,17 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
     void fetchShopData()
   }, [fetchShopData])
 
+  useEffect(() => {
+    const handleCandyUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ candy: number }>
+      if (typeof customEvent.detail?.candy === 'number') {
+        setUserCandy(customEvent.detail.candy)
+      }
+    }
+    window.addEventListener('nx:candy-updated', handleCandyUpdate)
+    return () => window.removeEventListener('nx:candy-updated', handleCandyUpdate)
+  }, [])
+
   // Buy a locked color
   const handleBuyColor = async (colorId: number): Promise<boolean> => {
     try {
@@ -94,6 +107,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
       const data = (await res.json()) as BuyColorResponse
       if (data.ok && data.candy !== undefined) {
         setUserCandy(data.candy)
+        broadcastCandyUpdate(data.candy)
         setEquippedColorId(colorId)
         setColors((prev) =>
           prev.map((c) => ({
@@ -168,6 +182,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
       if (data.ok && data.cards && data.cards.length === 10) {
         if (data.candy !== undefined) {
           setUserCandy(data.candy)
+          broadcastCandyUpdate(data.candy)
         }
         setActiveDrawnCards(data.cards)
 

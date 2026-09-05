@@ -79,6 +79,17 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
   const isOwner = currentUser?.username.toLowerCase() === profile?.username?.toLowerCase()
 
   useEffect(() => {
+    const handleCandyUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ candy: number }>
+      if (typeof customEvent.detail?.candy === 'number' && isOwner) {
+        setProfile((prev) => (prev ? { ...prev, totalCandy: customEvent.detail.candy } : prev))
+      }
+    }
+    window.addEventListener('nx:candy-updated', handleCandyUpdate)
+    return () => window.removeEventListener('nx:candy-updated', handleCandyUpdate)
+  }, [isOwner])
+
+  useEffect(() => {
     if (!currentUser || isOwner || !profile) return
     getMyFriends()
       .then((res) => {
