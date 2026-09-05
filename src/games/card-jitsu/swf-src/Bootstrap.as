@@ -176,10 +176,18 @@ class Bootstrap {
 
         var holder:MovieClip = undefined;
         var loadCardSWF:Function = function():Void {
-            startBgm();
             holder = root.createEmptyMovieClip("gameHolder", 1);
             holder._lockroot = true;
             var loader:MovieClipLoader = new MovieClipLoader();
+            var loadListener:Object = {};
+            loadListener.onLoadInit = function(target:MovieClip):Void {
+                ExternalInterface.call("shimLog", "card.swf loaded OK!");
+                startBgm();
+            };
+            loadListener.onLoadError = function(target:MovieClip, errorCode:String):Void {
+                ExternalInterface.call("shimLog", "card.swf load error", errorCode);
+            };
+            loader.addListener(loadListener);
             loader.loadClip(SHELL.getGameContentPath() + "/card.swf", holder);
         };
 
