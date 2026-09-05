@@ -49,7 +49,9 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly startChallengeSensei: () => void
   readonly exitToMenu: () => void
   readonly refreshProfile: () => Promise<CardJitsuProfileResponse | null>
+  readonly getIntroSeen: () => boolean
 }
+
 
 /**
  * Fetches server-authoritative Card-Jitsu profile from D1 endpoint.
@@ -116,7 +118,7 @@ export const createCardJitsuRuntime = (
     playerNick,
     playerColor,
     cardStore: options?.cardStore ?? new DefaultCardStore(),
-    opponentPolicy: options?.opponentPolicy,
+    ...(options?.opponentPolicy ? { opponentPolicy: options.opponentPolicy } : {}),
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase
@@ -183,6 +185,7 @@ export const createCardJitsuRuntime = (
       currentProgress = profile.progress
       totalWins = profile.matchesWon
       eligibleOpponents = profile.eligibleOpponents
+      session.setIntroSeen(profile.introSeen)
       if (profile.rank > 0) {
         playerBelt = getRankBelt(profile.rank)
         session.setPlayerBelt(playerBelt)
@@ -195,6 +198,7 @@ export const createCardJitsuRuntime = (
     }
     return profile
   }
+
 
   // Pre-fetch profile before entering match/menu
   void refreshProfile()
@@ -258,7 +262,9 @@ export const createCardJitsuRuntime = (
       options?.onExit?.()
     },
     refreshProfile,
+    getIntroSeen: () => session.getIntroSeen(),
   }
+
 
   return runtime
 }

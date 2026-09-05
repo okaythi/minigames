@@ -66,6 +66,10 @@ export class CardJitsuSession {
     this.config = config
     this.store = config.cardStore ?? new DefaultCardStore()
 
+    if (config.introSeen !== undefined) {
+      this.setIntroSeen(config.introSeen)
+    }
+
     const dropped = this.store.getOwned().filter((i) => !DEALABLE_IDS.has(i.cardId)).map((i) => i.cardId)
     if (dropped.length > 0) console.warn('[Card-Jitsu] Dropping owned cards outside dealable pool:', dropped)
 
@@ -89,7 +93,7 @@ export class CardJitsuSession {
     this.matchFlow = new MatchFlow({
       isSensei: this.isSenseiMode(),
       onSendRaw: (packet) => this.sendRaw(packet),
-      onMatchEnd: config.onMatchEnd,
+      ...(config.onMatchEnd ? { onMatchEnd: config.onMatchEnd } : {}),
       onClashDone: (result, won) => config.onClashDone?.(result, { won }),
       onGameOver: (winner) => {
         this.phase = 'game-over'
@@ -119,6 +123,39 @@ export class CardJitsuSession {
   public getPlayerBeltRank(): number { return getBeltRank(this.config.playerBelt) }
   public getMode(): GameMode { return this.config.mode }
   public getOpponentNick(): string { return this.botNick }
+
+  private introSeen = false
+  private inventory = new Set<number>()
+
+  public getIntroSeen(): boolean {
+    return this.introSeen
+  }
+
+  public setIntroSeen(val: boolean): void {
+    this.introSeen = val
+    if (val) {
+      this.inventory.add(821)
+    }
+  }
+
+  public hasItemInInventory(id: number): boolean {
+    return this.inventory.has(id)
+  }
+
+  public async completeIntro(): Promise<void> {
+    this.introSeen = true
+    this.inventory.add(821)
+    try {
+      const res = await fetch('/api/card-jitsu/intro-complete', {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        console.warn('[Card-Jitsu] Intro completion returned non-200 status:', res.status)
+      }
+    } catch (err) {
+      console.warn('[Card-Jitsu] Failed to persist intro completion:', err)
+    }
+  }
 
   public getStats(): MatchStats {
     return {

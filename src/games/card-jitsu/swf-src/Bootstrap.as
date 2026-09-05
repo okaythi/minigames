@@ -93,9 +93,16 @@ class Bootstrap {
                 default: return 0x003366;
             }
         });
-        Bootstrap.wrap(SHELL, "getInventoryObjectById", function(id:Number):Object { return undefined; });
-        Bootstrap.wrap(SHELL, "getMyInventoryArray", function():Array { return []; });
-        Bootstrap.wrap(SHELL, "isItemInMyInventory", function(id:Number):Boolean { return false; });
+        Bootstrap.wrap(SHELL, "getInventoryObjectById", function(id:Number):Object {
+            if (id == 821) return { item_id: 821, name: "Starter Deck" };
+            return undefined;
+        });
+        Bootstrap.wrap(SHELL, "getMyInventoryArray", function():Array { return [821]; });
+        Bootstrap.wrap(SHELL, "isItemInMyInventory", function(id:Number):Boolean {
+            if (id == 821) return true;
+            return false;
+        });
+
         var handlePrompt:Function = function():Void {
             ExternalInterface.call("onFlashPrompt", Bootstrap.argsToArray(arguments));
         };

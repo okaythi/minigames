@@ -37,9 +37,9 @@ export interface DealtCard {
 export interface MatchFlowOptions {
   readonly isSensei: boolean
   readonly onSendRaw: (packet: string) => void
-  readonly onMatchEnd?: OnMatchEndCallback | undefined
-  readonly onClashDone?: ((result: ClashResult, won: boolean) => void) | undefined
-  readonly onGameOver?: ((winner: 'player' | 'sensei') => void) | undefined
+  readonly onMatchEnd?: OnMatchEndCallback
+  readonly onClashDone?: (result: ClashResult, won: boolean) => void
+  readonly onGameOver?: (winner: 'player' | 'sensei') => void
 }
 
 export class MatchFlow {
@@ -137,7 +137,7 @@ export class MatchFlow {
       senseiCard: oCard,
       winner: winnerSeatId === PLAYER_SEAT ? 'player' : winnerSeatId === OPP_SEAT ? 'sensei' : 'tie',
       reason: first.element !== second.element ? 'element' : first.value === second.value ? 'tie' : 'value',
-      powerTriggered: winningCard?.powerId && winningCard.powerId > 0 ? winningCard.powerId : undefined,
+      ...(winningCard?.powerId && winningCard.powerId > 0 ? { powerTriggered: winningCard.powerId } : {}),
       message: winnerSeatId === PLAYER_SEAT ? `${pCard.name ?? 'Player'} wins!` : winnerSeatId === OPP_SEAT ? `${oCard.name ?? 'Opponent'} wins!` : 'Clash tie!',
     }
 
@@ -164,7 +164,9 @@ export class MatchFlow {
 
     this.options.onSendRaw(buildJudgePacket(winnerSeatId))
     this.round++
-    this.options.onClashDone?.(this.lastClash, false)
+    if (this.lastClash) {
+      this.options.onClashDone?.(this.lastClash, false)
+    }
     return false
   }
 

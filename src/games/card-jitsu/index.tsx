@@ -53,14 +53,18 @@ export default function CardJitsuGame() {
         manifest,
         createRuntime: wrappedCreateRuntime,
       }}
-      renderCustomHud={(snapshot) => (
-        <BeltHud
-          currentBelt={runtimeRef.current?.getBelt() ?? currentBelt}
-          rank={runtimeRef.current?.getRank?.()}
-          progress={runtimeRef.current?.getProgress?.()}
-          totalWins={snapshot.score}
-        />
-      )}
+      renderCustomHud={(snapshot) => {
+        const rank = runtimeRef.current?.getRank?.()
+        const progress = runtimeRef.current?.getProgress?.()
+        return (
+          <BeltHud
+            currentBelt={runtimeRef.current?.getBelt() ?? currentBelt}
+            {...(rank !== undefined ? { rank } : {})}
+            {...(progress !== undefined ? { progress } : {})}
+            totalWins={snapshot.score}
+          />
+        )
+      }}
       renderCustomStage={(runtime) => {
         const ext = runtime as unknown as CardJitsuRuntimeExtended
         if (typeof window !== 'undefined') {

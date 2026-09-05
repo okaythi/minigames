@@ -123,7 +123,15 @@ export function RuffleStage({
             forceAlign: true,
             quality: 'high',
             logLevel: 'info',
+            parameters: {
+              nick: session.getPlayerNick(),
+              introSeen: String(session.getIntroSeen()),
+              hasCards: session.hasItemInInventory(821) ? '1' : '0',
+              rank: String(session.getPlayerBeltRank()),
+              color: String(session.getPlayerColor()),
+            },
           }
+
 
       await player.load(options)
     } catch (err) {
@@ -209,6 +217,12 @@ export function RuffleStage({
           }
         }
 
+        window.onIntroComplete = () => {
+          console.log('[flash→ts onIntroComplete]')
+          if (cancelled) return
+          void session.completeIntro()
+        }
+
         window.onFlashAirtowerSend = (ext, action, args, type, roomId) => {
           console.log('[flash→ts]', ext, action, JSON.stringify(args), type, roomId)
           if (cancelled) return
@@ -274,6 +288,7 @@ export function RuffleStage({
       cancelled = true
       session.setBridge(() => {})
       window.onMenuSelect = () => {}
+      window.onIntroComplete = () => {}
       window.onFlashAirtowerSend = () => {}
       window.onFlashGameScore = () => {}
       window.onFlashPrompt = () => {}

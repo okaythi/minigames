@@ -7,9 +7,9 @@ import {
 
 interface BeltHudProps {
   readonly currentBelt: NinjaBelt
-  readonly rank?: number | undefined
-  readonly progress?: number | undefined
-  readonly totalWins?: number | undefined
+  readonly rank?: number
+  readonly progress?: number
+  readonly totalWins?: number
 }
 
 export function BeltHud({ currentBelt, rank, progress = 0 }: BeltHudProps) {

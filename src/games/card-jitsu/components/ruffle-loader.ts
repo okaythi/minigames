@@ -1,18 +1,18 @@
 export interface RuffleLoadOptions {
   readonly url: string
-  readonly allowScriptAccess?: boolean | undefined
-  readonly publicPath?: string | undefined
-  readonly polyfills?: boolean | undefined
-  readonly autoplay?: 'on' | 'off' | 'auto' | undefined
-  readonly unmuteOverlay?: 'visible' | 'hidden' | undefined
-  readonly letterbox?: 'on' | 'off' | 'fullscreen' | undefined
-  readonly scale?: 'showAll' | 'noborder' | 'exactFit' | 'noScale' | undefined
-  readonly forceScale?: boolean | undefined
-  readonly salign?: string | undefined
-  readonly forceAlign?: boolean | undefined
-  readonly quality?: 'low' | 'medium' | 'high' | 'best' | 'autolow' | 'autohigh' | undefined
-  readonly logLevel?: 'error' | 'warn' | 'info' | 'debug' | 'trace' | undefined
-  readonly parameters?: Record<string, string | number | boolean> | undefined
+  readonly allowScriptAccess?: boolean
+  readonly publicPath?: string
+  readonly polyfills?: boolean
+  readonly autoplay?: 'on' | 'off' | 'auto'
+  readonly unmuteOverlay?: 'visible' | 'hidden'
+  readonly letterbox?: 'on' | 'off' | 'fullscreen'
+  readonly scale?: 'showAll' | 'noborder' | 'exactFit' | 'noScale'
+  readonly forceScale?: boolean
+  readonly salign?: string
+  readonly forceAlign?: boolean
+  readonly quality?: 'low' | 'medium' | 'high' | 'best' | 'autolow' | 'autohigh'
+  readonly logLevel?: 'error' | 'warn' | 'info' | 'debug' | 'trace'
+  readonly parameters?: Record<string, string | number | boolean>
 }
 
 export type RufflePlayerElement = HTMLElement & {
@@ -26,12 +26,12 @@ export interface RufflePlayerInstance {
   readonly newest: () => {
     readonly createPlayer: () => RufflePlayerElement
   }
-  config?: Record<string, unknown> | undefined
+  config?: Record<string, unknown>
 }
 
 declare global {
   interface Window {
-    RufflePlayer?: RufflePlayerInstance | undefined
+    RufflePlayer?: RufflePlayerInstance
     onFlashAirtowerSend?: (
       ext: string,
       action: string,
@@ -43,6 +43,7 @@ declare global {
     onFlashPrompt?: (...args: readonly unknown[]) => void
     onFlashExit?: (roomId?: number) => void
     onMenuSelect?: (mode: string) => void
+    onIntroComplete?: () => void
     stopMusic?: () => void
     shimLog?: (...args: unknown[]) => void
   }

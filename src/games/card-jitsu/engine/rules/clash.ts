@@ -120,7 +120,7 @@ export function resolveClash(
       senseiCard,
       winner: 'player',
       reason: 'element',
-      powerTriggered: playerCard.powerId > 0 ? playerCard.powerId : undefined,
+      ...(playerCard.powerId > 0 ? { powerTriggered: playerCard.powerId } : {}),
       message: `${ELEMENT_NAMES[pElem]} triumphs over ${ELEMENT_NAMES[sElem]}!`,
     }
   }
@@ -131,7 +131,7 @@ export function resolveClash(
       senseiCard,
       winner: 'sensei',
       reason: 'element',
-      powerTriggered: senseiCard.powerId > 0 ? senseiCard.powerId : undefined,
+      ...(senseiCard.powerId > 0 ? { powerTriggered: senseiCard.powerId } : {}),
       message: `Opponent's ${ELEMENT_NAMES[sElem]} conquers ${ELEMENT_NAMES[pElem]}!`,
     }
   }
@@ -155,7 +155,7 @@ export function resolveClash(
       senseiCard,
       winner: 'player',
       reason: 'value',
-      powerTriggered: playerCard.powerId > 0 ? playerCard.powerId : undefined,
+      ...(playerCard.powerId > 0 ? { powerTriggered: playerCard.powerId } : {}),
       message: lowCardWins
         ? `Reversal! Lower value ${pVal} beats ${sVal}!`
         : `Higher energy! ${pVal} overpowers ${sVal}!`,
@@ -167,7 +167,7 @@ export function resolveClash(
     senseiCard,
     winner: 'sensei',
     reason: 'value',
-    powerTriggered: senseiCard.powerId > 0 ? senseiCard.powerId : undefined,
+    ...(senseiCard.powerId > 0 ? { powerTriggered: senseiCard.powerId } : {}),
     message: lowCardWins
       ? `Reversal! Opponent's lower value ${sVal} beats ${pVal}!`
       : `Opponent's higher power ${sVal} overpowers ${pVal}!`,

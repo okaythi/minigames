@@ -60,7 +60,7 @@ export interface ClashResult {
   readonly senseiCard: CardData
   readonly winner: ClashWinner
   readonly reason: 'element' | 'value' | 'power' | 'tie'
-  readonly powerTriggered?: number | undefined
+  readonly powerTriggered?: number
   readonly message: string
 }
 
