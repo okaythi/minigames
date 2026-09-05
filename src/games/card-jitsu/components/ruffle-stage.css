@@ -79,9 +79,8 @@
   color: #94a3b8;
 }
 
-/* Match conclusion: an original dojo result panel rather than a raw Flash
-   prompt. It deliberately keeps the warm paper/ink language of Card-Jitsu
-   while staying readable above the Ruffle stage. */
+/* Results and close confirmation share the app's light paper, graphite, and
+   Cloudflare-orange palette. The Flash stage remains visible but subdued. */
 .nx-card-jitsu-results-overlay {
   position: absolute;
   inset: 0;
@@ -91,32 +90,26 @@
   padding: clamp(14px, 3vw, 30px);
   overflow: auto;
   background:
-    radial-gradient(circle at 50% 18%, rgba(252, 214, 132, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(10, 18, 25, 0.92), rgba(20, 11, 7, 0.86));
+    radial-gradient(circle at 50% 18%, rgba(246, 130, 31, 0.22), transparent 36%),
+    rgba(35, 35, 36, 0.82);
   backdrop-filter: blur(5px);
-  animation: nx-result-backdrop-in 220ms ease-out both;
+  animation: nx-result-backdrop-in 180ms ease-out both;
 }
 
 .nx-card-jitsu-results-card {
-  --result-accent: #b55322;
-  --result-deep: #572413;
+  --result-accent: var(--nx-orange, #f6821f);
+  --result-deep: var(--nx-orange-deep, #d96c12);
   position: relative;
   width: min(100%, 500px);
   overflow: hidden;
-  border: 2px solid rgba(96, 45, 20, 0.9);
-  border-radius: 18px 18px 24px 24px;
-  padding: clamp(26px, 4vw, 38px) clamp(22px, 5vw, 42px) 25px;
-  color: #2c170e;
+  border: 1px solid var(--nx-line-strong, #d5cec2);
+  border-radius: 16px;
+  padding: clamp(28px, 4vw, 38px) clamp(22px, 5vw, 42px) 25px;
+  color: var(--nx-ink, #232324);
   text-align: center;
-  background:
-    linear-gradient(90deg, rgba(90, 42, 19, 0.07) 1px, transparent 1px) 0 0 / 5px 100%,
-    linear-gradient(rgba(255, 249, 225, 0.88), rgba(233, 207, 152, 0.95)),
-    #ebd39d;
-  box-shadow:
-    0 28px 65px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 4px rgba(255, 248, 216, 0.5),
-    inset 0 -16px 30px rgba(101, 48, 19, 0.1);
-  animation: nx-result-card-in 320ms cubic-bezier(0.18, 0.89, 0.32, 1.18) both;
+  background: var(--nx-card, #fffdf9);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  animation: nx-result-card-in 260ms cubic-bezier(0.18, 0.89, 0.32, 1.1) both;
 }
 
 .nx-card-jitsu-results-card::before,
@@ -139,13 +132,18 @@
 }
 
 .nx-card-jitsu-results-card.is-victory {
-  --result-accent: #b45309;
-  --result-deep: #713f12;
+  --result-accent: var(--nx-green, #1f9d5b);
+  --result-deep: var(--nx-green-deep, #167544);
 }
 
 .nx-card-jitsu-results-card.is-defeat {
-  --result-accent: #455f79;
-  --result-deep: #1e3a4f;
+  --result-accent: var(--nx-blue, #1f6fd1);
+  --result-deep: var(--nx-blue-deep, #155aa8);
+}
+
+.nx-card-jitsu-results-card.is-confirm {
+  --result-accent: var(--nx-red, #d8433d);
+  --result-deep: var(--nx-red-deep, #ab2f2a);
 }
 
 .nx-card-jitsu-results-knot {
@@ -161,7 +159,7 @@
   color: var(--result-accent);
   font-size: 9px;
   line-height: 1;
-  background: #f8e9bf;
+  background: var(--nx-card, #fffdf9);
   transform: translateX(-50%);
 }
 
@@ -174,24 +172,17 @@
   color: var(--result-deep);
   font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .nx-card-jitsu-results-heading h2 {
   margin: 0;
-  color: #33170d;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.7rem, 4vw, 2.35rem);
-  font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.025em;
-}
-
-.nx-card-jitsu-results-summary {
-  margin: 9px 0 0;
-  color: #64351c;
-  font-size: 0.93rem;
+  color: var(--nx-ink, #232324);
+  font-size: clamp(1.6rem, 4vw, 2.15rem);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
 }
 
 .nx-card-jitsu-results-score {
@@ -201,8 +192,8 @@
   gap: 13px;
   margin: 0 -5px 17px;
   padding: 13px 8px;
-  border-top: 1px solid rgba(102, 52, 24, 0.24);
-  border-bottom: 1px solid rgba(102, 52, 24, 0.24);
+  border-top: 1px solid var(--nx-line, #e6e0d6);
+  border-bottom: 1px solid var(--nx-line, #e6e0d6);
 }
 
 .nx-card-jitsu-results-score > div {
@@ -213,7 +204,7 @@
 
 .nx-card-jitsu-results-score span:not(.nx-card-jitsu-results-versus) {
   overflow: hidden;
-  color: #70401f;
+  color: var(--nx-slate, #6f6d6a);
   font-size: 0.73rem;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -222,13 +213,12 @@
 
 .nx-card-jitsu-results-score strong {
   color: var(--result-deep);
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 2rem;
   line-height: 0.94;
 }
 
 .nx-card-jitsu-results-score small {
-  color: #87522c;
+  color: var(--nx-slate, #6f6d6a);
   font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -239,12 +229,11 @@
   width: 27px;
   height: 27px;
   place-items: center;
-  border: 1px solid rgba(112, 64, 31, 0.55);
+  border: 1px solid var(--nx-line-strong, #d5cec2);
   border-radius: 50%;
-  color: #7a4322;
-  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--nx-graphite, #404041);
   font-size: 0.62rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .nx-card-jitsu-results-details {
@@ -258,13 +247,14 @@
 .nx-card-jitsu-results-details > div {
   min-width: 0;
   padding: 8px 10px;
+  border: 1px solid var(--nx-line, #e6e0d6);
   border-radius: 8px;
-  background: rgba(116, 62, 30, 0.08);
+  background: var(--nx-paper, #faf7f2);
 }
 
 .nx-card-jitsu-results-details dt {
   margin-bottom: 3px;
-  color: #83502d;
+  color: var(--nx-slate, #6f6d6a);
   font-size: 0.61rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -273,7 +263,7 @@
 
 .nx-card-jitsu-results-details dd {
   margin: 0;
-  color: #44200f;
+  color: var(--nx-ink, #232324);
   font-size: 0.76rem;
   font-weight: 650;
   line-height: 1.2;
@@ -286,20 +276,20 @@
   min-height: 47px;
   margin-bottom: 18px;
   padding: 9px 11px;
-  border: 1px solid rgba(107, 64, 29, 0.28);
+  border: 1px solid var(--nx-line, #e6e0d6);
   border-radius: 10px;
   text-align: left;
-  background: rgba(255, 250, 228, 0.56);
+  background: var(--nx-paper, #faf7f2);
 }
 
 .nx-card-jitsu-progress-receipt.is-saved {
-  border-color: rgba(59, 112, 62, 0.36);
-  background: rgba(228, 245, 218, 0.72);
+  border-color: var(--nx-green, #1f9d5b);
+  background: var(--nx-green-tint, #e3f4ea);
 }
 
 .nx-card-jitsu-progress-receipt.is-not-saved {
-  border-color: rgba(151, 70, 31, 0.42);
-  background: rgba(255, 230, 203, 0.72);
+  border-color: var(--nx-red, #d8433d);
+  background: var(--nx-red-tint, #fbe7e5);
 }
 
 .nx-card-jitsu-progress-mark {
@@ -309,14 +299,14 @@
   flex: 0 0 25px;
   place-items: center;
   border-radius: 50%;
-  color: #fff7dd;
+  color: var(--nx-card, #fffdf9);
   font-size: 0.9rem;
   font-weight: 900;
-  background: #637a3a;
+  background: var(--nx-green, #1f9d5b);
 }
 
 .is-not-saved .nx-card-jitsu-progress-mark {
-  background: #a74a24;
+  background: var(--nx-red, #d8433d);
 }
 
 .nx-card-jitsu-progress-receipt p,
@@ -327,7 +317,7 @@
 
 .nx-card-jitsu-progress-receipt p {
   margin: 0 0 1px;
-  color: #6f482c;
+  color: var(--nx-slate, #6f6d6a);
   font-size: 0.63rem;
   font-weight: 800;
   letter-spacing: 0.07em;
@@ -335,14 +325,14 @@
 }
 
 .nx-card-jitsu-progress-receipt strong {
-  color: #42210f;
+  color: var(--nx-ink, #232324);
   font-size: 0.8rem;
   line-height: 1.22;
 }
 
 .nx-card-jitsu-progress-receipt small {
   margin-top: 2px;
-  color: #6d512f;
+  color: var(--nx-slate, #6f6d6a);
   font-size: 0.69rem;
 }
 
@@ -350,41 +340,79 @@
   width: 21px;
   height: 21px;
   flex: 0 0 21px;
-  border: 3px solid rgba(111, 72, 44, 0.2);
-  border-top-color: #8c4a20;
+  border: 3px solid var(--nx-line-strong, #d5cec2);
+  border-top-color: var(--nx-orange, #f6821f);
   border-radius: 50%;
   animation: nx-spin 0.85s linear infinite;
 }
 
-.nx-card-jitsu-results-continue {
-  width: 100%;
+.nx-card-jitsu-results-continue,
+.nx-card-jitsu-results-cancel {
   min-height: 43px;
-  border: 1px solid #6e2e17;
   border-radius: 8px;
-  color: #fff6dc;
   cursor: pointer;
   font-family: inherit;
   font-size: 0.88rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
-  background: linear-gradient(#b95726, #7f3018);
-  box-shadow: inset 0 1px rgba(255, 225, 166, 0.45), 0 3px 0 #572010;
-  transition: transform 130ms ease, filter 130ms ease;
+  letter-spacing: 0.01em;
+  transition: transform 130ms ease, filter 130ms ease, background-color 130ms ease;
 }
 
-.nx-card-jitsu-results-continue:hover {
-  filter: brightness(1.09);
+.nx-card-jitsu-results-continue {
+  width: 100%;
+  border: 1px solid var(--result-deep);
+  color: var(--nx-card, #fffdf9);
+  background: var(--result-accent);
+  box-shadow: 0 2px 0 var(--result-deep);
+}
+
+.nx-card-jitsu-results-cancel {
+  border: 1px solid var(--nx-line-strong, #d5cec2);
+  color: var(--nx-graphite, #404041);
+  background: var(--nx-card, #fffdf9);
+}
+
+.nx-card-jitsu-results-continue:hover,
+.nx-card-jitsu-results-cancel:hover {
+  filter: brightness(0.97);
   transform: translateY(-1px);
 }
 
-.nx-card-jitsu-results-continue:active {
-  box-shadow: inset 0 1px rgba(255, 225, 166, 0.45), 0 1px 0 #572010;
+.nx-card-jitsu-results-continue:active,
+.nx-card-jitsu-results-cancel:active {
+  box-shadow: none;
   transform: translateY(1px);
 }
 
-.nx-card-jitsu-results-continue:focus-visible {
-  outline: 3px solid rgba(30, 93, 148, 0.75);
+.nx-card-jitsu-results-continue:focus-visible,
+.nx-card-jitsu-results-cancel:focus-visible {
+  outline: 3px solid var(--nx-blue, #1f6fd1);
   outline-offset: 3px;
+}
+
+.nx-card-jitsu-confirm-card {
+  width: min(100%, 420px);
+}
+
+.nx-card-jitsu-confirm-message {
+  max-width: 330px;
+  margin: -3px auto 22px;
+  color: var(--nx-graphite, #404041);
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.nx-card-jitsu-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nx-card-jitsu-confirm-actions .nx-card-jitsu-results-continue,
+.nx-card-jitsu-confirm-actions .nx-card-jitsu-results-cancel {
+  width: auto;
+  min-width: 118px;
+  flex: 1;
 }
 
 @keyframes nx-result-backdrop-in {
@@ -393,13 +421,13 @@
 }
 
 @keyframes nx-result-card-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 480px) {
   .nx-card-jitsu-results-card {
-    border-radius: 14px 14px 18px 18px;
+    border-radius: 13px;
     padding: 28px 18px 20px;
   }
 
@@ -410,63 +438,8 @@
   .nx-card-jitsu-results-details > div {
     padding: 6px 9px;
   }
-}
 
-.nx-card-jitsu-modal-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  z-index: 50;
-  padding: 20px;
-  animation: nx-fade-in 0.2s ease-out;
-}
-
-.nx-card-jitsu-modal-card {
-  background: var(--nx-card, #1a1d24);
-  border: var(--nx-hairline, 1px solid rgba(255, 255, 255, 0.1));
-  border-radius: var(--nx-radius-lg, 12px);
-  padding: 24px;
-  width: 100%;
-  max-width: 440px;
-  box-shadow: var(--nx-shadow-lift, 0 16px 32px rgba(0, 0, 0, 0.5));
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.nx-card-jitsu-modal-title {
-  font-family: var(--nx-font-sans, system-ui, sans-serif);
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--nx-ink, #f8fafc);
-  margin: 0;
-}
-
-.nx-card-jitsu-modal-body {
-  font-family: var(--nx-font-sans, system-ui, sans-serif);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--nx-slate, #94a3b8);
-  margin: 0;
-  white-space: pre-line;
-}
-
-.nx-card-jitsu-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-@keyframes nx-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
+  .nx-card-jitsu-confirm-actions {
+    flex-direction: column-reverse;
   }
 }
