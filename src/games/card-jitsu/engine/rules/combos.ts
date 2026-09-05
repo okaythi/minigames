@@ -5,24 +5,31 @@ import { PowerLimiters, type ActivePowerCard } from './powers'
  * Houdini has_cards_to_play (ninja.py L280-L287):
  * Checks if PowerLimiters (13: 's', 14: 'f', 15: 'w') lockout opponent.
  */
+export function canPlayCard(
+  seatId: number,
+  card: CardData,
+  powers: ReadonlyMap<number, ActivePowerCard>,
+): boolean {
+  for (const [powerIdStr, limiterElem] of Object.entries(PowerLimiters)) {
+    const power = powers.get(Number(powerIdStr))
+    if (power?.opponent === seatId && card.element === limiterElem) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * Returns whether the seat has at least one legal card for this round. A
+ * limiter applies only to its recipient and only while it remains active in
+ * `powers`; MatchFlow clears it after the following clash.
+ */
 export function hasCardsToPlay(
   seatId: number,
   hand: readonly { dealtId: number; card: CardData }[],
   powers: ReadonlyMap<number, ActivePowerCard>,
 ): boolean {
-  for (const [powerIdStr, limiterElem] of Object.entries(PowerLimiters)) {
-    const powerId = Number(powerIdStr)
-    const powerCard = powers.get(powerId)
-    if (powerCard && powerCard.opponent === seatId) {
-      for (const item of hand) {
-        if (item.card.element !== limiterElem) {
-          return true
-        }
-      }
-      return false
-    }
-  }
-  return true
+  return hand.some(({ card }) => canPlayCard(seatId, card, powers))
 }
 
 /**

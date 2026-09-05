@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -29,9 +29,11 @@ import {
 import type { CardData } from '../src/games/card-jitsu/types'
 import {
   POWER_CLASS,
+  PowerLimiters,
   advancePowers,
   type ActivePowerState,
 } from '../src/games/card-jitsu/engine/rules/powers'
+import { canPlayCard, hasCardsToPlay } from '../src/games/card-jitsu/engine/rules/combos'
 import {
   effectiveRules,
   resolveClashWith,
@@ -323,6 +325,139 @@ describe('Card-Jitsu AI & Engine Overhaul (§6 Verification)', () => {
       )
       expect(powers.has(6)).toBe(false)
       expect(powers.has(2)).toBe(false)
+    })
+
+    it('maps every catalogued “cannot be played next round” card to its documented element', () => {
+      const limiterCards = POWER_POOL.filter((card) =>
+        card.description?.toLowerCase().includes('cannot be played next round'),
+      )
+      expect(limiterCards).toHaveLength(18)
+
+      for (const card of limiterCards) {
+        const blockedElement = card.description?.toLowerCase().includes('snow')
+          ? 's'
+          : card.description?.toLowerCase().includes('fire')
+            ? 'f'
+            : 'w'
+        expect(PowerLimiters[card.powerId]).toBe(blockedElement)
+      }
+    })
+
+    it.each([
+      [13, 's'],
+      [14, 'f'],
+      [15, 'w'],
+    ] as const)('Power %i blocks only opponent %s cards for the following round', (powerId, blockedElement) => {
+      const limiterCard: CardData = {
+        id: 20_000 + powerId,
+        element: 'f',
+        color: 'r',
+        value: 9,
+        powerId,
+      }
+      const blockedCard: CardData = {
+        id: 21_000 + powerId,
+        element: blockedElement,
+        color: 'b',
+        value: 6,
+        powerId: 0,
+      }
+      const legalCard: CardData = {
+        id: 22_000 + powerId,
+        element: blockedElement === 'f' ? 'w' : 'f',
+        color: 'g',
+        value: 6,
+        powerId: 0,
+      }
+
+      const active = advancePowers(
+        new Map(),
+        [{ seat: PLAYER_SEAT, card: limiterCard }, { seat: 0, card: legalCard }],
+        { seat: PLAYER_SEAT, card: limiterCard },
+      )
+      expect(active.get(powerId)?.opponent).toBe(0)
+      expect(canPlayCard(0, blockedCard, active)).toBe(false)
+      expect(canPlayCard(PLAYER_SEAT, blockedCard, active)).toBe(true)
+      expect(canPlayCard(0, legalCard, active)).toBe(true)
+      expect(hasCardsToPlay(0, [{ dealtId: 1, card: blockedCard }], active)).toBe(false)
+      expect(hasCardsToPlay(0, [{ dealtId: 1, card: blockedCard }, { dealtId: 2, card: legalCard }], active)).toBe(true)
+
+      const expired = advancePowers(
+        active,
+        [{ seat: PLAYER_SEAT, card: legalCard }, { seat: 0, card: legalCard }],
+        { seat: 0, card: legalCard },
+      )
+      expect(expired.has(powerId)).toBe(false)
+      expect(canPlayCard(0, blockedCard, expired)).toBe(true)
+    })
+
+    it('rejects a human selection that is blocked by a limiter', () => {
+      const session = new CardJitsuSession({ playerBelt: 'green', mode: 'belts' })
+      const internals = session as unknown as {
+        readonly matchFlow: MatchFlow
+        readonly playerDealtMap: Map<number, CardData>
+        handlePickCard(dealtId: number): void
+      }
+      const packets: string[] = []
+      const blockedFire: CardData = { id: 40, element: 'f', color: 'r', value: 8, powerId: 0 }
+      const fireLimiter: CardData = { id: 87, element: 'w', color: 'r', value: 9, powerId: 14 }
+
+      session.startMatch('belts')
+      session.setBridge((packet) => packets.push(packet))
+      internals.playerDealtMap.set(41, blockedFire)
+      internals.matchFlow.powers = new Map([[14, {
+        powerId: 14,
+        player: 0,
+        opponent: PLAYER_SEAT,
+        card: fireLimiter,
+      }]])
+
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        internals.handlePickCard(41)
+        expect(internals.playerDealtMap.get(41)).toBe(blockedFire)
+        expect(packets.some((packet) => packet.includes('%pick%1%41%'))).toBe(false)
+        expect(warn).toHaveBeenCalledOnce()
+      } finally {
+        warn.mockRestore()
+      }
+    })
+
+    it('ends the next round if a limiter leaves its recipient no legal card', async () => {
+      const packets: string[] = []
+      const flow = new MatchFlow({ isSensei: false, onSendRaw: (packet) => packets.push(packet) })
+      const snowLimiter: CardData = { id: 71, element: 'f', color: 'r', value: 9, powerId: 13 }
+      const snow: CardData = { id: 17, element: 's', color: 'b', value: 6, powerId: 0 }
+      const fire: CardData = { id: 6, element: 'f', color: 'g', value: 5, powerId: 0 }
+
+      // A mixed next-round hand stays playable; only Snow is unavailable.
+      const remainsPlayable = await flow.executeClash(
+        1,
+        snowLimiter,
+        2,
+        snow,
+        [{ dealtId: 3, card: fire }],
+        [{ dealtId: 4, card: snow }, { dealtId: 5, card: fire }],
+      )
+      expect(remainsPlayable).toBe(false)
+      expect(flow.powers.has(13)).toBe(true)
+
+      // A hand containing only the blocked element ends at the close of the
+      // scoring round, before the client requests another deal.
+      flow.reset()
+      const ended = await flow.executeClash(
+        1,
+        snowLimiter,
+        2,
+        snow,
+        [{ dealtId: 3, card: fire }],
+        [{ dealtId: 4, card: snow }],
+      )
+      expect(ended).toBe(true)
+      expect(flow.powers.has(13)).toBe(true)
+      expect(flow.matchResult?.winner).toBe('player')
+      expect(flow.matchResult?.winMethod).toBe('no-cards')
+      expect(packets.some((packet) => packet.includes('%czo%-1%0%1%'))).toBe(true)
     })
 
     it('MatchFlow and advancePowers maintain state parity over scripted rounds', () => {

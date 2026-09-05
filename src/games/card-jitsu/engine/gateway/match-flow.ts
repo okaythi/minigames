@@ -85,13 +85,38 @@ export class MatchFlow {
     this.matchEndPromise = Promise.resolve()
   }
 
+  /**
+   * A limiter card (13–15) applies to the next choice. Once the scoring round
+   * stores it, inspect the remaining cards that form the next-round hand. A
+   * fully restricted hand ends the game before another card is dealt.
+   */
+  public async finishIfNoPlayableCards(
+    playerHand: readonly DealtCard[],
+    opponentHand: readonly DealtCard[],
+  ): Promise<boolean> {
+    if (this.matchEnded) return true
+
+    if (!hasCardsToPlay(PLAYER_SEAT, playerHand, this.powers)) {
+      this.options.onSendRaw(buildGameOverPacket(OPP_SEAT))
+      await this.finalizeMatchEnd(OPP_SEAT, 'no-cards')
+      return true
+    }
+    if (!hasCardsToPlay(OPP_SEAT, opponentHand, this.powers)) {
+      this.options.onSendRaw(buildGameOverPacket(PLAYER_SEAT))
+      await this.finalizeMatchEnd(PLAYER_SEAT, 'no-cards')
+      return true
+    }
+
+    return false
+  }
+
   public async executeClash(
     pId: number,
     pCard: CardData,
     oId: number,
     oCard: CardData,
     playerHand: readonly DealtCard[],
-    oppHand: readonly DealtCard[],
+    opponentHand: readonly DealtCard[],
   ): Promise<boolean> {
     // This must happen before the winner is chosen: powers 16–18 transform
     // the current pair of elements, while saved Power 1/2/3 effects modify
@@ -177,14 +202,7 @@ export class MatchFlow {
       }
     }
 
-    if (!hasCardsToPlay(PLAYER_SEAT, playerHand, this.powers)) {
-      this.options.onSendRaw(buildGameOverPacket(OPP_SEAT))
-      await this.finalizeMatchEnd(OPP_SEAT, 'no-cards')
-      return true
-    }
-    if (!hasCardsToPlay(OPP_SEAT, oppHand, this.powers)) {
-      this.options.onSendRaw(buildGameOverPacket(PLAYER_SEAT))
-      await this.finalizeMatchEnd(PLAYER_SEAT, 'no-cards')
+    if (await this.finishIfNoPlayableCards(playerHand, opponentHand)) {
       return true
     }
 
