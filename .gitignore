@@ -25,3 +25,5 @@ pnpm-debug.log*
 .nixlabs/
 functions/.wrangler/
 scratch/
+__pycache__/
+*.pyc
