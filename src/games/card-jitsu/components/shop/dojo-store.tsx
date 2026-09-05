@@ -228,9 +228,9 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
         </div>
       </div>
 
-      {/* 2/3 (Left) vs 1/3 (Right) Real Estate Grid */}
+      {/* Left (Your Deck Browser) vs Right (Booster Packs & Colors) Grid */}
       <div className="dojo-store-grid-layout">
-        {/* Left 2/3: Pack Store & Chest Opening */}
+        {/* Left: Your Deck Browser (or Chest Opening View during pack opening) */}
         <div className="dojo-store-col-left">
           {activeDrawnCards ? (
             <ChestOpeningView
@@ -240,17 +240,18 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
               canOpenAnother={userCandy >= packInfo.price}
             />
           ) : (
-            <PackStorePanel
-              packInfo={packInfo}
-              userCandy={userCandy}
-              isOpening={false}
-              onBuyPack={handleBuyPack}
-            />
+            <OwnedCardsBrowser ownedCards={ownedCards} />
           )}
         </div>
 
-        {/* Right 1/3: Colour Select (Top) & Owned Cards Browser (Bottom) */}
+        {/* Right: Booster Pack Store (Top) & Colour Select (Bottom) */}
         <div className="dojo-store-col-right">
+          <PackStorePanel
+            packInfo={packInfo}
+            userCandy={userCandy}
+            isOpening={Boolean(activeDrawnCards)}
+            onBuyPack={handleBuyPack}
+          />
           <ColorSelectPanel
             colors={colors}
             equippedColorId={equippedColorId}
@@ -258,7 +259,6 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
             onEquipColor={handleEquipColor}
             onBuyColor={handleBuyColor}
           />
-          <OwnedCardsBrowser ownedCards={ownedCards} />
         </div>
       </div>
     </section>

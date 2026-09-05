@@ -252,6 +252,9 @@ export const createCardJitsuRuntime = (
           session.setEligibleOpponents(profile.eligibleOpponents)
         }
         session.setPlayerRank(profile.rank)
+        if (profile.colorId !== undefined && profile.colorId >= 1 && profile.colorId <= 16) {
+          session.setPlayerColor(profile.colorId)
+        }
         if (profile.rank >= 1 && profile.rank <= 9) {
           playerBelt = getRankBelt(profile.rank)
           session.setPlayerBelt(playerBelt)

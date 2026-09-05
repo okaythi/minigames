@@ -116,11 +116,6 @@ export function CardDisplay({
               />
               <span className="dojo-card-art-number">{card.value}</span>
             </div>
-            {isPower && (
-              <div className="dojo-card-power-crest" title={card.description}>
-                POWER
-              </div>
-            )}
           </div>
 
           {/* Card Name Footer */}

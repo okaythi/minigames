@@ -78,7 +78,7 @@
 /* 2/3 vs 1/3 Real Estate Grid */
 .dojo-store-grid-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1.35fr 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -99,6 +99,33 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.dojo-store-col-right .dojo-pack-hero-card {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.dojo-store-col-right .dojo-pack-art-wrapper {
+  width: 140px;
+  height: 190px;
+}
+
+.dojo-store-col-right .dojo-pack-perks-grid {
+  text-align: left;
+  width: 100%;
+}
+
+.dojo-store-col-right .dojo-pack-buy-row {
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.dojo-store-col-right .dojo-pack-buy-btn {
+  width: 100%;
 }
 
 /* ==========================================================================
@@ -630,8 +657,38 @@
 }
 
 .is-power-card .dojo-card-front {
-  border-color: #ffb300;
-  box-shadow: 0 0 12px rgba(255, 179, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-color: var(--card-color, #ffb300);
+  box-shadow: 0 0 14px var(--card-color, #ffb300), 0 0 2px var(--card-color, #ffb300), 0 4px 10px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.is-power-card .dojo-card-front::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 46%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.35) 54%,
+    transparent 65%
+  );
+  pointer-events: none;
+  animation: cardPowerShimmer 3.2s infinite ease-in-out;
+}
+
+@keyframes cardPowerShimmer {
+  0% {
+    transform: translateX(-120%) rotate(25deg);
+  }
+  35%, 100% {
+    transform: translateX(120%) rotate(25deg);
+  }
 }
 
 .dojo-card-header {
@@ -730,17 +787,6 @@
   color: #718096;
 }
 
-.dojo-card-power-crest {
-  position: absolute;
-  bottom: 2px;
-  background: linear-gradient(90deg, #ffd54f 0%, #ff8f00 100%);
-  color: #23170e;
-  font-size: 8px;
-  font-weight: 900;
-  padding: 1px 4px;
-  border-radius: 3px;
-  letter-spacing: 0.04em;
-}
 
 .dojo-card-footer {
   margin-top: 3px;
@@ -1102,18 +1148,28 @@
 }
 
 .dojo-cards-scroll-container {
-  max-height: 380px;
+  max-height: 560px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 6px;
 }
 
 .dojo-cards-scroll-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(111px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  justify-items: center;
+}
+
+@media (max-width: 480px) {
+  .dojo-cards-scroll-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
 }
 
 .dojo-browser-card-slot {
+  display: flex;
+  justify-content: center;
   cursor: pointer;
   transition: transform 0.15s ease;
 }
