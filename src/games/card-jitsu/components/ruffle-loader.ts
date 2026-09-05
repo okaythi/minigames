@@ -18,6 +18,7 @@ export interface RuffleLoadOptions {
 export type RufflePlayerElement = HTMLElement & {
   readonly load: (options: RuffleLoadOptions) => Promise<void>
   readonly dispatchAirtowerMessage?: (action: string, resObj: unknown) => void
+  readonly pause?: () => void
   readonly remove: () => void
 }
 

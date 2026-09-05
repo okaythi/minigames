@@ -17,6 +17,20 @@ interface RuffleStageProps {
 
 const BUILD_ID = '20260905_v2'
 
+interface PromptData {
+  readonly title: string
+  readonly message: string
+  readonly buttonLabel: string
+}
+
+const PROMPT_TITLES: Record<string, string> = {
+  win: 'Game Over',
+  sudden_death: 'Sudden Death',
+  player_quit_prompt: 'Player Quit',
+  quit_game_prompt: 'Leave Game',
+  game_over: 'Game Over',
+}
+
 export function RuffleStage({
   session,
   inMatch,
@@ -29,7 +43,6 @@ export function RuffleStage({
    * Ruffle is mounted imperatively; overlays and audio are siblings.
    */
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const playerRef = useRef<RufflePlayerElement | null>(null)
 
   const onExitRef = useRef(onExit)
@@ -43,15 +56,31 @@ export function RuffleStage({
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [promptData, setPromptData] = useState<{ message: string } | null>(null)
+  const [promptData, setPromptData] = useState<PromptData | null>(null)
 
-  const handleUserInteraction = () => {
-    const audio = audioRef.current
-    if (audio && audio.paused) {
-      audio.play().catch(() => {
-        // Ignored if browser requires stronger user gesture
-      })
+  const handlePromptOk = async () => {
+    setPromptData(null)
+
+    // 1. await onMatchEnd
+    try {
+      await session.waitForMatchEnd()
+    } catch (err) {
+      console.warn('[Card-Jitsu] Error waiting for match end:', err)
     }
+
+    // 2. unload card.swf
+    const player = playerRef.current
+    if (player && player.isConnected) {
+      try {
+        player.pause?.()
+      } catch {}
+    }
+
+    // 3. stop music
+    window.stopMusic?.()
+
+    // 4. menu
+    onExitRef.current?.()
   }
 
   const loadMovie = async (player: RufflePlayerElement, isMatch: boolean) => {
@@ -171,7 +200,6 @@ export function RuffleStage({
 
         window.onMenuSelect = (mode: string) => {
           console.log('[flash→ts onMenuSelect]', mode)
-          handleUserInteraction()
           if (mode === 'belts') {
             onStartMatchRef.current('belts')
           } else if (mode === 'sensei') {
@@ -195,10 +223,26 @@ export function RuffleStage({
           console.log('[flash→ts onFlashPrompt]', JSON.stringify(args))
           if (cancelled) return
           const flat = (args as unknown[]).flat(Infinity)
-          const textCandidate = flat.find((x) => typeof x === 'string' && (x as string).length > 0) as
-            | string
-            | undefined
-          setPromptData({ message: textCandidate ?? 'Match concluded.' })
+          const strings = flat.filter((x): x is string => typeof x === 'string' && x.length > 0)
+          const rawMessage = strings[0] ?? 'Match concluded.'
+          const rawButton = strings.find((s) => s.toLowerCase() === 'ok') ?? strings[1] ?? 'OK'
+
+          let title = 'Game Over'
+          for (const [key, titleText] of Object.entries(PROMPT_TITLES)) {
+            if (
+              strings.some((s) => s.toLowerCase().includes(key)) ||
+              rawMessage.toLowerCase().includes(key)
+            ) {
+              title = titleText
+              break
+            }
+          }
+
+          setPromptData({
+            title,
+            message: rawMessage,
+            buttonLabel: rawButton.toUpperCase() === 'OK' ? 'OK' : rawButton,
+          })
         }
 
         window.onFlashExit = (roomId?: number) => {
@@ -209,9 +253,6 @@ export function RuffleStage({
 
         window.stopMusic = () => {
           console.log('[Card-Jitsu Audio] stopMusic called from Flash')
-          if (audioRef.current) {
-            audioRef.current.pause()
-          }
         }
 
         host.replaceChildren(player)
@@ -238,9 +279,6 @@ export function RuffleStage({
       window.onFlashPrompt = () => {}
       window.onFlashExit = () => {}
       window.stopMusic = () => {}
-      if (audioRef.current) {
-        audioRef.current.pause()
-      }
 
       const player = playerElement
       playerElement = null
@@ -271,18 +309,9 @@ export function RuffleStage({
   return (
     <div
       className="nx-card-jitsu-stage-container"
-      onClick={handleUserInteraction}
-      onKeyDown={handleUserInteraction}
       role="application"
       tabIndex={0}
     >
-      <audio
-        ref={audioRef}
-        id="ninja-music"
-        loop
-        preload="auto"
-        src="/games/card-jitsu/music/ninja-training.mp3"
-      />
       <div className="nx-card-jitsu-ruffle-stage">
         {/* Imperatively managed by Ruffle — keep this element childless in JSX. */}
         <div className="nx-card-jitsu-ruffle-host" ref={hostRef} />
@@ -315,21 +344,21 @@ export function RuffleStage({
         )}
 
         {promptData !== null && (
-          <div className="nx-card-jitsu-modal-overlay">
-            <div className="nx-card-jitsu-prompt-box">
-              <div className="nx-card-jitsu-prompt-title">Card-Jitsu</div>
-              <div className="nx-card-jitsu-prompt-message">{promptData.message}</div>
-              <button
-                type="button"
-                className="nx-btn nx-btn-primary"
-                style={{ marginTop: '12px', padding: '10px 24px', fontSize: '15px', fontWeight: 'bold' }}
-                onClick={() => {
-                  setPromptData(null)
-                  onExitRef.current?.()
-                }}
-              >
-                Return to Dojo
-              </button>
+          <div className="nx-card-jitsu-modal-overlay" role="dialog" aria-modal="true">
+            <div className="nx-card-jitsu-modal-card">
+              <h2 className="nx-card-jitsu-modal-title">{promptData.title}</h2>
+              <p className="nx-card-jitsu-modal-body">{promptData.message}</p>
+              <div className="nx-card-jitsu-modal-actions">
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-primary"
+                  onClick={() => {
+                    void handlePromptOk()
+                  }}
+                >
+                  {promptData.buttonLabel}
+                </button>
+              </div>
             </div>
           </div>
         )}

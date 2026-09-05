@@ -102,8 +102,26 @@ class Bootstrap {
             ExternalInterface.call("onFlashExit", roomId);
         });
         Bootstrap.wrap(SHELL, "showPrompt", handlePrompt);
-        Bootstrap.wrap(SHELL, "stopGameMusic", function():Void {
+        var musicHolder:MovieClip = root.createEmptyMovieClip("musicHolder", 9999);
+        var bgm:Sound = new Sound(musicHolder);
+        var bgmUrl:String = SHELL.getGameContentPath() + "/music/ninja-training.mp3";
+        var startBgm:Function = function():Void {
+            bgm.loadSound(bgmUrl, true);
+            bgm.setVolume(100);
+            bgm.onSoundComplete = function():Void {
+                this.start(0, 1);
+            };
+        };
+        var stopBgm:Function = function():Void {
+            bgm.stop();
+            if (musicHolder != undefined) {
+                musicHolder.removeMovieClip();
+            }
             ExternalInterface.call("stopMusic");
+        };
+
+        Bootstrap.wrap(SHELL, "stopGameMusic", function():Void {
+            stopBgm();
         });
 
         var AIRTOWER:Object = {};
@@ -155,12 +173,22 @@ class Bootstrap {
 
         ExternalInterface.call("shimLog", "bootstrap ready", [modeNum, nick, color, rank]);
 
+        var holder:MovieClip = undefined;
         var loadCardSWF:Function = function():Void {
-            var holder:MovieClip = root.createEmptyMovieClip("gameHolder", 1);
+            startBgm();
+            holder = root.createEmptyMovieClip("gameHolder", 1);
             holder._lockroot = true;
             var loader:MovieClipLoader = new MovieClipLoader();
             loader.loadClip(SHELL.getGameContentPath() + "/card.swf", holder);
         };
+
+        ExternalInterface.addCallback("stopBgm", null, stopBgm);
+        ExternalInterface.addCallback("unloadCard", null, function():Void {
+            stopBgm();
+            if (holder != undefined) {
+                holder.unloadMovie();
+            }
+        });
 
         var localeHolder:MovieClip = root.createEmptyMovieClip("localeHolder", 2);
         var localeLoader:MovieClipLoader = new MovieClipLoader();

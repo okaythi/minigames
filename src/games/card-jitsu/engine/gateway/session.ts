@@ -289,6 +289,10 @@ export class CardJitsuSession {
     this.notify()
   }
 
+  public async waitForMatchEnd(): Promise<void> {
+    await this.matchFlow.matchEndPromise
+  }
+
   private sendRaw(msg: string): void {
     this.flashBridge?.(msg)
   }

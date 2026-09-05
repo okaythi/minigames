@@ -54,6 +54,7 @@ export class MatchFlow {
   public matchWinner: 'player' | 'sensei' | null = null
   public senseiCardPlayed = false
   public matchEnded = false
+  public matchEndPromise: Promise<void> = Promise.resolve()
 
   constructor(private readonly options: MatchFlowOptions) {}
 
@@ -193,8 +194,10 @@ export class MatchFlow {
     let decision: MatchEndDecision = {}
     if (this.options.onMatchEnd) {
       try {
+        const matchEndTask = Promise.resolve(this.options.onMatchEnd(matchResult))
+        this.matchEndPromise = matchEndTask.then(() => {})
         const timeoutPromise = new Promise<MatchEndDecision>((resolve) => setTimeout(() => resolve({}), 2000))
-        decision = await Promise.race([Promise.resolve(this.options.onMatchEnd(matchResult)), timeoutPromise])
+        decision = await Promise.race([matchEndTask, timeoutPromise])
       } catch (err) {
         console.warn('[Card-Jitsu] onMatchEnd error:', err)
       }
