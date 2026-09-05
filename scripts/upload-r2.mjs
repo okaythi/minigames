@@ -1,4 +1,4 @@
-﻿import { execSync } from 'child_process'
+import { execSync } from 'child_process'
 import fs from 'fs'
 
 const bucket = 'minigames-assets'
@@ -21,6 +21,14 @@ const filesToUpload = [
   { file: 'src/games/avoid-the-spikes/cover.jpg', key: 'assets/avoid-the-spikes-cover.jpg' },
   { file: 'src/games/pong/banner.jpg', key: 'assets/pong-banner.jpg' },
   { file: 'src/games/pong/cover.jpg', key: 'assets/pong-cover.jpg' },
+  ...Array.from({ length: 9 }, (_, i) => ({
+    file: `public/games/card-jitsu/clothing/icons/${4025 + i}.png`,
+    key: `games/card-jitsu/clothing/icons/${4025 + i}.png`,
+  })),
+  ...Array.from({ length: 9 }, (_, i) => ({
+    file: `public/games/card-jitsu/clothing/icons/${4025 + i}.png`,
+    key: `clothing/icons/${4025 + i}.png`,
+  })),
 ]
 
 if (fs.existsSync('dist/assets')) {

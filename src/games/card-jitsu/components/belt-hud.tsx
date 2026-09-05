@@ -24,11 +24,28 @@ export function BeltHud({ currentBelt, rank, progress = 0 }: BeltHudProps) {
   const tier = getTierProgress(currentRank, progress)
   const progressText = tier.isMax ? 'Max' : `${tier.currentInTier} / ${tier.neededInTier}`
 
+  const iconId =
+    currentRank >= 1 && currentRank <= 9
+      ? 4024 + currentRank
+      : currentRank === 10
+      ? 4033
+      : 4025
+  const iconUrl = `/games/card-jitsu/clothing/icons/${iconId}.png`
+
   return (
     <dl className="nx-horizontal-hud-bar">
       <div className="nx-horizontal-hud-cell">
         <dt>Belt</dt>
-        <dd>{beltName}</dd>
+        <dd>
+          <img
+            src={iconUrl}
+            alt={beltName}
+            width={24}
+            height={24}
+            style={{ objectFit: 'contain', verticalAlign: 'middle', flexShrink: 0 }}
+          />
+          <span>{beltName}</span>
+        </dd>
       </div>
       <div className="nx-horizontal-hud-cell">
         <dt>Progress to next</dt>
