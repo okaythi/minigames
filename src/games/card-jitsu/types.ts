@@ -92,3 +92,23 @@ export interface MatchStats {
   readonly lastClash: ClashResult | null
   readonly matchWinner: 'player' | 'sensei' | null
 }
+
+export interface MatchEndResult {
+  readonly winner: 'player' | 'opponent'
+  readonly mode: 'sensei' | 'belts'
+  readonly rounds: number
+  readonly playerBank: readonly CardData[]
+  readonly opponentBank: readonly CardData[]
+  readonly winMethod: 'same-element' | 'three-elements' | 'forfeit' | 'no-cards'
+  readonly flawless: boolean
+  readonly fullDojo: boolean
+  readonly senseiCardPlayed: boolean
+}
+
+export interface MatchEndDecision {
+  readonly awardRank?: number
+}
+
+export type OnMatchEndCallback = (
+  result: MatchEndResult,
+) => MatchEndDecision | Promise<MatchEndDecision>

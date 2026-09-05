@@ -78,3 +78,55 @@
   font-size: 12px;
   color: #94a3b8;
 }
+
+.nx-card-jitsu-modal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  animation: nx-fade-in 0.2s ease-out;
+}
+
+.nx-card-jitsu-prompt-box {
+  background: linear-gradient(180deg, #2a2015 0%, #15100a 100%);
+  border: 3px solid #b07e44;
+  border-radius: 16px;
+  padding: 24px 32px;
+  max-width: 440px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.nx-card-jitsu-prompt-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #f6c875;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.nx-card-jitsu-prompt-message {
+  font-size: 16px;
+  line-height: 1.4;
+  color: #e2e8f0;
+  font-weight: 500;
+  white-space: pre-line;
+}
+
+@keyframes nx-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

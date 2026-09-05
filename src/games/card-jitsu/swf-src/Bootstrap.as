@@ -35,6 +35,22 @@ class Bootstrap {
         };
     }
 
+    static function argsToArray(args:Object):Array {
+        var arr:Array = [];
+        for (var i:Number = 0; i < args.length; i++) {
+            var arg:Object = args[i];
+            var t:String = typeof(arg);
+            if (t == "string" || t == "number" || t == "boolean") {
+                arr.push(arg);
+            } else if (arg != undefined && arg.toString != undefined) {
+                arr.push(String(arg));
+            } else {
+                arr.push(null);
+            }
+        }
+        return arr;
+    }
+
     function Bootstrap(root:MovieClip) {
         var nick:String = (root.nick != undefined) ? String(root.nick) : "Ninja";
         var modeRaw:Object = (root.mode != undefined) ? root.mode : 3;
@@ -79,8 +95,13 @@ class Bootstrap {
         Bootstrap.wrap(SHELL, "getInventoryObjectById", function(id:Number):Object { return undefined; });
         Bootstrap.wrap(SHELL, "getMyInventoryArray", function():Array { return []; });
         Bootstrap.wrap(SHELL, "isItemInMyInventory", function(id:Number):Boolean { return false; });
-        Bootstrap.wrap(SHELL, "sendJoinRoom", function():Void {});
-        Bootstrap.wrap(SHELL, "showPrompt", function():Void {});
+        var handlePrompt:Function = function():Void {
+            ExternalInterface.call("onFlashPrompt", Bootstrap.argsToArray(arguments));
+        };
+        Bootstrap.wrap(SHELL, "sendJoinRoom", function(roomId:Number):Void {
+            ExternalInterface.call("onFlashExit", roomId);
+        });
+        Bootstrap.wrap(SHELL, "showPrompt", handlePrompt);
         Bootstrap.wrap(SHELL, "stopGameMusic", function():Void {
             ExternalInterface.call("stopMusic");
         });
@@ -102,7 +123,7 @@ class Bootstrap {
 
         var INTERFACE:Object = {};
         Bootstrap.wrap(INTERFACE, "sendScore", function(s:Number):Void { ExternalInterface.call("onFlashGameScore", s); });
-        Bootstrap.wrap(INTERFACE, "showPrompt", function():Void {});
+        Bootstrap.wrap(INTERFACE, "showPrompt", handlePrompt);
 
         var ENGINE:Object = {};
 

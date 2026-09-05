@@ -4,6 +4,7 @@ import './ruffle-stage.css'
 
 interface RuffleStageProps {
   readonly session: CardJitsuSession
+  readonly onExit?: () => void
 }
 
 type RufflePlayerElement = HTMLElement & {
@@ -30,6 +31,8 @@ declare global {
       roomId: number,
     ) => void
     onFlashGameScore?: (score: number) => void
+    onFlashPrompt?: (...args: readonly unknown[]) => void
+    onFlashExit?: (roomId?: number) => void
     stopMusic?: () => void
     shimLog?: (...args: unknown[]) => void
   }
@@ -82,7 +85,7 @@ async function ensureRuffleLoaded(isCancelled: () => boolean): Promise<void> {
   })
 }
 
-export function RuffleStage({ session }: RuffleStageProps) {
+export function RuffleStage({ session, onExit }: RuffleStageProps) {
   /**
    * Dedicated mount node for the <ruffle-player> element.
    *
@@ -94,8 +97,11 @@ export function RuffleStage({ session }: RuffleStageProps) {
    */
   const hostRef = useRef<HTMLDivElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [promptData, setPromptData] = useState<{ message: string } | null>(null)
 
   const handleUserInteraction = () => {
     const audio = audioRef.current
@@ -184,6 +190,22 @@ export function RuffleStage({ session }: RuffleStageProps) {
           // Handled via session onGameOver
         }
 
+        window.onFlashPrompt = (...args: readonly unknown[]) => {
+          console.log('[flash→ts onFlashPrompt]', JSON.stringify(args))
+          if (cancelled) return
+          const flat = (args as unknown[]).flat(Infinity)
+          const textCandidate = flat.find((x) => typeof x === 'string' && (x as string).length > 0) as
+            | string
+            | undefined
+          setPromptData({ message: textCandidate ?? 'Match concluded.' })
+        }
+
+        window.onFlashExit = (roomId?: number) => {
+          console.log('[flash→ts onFlashExit]', roomId)
+          if (cancelled) return
+          onExitRef.current?.()
+        }
+
         window.stopMusic = () => {
           console.log('[Card-Jitsu Audio] stopMusic called from Flash')
           if (audioRef.current) {
@@ -195,7 +217,7 @@ export function RuffleStage({ session }: RuffleStageProps) {
         host.replaceChildren(player)
 
         // Load Disney Card-Jitsu bootstrap with exact forceScale/forceAlign & logging
-        const BUILD_ID = '20260904_v5'
+        const BUILD_ID = '20260905_v1'
         await player.load({
           url: `/games/card-jitsu/card_bootstrap.swf?v=${BUILD_ID}`,
           allowScriptAccess: true,
@@ -238,6 +260,8 @@ export function RuffleStage({ session }: RuffleStageProps) {
       session.setBridge(() => {})
       window.onFlashAirtowerSend = () => {}
       window.onFlashGameScore = () => {}
+      window.onFlashPrompt = () => {}
+      window.onFlashExit = () => {}
       window.stopMusic = () => {}
       if (audioRef.current) {
         audioRef.current.pause()
@@ -262,7 +286,10 @@ export function RuffleStage({ session }: RuffleStageProps) {
   return (
     <div
       className="nx-card-jitsu-stage-container"
-      onPointerDown={handleUserInteraction}
+      onClick={handleUserInteraction}
+      onKeyDown={handleUserInteraction}
+      role="application"
+      tabIndex={0}
     >
       <audio
         ref={audioRef}
@@ -300,6 +327,26 @@ export function RuffleStage({ session }: RuffleStageProps) {
             >
               Reload Dojo
             </button>
+          </div>
+        )}
+
+        {promptData !== null && (
+          <div className="nx-card-jitsu-modal-overlay">
+            <div className="nx-card-jitsu-prompt-box">
+              <div className="nx-card-jitsu-prompt-title">🥋 Card-Jitsu</div>
+              <div className="nx-card-jitsu-prompt-message">{promptData.message}</div>
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                style={{ marginTop: '12px', padding: '10px 24px', fontSize: '15px', fontWeight: 'bold' }}
+                onClick={() => {
+                  setPromptData(null)
+                  onExitRef.current?.()
+                }}
+              >
+                Return to Dojo
+              </button>
+            </div>
           </div>
         )}
       </div>

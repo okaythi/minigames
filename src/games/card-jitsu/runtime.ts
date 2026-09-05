@@ -3,9 +3,32 @@ import { getCurrentUser } from '../../services/auth-api'
 import type { GameHost, GameViewFactory } from '../runtime/types'
 import type { GameRuntime, GameRuntimeFactory } from '../template/types'
 import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
-import { CardJitsuSession } from './engine/gateway/session'
+import { CardJitsuSession, BELT_TO_RANK, RANK_TO_BELT } from './engine/gateway/session'
 import { DefaultCardStore } from './engine/deck/cards'
-import type { CardJitsuPhase, MatchStats, NinjaBelt, SenseiDifficulty } from './types'
+import type {
+  CardJitsuPhase,
+  CardStore,
+  MatchEndDecision,
+  MatchEndResult,
+  MatchStats,
+  NinjaBelt,
+  OnMatchEndCallback,
+  SenseiDifficulty,
+} from './types'
+import type { BotPolicy } from './engine/ai/bot-policy'
+
+export interface CardJitsuRuntimeOptions {
+  readonly player?: {
+    readonly nick?: string
+    readonly colorId?: number // CP 1–15
+    readonly beltRank?: number // 1–9
+  }
+  readonly cardStore?: CardStore
+  readonly mode?: 'sensei' | 'belts'
+  readonly opponentPolicy?: BotPolicy
+  readonly onMatchEnd?: OnMatchEndCallback
+  readonly onExit?: () => void
+}
 
 export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly session: CardJitsuSession
@@ -19,10 +42,31 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly startChallengeSensei: () => void
   readonly forceWin: () => void
   readonly forceLoss: () => void
+  readonly exitToMenu: () => void
 }
 
-export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
-  let playerBelt: NinjaBelt = 'white'
+/**
+ * Public Card-Jitsu runtime factory conforming to GameRuntimeFactory.
+ *
+ * Usage:
+ * ```ts
+ * createCardJitsuRuntime(deps, {
+ *   player: { nick: 'Ninja', colorId: 6, beltRank: 1 },
+ *   cardStore: new DefaultCardStore(),
+ *   mode: 'belts',
+ *   onMatchEnd: async (result) => ({ awardRank: 2 }),
+ *   onExit: () => console.log('Exited match'),
+ * })
+ * ```
+ */
+export const createCardJitsuRuntime = (
+  deps: Parameters<GameRuntimeFactory>[0],
+  options?: CardJitsuRuntimeOptions,
+): CardJitsuRuntimeExtended => {
+  const initialBelt = options?.player?.beltRank
+    ? RANK_TO_BELT[options.player.beltRank] ?? 'white'
+    : 'white'
+  let playerBelt: NinjaBelt = initialBelt
   let difficulty: SenseiDifficulty = 'medium'
   let totalWins = 0
 
@@ -47,15 +91,18 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
   let _currentPhase: CardJitsuPhase = 'dialogue'
 
   const currentUser = getCurrentUser()
-  const playerNick = currentUser?.nickname ?? currentUser?.username ?? 'Ninja'
+  const playerNick =
+    options?.player?.nick ?? currentUser?.nickname ?? currentUser?.username ?? 'Ninja'
+  const playerColor = options?.player?.colorId ?? 6
 
   const session = new CardJitsuSession({
     difficulty,
     playerBelt,
-    mode: 'MODE_SEN',
+    mode: options?.mode ?? 'sensei',
     playerNick,
-    playerColor: 6,
-    cardStore: new DefaultCardStore(),
+    playerColor,
+    cardStore: options?.cardStore ?? new DefaultCardStore(),
+    opponentPolicy: options?.opponentPolicy,
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase
@@ -65,10 +112,9 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
         store.update((prev) => ({ ...prev, status: 'over' }))
       }
     },
-    onGameOver: (winner) => {
-      if (winner === 'player') {
+    onMatchEnd: async (result: MatchEndResult): Promise<MatchEndDecision> => {
+      if (result.winner === 'player') {
         totalWins++
-        // Award candy bounty
         deps.current.bankBonus(50)
         store.update((prev) => ({
           ...prev,
@@ -80,11 +126,29 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
       } else {
         deps.current.finishRun(totalWins, { won: false, difficulty })
       }
+
+      let defaultAwardRank: number | undefined
+      if (result.winner === 'player') {
+        const curRank = BELT_TO_RANK[playerBelt] ?? 1
+        if (curRank < 9) {
+          const nextRank = curRank + 1
+          const nextBelt = RANK_TO_BELT[nextRank]
+          if (nextBelt) {
+            playerBelt = nextBelt
+            defaultAwardRank = nextRank
+          }
+        }
+      }
+
+      if (options?.onMatchEnd) {
+        const decision = await options.onMatchEnd(result)
+        return decision ?? (defaultAwardRank !== undefined ? { awardRank: defaultAwardRank } : {})
+      }
+
+      return defaultAwardRank !== undefined ? { awardRank: defaultAwardRank } : {}
     },
   })
 
-  // The custom RuffleStage directly embeds and manages the authentic Disney Flash client.
-  // GameViewFactory provides minimal lifecycle compliance for the host.
   const attach: GameViewFactory = (_host: GameHost) => {
     return {
       dispose: () => {
@@ -96,7 +160,7 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
   const actions = {
     primary: () => {
       deps.current.beginRun()
-      session.startMatch('MODE_EXP')
+      session.startMatch('belts')
     },
     pause: () => {
       store.update((prev) => ({ ...prev, status: 'paused' }))
@@ -106,7 +170,7 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
     },
     restart: () => {
       deps.current.beginRun()
-      session.startMatch('MODE_EXP')
+      session.startMatch('belts')
     },
     toggleMute: () => {
       store.update((prev) => ({ ...prev, muted: !prev.muted }))
@@ -135,12 +199,12 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
     getPhase: () => _currentPhase,
     startEarnBelts: () => {
       deps.current.beginRun()
-      session.startMatch('MODE_EXP')
+      session.startMatch('belts')
     },
     startChallengeSensei: () => {
       deps.current.beginRun()
       session.setDifficulty('ninja')
-      session.startMatch('MODE_SEN')
+      session.startMatch('sensei')
     },
     forceWin: () => {
       totalWins++
@@ -156,6 +220,9 @@ export const createCardJitsuRuntime: GameRuntimeFactory = (deps) => {
     forceLoss: () => {
       store.update((prev) => ({ ...prev, status: 'over' }))
       session.forceLoss()
+    },
+    exitToMenu: () => {
+      options?.onExit?.()
     },
   }
 
