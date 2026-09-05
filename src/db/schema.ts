@@ -277,3 +277,18 @@ export const cjMatch = sqliteTable('cj_match', {
   progressAfter: integer('progress_after').notNull(),
   createdAt: text('created_at').notNull(),
 })
+
+export const cjNinjaColors = sqliteTable(
+  'cj_ninja_colors',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.playerId, { onDelete: 'cascade' }),
+    colorId: integer('color_id').notNull(),
+    unlockedAt: text('unlocked_at').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.colorId] }),
+  }),
+)
+

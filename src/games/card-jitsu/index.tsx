@@ -8,6 +8,7 @@ import {
 import { RuffleStage } from './components/ruffle-stage'
 import { InstructionsModal } from './components/instructions-modal'
 import { BeltHud } from './components/belt-hud'
+import { DojoStore } from './components/shop/dojo-store'
 import type { NinjaBelt } from './types'
 
 export default function CardJitsuGame() {
@@ -94,6 +95,8 @@ export default function CardJitsuGame() {
           </div>
         )
       }}
+      renderBottom={() => <DojoStore runtime={runtimeRef.current} />}
     />
   )
 }
+

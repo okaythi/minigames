@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
-import { users, cjNinja, cjCard, cjMatch } from '../../../src/db/schema'
+import { users, cjNinja, cjCard, cjMatch, cjNinjaColors } from '../../../src/db/schema'
 import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
@@ -82,6 +82,13 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     })
     .map((item) => item.name)
 
+  const ownedColorRows = await db
+    .select({ colorId: cjNinjaColors.colorId })
+    .from(cjNinjaColors)
+    .where(eq(cjNinjaColors.userId, playerId))
+    .all()
+  const ownedColors = Array.from(new Set<number>([1, ...ownedColorRows.map((r) => r.colorId)]))
+
   const profile: CardJitsuProfileResponse = {
     rank: ninja.rank,
     progress: ninja.progress,
@@ -90,7 +97,9 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     introSeen: ninja.introSeen === 1,
     cards,
     eligibleOpponents,
+    ownedColors,
   }
 
   return jsonResponse(200, { ok: true, profile })
 }
+

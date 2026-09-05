@@ -146,6 +146,9 @@ export class CardJitsuSession {
     const c = this.config.playerColor ?? 1
     return c === 14 || c < 1 || c > 15 ? 1 : c
   }
+  public setPlayerColor(color: number): void {
+    this.config = { ...this.config, playerColor: color }
+  }
   public getPlayerBeltRank(): number {
     return this.playerRank > 0 ? this.playerRank : getBeltRank(this.config.playerBelt)
   }
