@@ -1,6 +1,14 @@
 import type { CardData, NinjaElement } from '../../types'
-import { RULE_SET, beatsCard, checkWinCondition } from '../deck/rules'
-import type { DealtCard } from '../gateway/session'
+import {
+  doesElementBeat,
+  checkWinCondition,
+  finishingElements,
+  bankPotential,
+  applyPowerToBanks,
+  VALUE_CDF_BY_ELEMENT,
+} from '../rules'
+import type { DealtCard } from '../gateway/match-flow'
+import { BOT_TIERS, type PolicyParams } from '../opponents/tiers'
 
 export interface ActivePowerState {
   readonly powerId: number
@@ -13,9 +21,11 @@ export interface BotContext {
   readonly hand: readonly DealtCard[]
   readonly myBank: readonly CardData[]
   readonly oppBank: readonly CardData[]
-  readonly oppHand?: readonly DealtCard[]
-  readonly oppHistory: readonly CardData[]
+  readonly oppHistory: readonly CardData[] // resolved clashes only; EXCLUDES current round's pick
+  readonly myHistory: readonly CardData[]
   readonly activePowers: ReadonlyMap<number, ActivePowerState>
+  readonly round: number
+  readonly rng: () => number
 }
 
 export interface BotPolicy {
@@ -23,13 +33,14 @@ export interface BotPolicy {
 }
 
 function wouldWinTriad(bank: readonly CardData[], newCard: CardData): boolean {
-  const simulated = [...bank, newCard]
-  return checkWinCondition(simulated).won
+  return checkWinCondition([...bank, newCard]).won
 }
 
-function randomPick(hand: readonly DealtCard[]): number {
-  const idx = Math.floor(Math.random() * hand.length)
-  return hand[idx]!.dealtId
+function bankKey(bank: readonly CardData[]): string {
+  return bank
+    .map((c) => `${c.element}${c.color}`)
+    .sort()
+    .join('')
 }
 
 /**
@@ -37,204 +48,361 @@ function randomPick(hand: readonly DealtCard[]): number {
  */
 export class UniformRandomPolicy implements BotPolicy {
   pick(ctx: BotContext): number {
-    return randomPick(ctx.hand)
+    if (ctx.hand.length === 0) return 0
+    const idx = Math.floor(ctx.rng() * ctx.hand.length)
+    return ctx.hand[idx]!.dealtId
   }
 }
 
+const ALL_ELEMENTS: readonly NinjaElement[] = ['f', 'w', 's']
+const ALL_COLORS: readonly CardData['color'][] = ['r', 'b', 'g', 'y', 'o', 'p']
+const W_TRIAD = 10
+const BASE = 1
+const EPSILON = 0.05
+const DISCOUNT = 0.9
+
 /**
- * Tier 3–5 Policy: Greedy heuristic
- * 1. Complete own combo
- * 2. Deny opponent's combo
- * 3. Prefer higher value
- * 4. Hold power cards until useful
- * mistakeRate = 0.20
+ * Parameterized strategic Card-Jitsu AI with Expectimax search,
+ * recency-weighted opponent modeling, and zero-information leakage.
  */
-export class GreedyHeuristicPolicy implements BotPolicy {
-  constructor(private readonly mistakeRate: number = 0.2) {}
+export class StrategicPolicy implements BotPolicy {
+  constructor(public readonly params: PolicyParams) {}
 
   pick(ctx: BotContext): number {
     if (ctx.hand.length === 0) return 0
-    if (Math.random() < this.mistakeRate) {
-      return randomPick(ctx.hand)
-    }
+    if (ctx.hand.length === 1) return ctx.hand[0]!.dealtId
 
-    // 1. Check if any card completes our own winning triad
-    for (const card of ctx.hand) {
-      if (wouldWinTriad(ctx.myBank, card.card)) {
-        return card.dealtId
+    // 1. Immediate-win shortcut: all ranks >= 3 play an immediate winning triad
+    for (const item of ctx.hand) {
+      if (wouldWinTriad(ctx.myBank, item.card)) {
+        return item.dealtId
       }
     }
 
-    // 2. Check if opponent is 1 card away from winning, and deny that element
-    const allElements: readonly NinjaElement[] = ['f', 'w', 's']
-    const elementsOppNeeds: NinjaElement[] = []
-    for (const elem of allElements) {
-      const dummyCard: CardData = {
-        id: 0,
-        element: elem,
-        value: 10,
-        color: 'r',
-        powerId: 0,
-      }
-      if (wouldWinTriad(ctx.oppBank, dummyCard)) {
-        elementsOppNeeds.push(elem)
-      }
-    }
+    // 2. Compute opponent elemental distribution P(e)
+    const pOpp = this.computeOpponentDistribution(ctx)
 
-    if (elementsOppNeeds.length > 0) {
-      // Find cards that beat the element the opponent needs
-      const counters = ctx.hand.filter((c) =>
-        elementsOppNeeds.some((oppElem) => RULE_SET[c.card.element] === oppElem),
+    // 3. Score each candidate card in hand via Expectimax search
+    const memo = new Map<string, number>()
+    const utilities: { dealtId: number; utility: number }[] = []
+
+    for (const item of ctx.hand) {
+      const u = this.evaluateCandidate(
+        item.card,
+        ctx.hand.filter((c) => c.dealtId !== item.dealtId).map((c) => c.card),
+        ctx.myBank,
+        ctx.oppBank,
+        pOpp,
+        this.params.horizon,
+        memo,
       )
-      if (counters.length > 0) {
-        counters.sort((a, b) => b.card.value - a.card.value)
-        return counters[0]!.dealtId
+      utilities.push({ dealtId: item.dealtId, utility: u })
+    }
+
+    // 4. Action selection based on precision parameter
+    if (this.params.precision === Infinity) {
+      // Argmax with uniform tie-break among candidates within ε of max
+      let maxU = -Infinity
+      for (const u of utilities) {
+        if (u.utility > maxU) maxU = u.utility
+      }
+      const candidates = utilities.filter((u) => u.utility >= maxU - EPSILON)
+      const chosenIdx = Math.floor(ctx.rng() * candidates.length)
+      return candidates[chosenIdx]!.dealtId
+    }
+
+    // Softmax selection: P(c) ∝ exp(precision * U(c))
+    let maxU = -Infinity
+    for (const u of utilities) {
+      if (u.utility > maxU) maxU = u.utility
+    }
+
+    const expWeights: number[] = []
+    let totalWeight = 0
+    for (const u of utilities) {
+      const w = Math.exp(this.params.precision * (u.utility - maxU))
+      expWeights.push(w)
+      totalWeight += w
+    }
+
+    let threshold = ctx.rng() * totalWeight
+    for (let i = 0; i < utilities.length; i++) {
+      threshold -= expWeights[i]!
+      if (threshold <= 0) {
+        return utilities[i]!.dealtId
       }
     }
 
-    // 3. Prefer higher value, saving power cards if value is lower
-    const scored = [...ctx.hand].sort((a, b) => {
-      const aVal = a.card.value - (a.card.powerId > 0 ? 0.5 : 0)
-      const bVal = b.card.value - (b.card.powerId > 0 ? 0.5 : 0)
-      return bVal - aVal
-    })
-
-    return scored[0]!.dealtId
+    return utilities[utilities.length - 1]!.dealtId
   }
-}
 
-/**
- * Tier 6–8 Policy: Greedy + Opponent frequency model
- * Evaluates expected value over modeled player element distribution.
- * mistakeRate = 0.10
- */
-export class OpponentModelPolicy implements BotPolicy {
-  constructor(private readonly mistakeRate: number = 0.1) {}
-
-  pick(ctx: BotContext): number {
-    if (ctx.hand.length === 0) return 0
-    if (Math.random() < this.mistakeRate) {
-      return randomPick(ctx.hand)
-    }
-
-    // 1. Immediate win check
-    for (const card of ctx.hand) {
-      if (wouldWinTriad(ctx.myBank, card.card)) {
-        return card.dealtId
-      }
-    }
-
-    // 2. Opponent frequency model
+  private computeOpponentDistribution(ctx: BotContext): Record<NinjaElement, number> {
+    // 1. Recency-weighted Dirichlet: prior 1 each; add γ^age per history card, γ = 0.7
     const counts: Record<NinjaElement, number> = { f: 1, w: 1, s: 1 }
-    for (const played of ctx.oppHistory) {
-      counts[played.element] = (counts[played.element] ?? 0) + 1
+    const gamma = 0.7
+    const histLen = ctx.oppHistory.length
+
+    for (let i = 0; i < histLen; i++) {
+      const card = ctx.oppHistory[i]!
+      const age = histLen - 1 - i
+      counts[card.element] += Math.pow(gamma, age)
     }
-    const total = counts.f + counts.w + counts.s
-    const prob: Record<NinjaElement, number> = {
+
+    let total = counts.f + counts.w + counts.s
+    let p: Record<NinjaElement, number> = {
       f: counts.f / total,
       w: counts.w / total,
       s: counts.s / total,
     }
 
-    let bestDealtId = ctx.hand[0]!.dealtId
-    let bestScore = -Infinity
-
-    for (const candidate of ctx.hand) {
-      let ev = 0
-      const cElem = candidate.card.element
-      for (const elem of ['f', 'w', 's'] as const) {
-        const p = prob[elem]
-        if (RULE_SET[cElem] === elem) {
-          ev += p * 1.2
-        } else if (RULE_SET[elem] === cElem) {
-          ev -= p * 1.2
-        } else {
-          ev += p * (candidate.card.value / 12)
+    // 2. Rational overlay, weight s = modelStrength
+    const s = this.params.modelStrength
+    if (s > 0) {
+      const oppFinishers = finishingElements(ctx.oppBank)
+      if (oppFinishers.size > 0) {
+        const uVal = 1 / oppFinishers.size
+        p = {
+          f: (1 - s) * p.f + (oppFinishers.has('f') ? s * uVal : 0),
+          w: (1 - s) * p.w + (oppFinishers.has('w') ? s * uVal : 0),
+          s: (1 - s) * p.s + (oppFinishers.has('s') ? s * uVal : 0),
         }
-      }
-
-      if (candidate.card.powerId > 0) {
-        ev += 0.3
-      }
-
-      if (ev > bestScore) {
-        bestScore = ev
-        bestDealtId = candidate.dealtId
+      } else {
+        const myFinishers = finishingElements(ctx.myBank)
+        if (myFinishers.size > 0) {
+          // Find elements that beat our finishing elements: B = { e : e beats g, g ∈ G }
+          const blockers = new Set<NinjaElement>()
+          for (const elem of ALL_ELEMENTS) {
+            for (const g of myFinishers) {
+              if (doesElementBeat(elem, g)) {
+                blockers.add(elem)
+              }
+            }
+          }
+          if (blockers.size > 0) {
+            const uVal = 1 / blockers.size
+            const halfS = s / 2
+            p = {
+              f: (1 - halfS) * p.f + (blockers.has('f') ? halfS * uVal : 0),
+              w: (1 - halfS) * p.w + (blockers.has('w') ? halfS * uVal : 0),
+              s: (1 - halfS) * p.s + (blockers.has('s') ? halfS * uVal : 0),
+            }
+          }
+        }
       }
     }
 
-    return bestDealtId
+    // 3. Normalize
+    total = p.f + p.w + p.s
+    return {
+      f: p.f / total,
+      w: p.w / total,
+      s: p.s / total,
+    }
+  }
+
+  private evaluateCandidate(
+    candidate: CardData,
+    remainingHand: readonly CardData[],
+    myBank: readonly CardData[],
+    oppBank: readonly CardData[],
+    pOpp: Record<NinjaElement, number>,
+    horizon: number,
+    memo: Map<string, number>,
+  ): number {
+    let expectedUtility = 0
+
+    for (const oppElem of ALL_ELEMENTS) {
+      const pE = pOpp[oppElem]
+      if (pE <= 0) continue
+
+      const clashOutcome = this.evaluateClashVsElement(
+        candidate,
+        oppElem,
+        remainingHand,
+        myBank,
+        oppBank,
+        pOpp,
+        horizon,
+        memo,
+      )
+      expectedUtility += pE * clashOutcome
+    }
+
+    return expectedUtility
+  }
+
+  private evaluateClashVsElement(
+    candidate: CardData,
+    oppElem: NinjaElement,
+    remainingHand: readonly CardData[],
+    myBank: readonly CardData[],
+    oppBank: readonly CardData[],
+    pOpp: Record<NinjaElement, number>,
+    horizon: number,
+    memo: Map<string, number>,
+  ): number {
+    // Win outcome evaluation
+    const evalWin = (): number => {
+      if (checkWinCondition([...myBank, candidate]).won) {
+        return W_TRIAD
+      }
+      let simMy = [...myBank, candidate]
+      let simOpp = [...oppBank]
+      if (candidate.powerId !== 0) {
+        const sim = applyPowerToBanks(candidate.powerId, simMy, simOpp)
+        simMy = sim.myBank
+        simOpp = sim.oppBank
+      }
+      const deltaMe = bankPotential(simMy) - bankPotential(myBank)
+      const immediateScore = BASE + deltaMe
+
+      if (horizon <= 0 || remainingHand.length === 0) {
+        return immediateScore
+      }
+
+      // Plies beyond: recursive expectimax
+      const nextU = this.searchMax(remainingHand, simMy, simOpp, pOpp, horizon - 1, memo)
+      return immediateScore + DISCOUNT * nextU
+    }
+
+    // Loss outcome evaluation: worst-case opponent color c*
+    const evalLoss = (): number => {
+      const worst = this.getWorstCaseOpponentCard(oppBank, oppElem)
+      if (worst.wouldWin) {
+        return -W_TRIAD
+      }
+      const simOpp = [...oppBank, worst.card]
+      const deltaOpp = bankPotential(simOpp) - bankPotential(oppBank)
+      const immediateScore = -BASE - deltaOpp
+
+      if (horizon <= 0 || remainingHand.length === 0) {
+        return immediateScore
+      }
+
+      const nextU = this.searchMax(remainingHand, myBank, simOpp, pOpp, horizon - 1, memo)
+      return immediateScore + DISCOUNT * nextU
+    }
+
+    // Resolve based on elemental rules
+    if (doesElementBeat(candidate.element, oppElem)) {
+      return evalWin()
+    }
+    if (doesElementBeat(oppElem, candidate.element)) {
+      return evalLoss()
+    }
+
+    // Same element: integrate over VALUE_CDF_BY_ELEMENT
+    const dist = VALUE_CDF_BY_ELEMENT[oppElem]
+    const pWin = dist.pWin(candidate.value)
+    const pTie = dist.pTie(candidate.value)
+    const pLoss = dist.pLoss(candidate.value)
+
+    // Immediate payoffs
+    const wouldWinMe = checkWinCondition([...myBank, candidate]).won
+    let simMy = [...myBank, candidate]
+    let simOppAfterMe = [...oppBank]
+    if (candidate.powerId !== 0) {
+      const sim = applyPowerToBanks(candidate.powerId, simMy, simOppAfterMe)
+      simMy = sim.myBank
+      simOppAfterMe = sim.oppBank
+    }
+    const winPayoff = wouldWinMe ? W_TRIAD : BASE + (bankPotential(simMy) - bankPotential(myBank))
+
+    const worst = this.getWorstCaseOpponentCard(oppBank, oppElem)
+    const lossPayoff = worst.wouldWin ? -W_TRIAD : -BASE - (bankPotential([...oppBank, worst.card]) - bankPotential(oppBank))
+    const tiePayoff = 0
+
+    const expectedImmediate = pWin * winPayoff + pLoss * lossPayoff + pTie * tiePayoff
+
+    if (horizon <= 0 || remainingHand.length === 0) {
+      return expectedImmediate
+    }
+
+    // State transition applies the assumed outcome per §3.5
+    let nextMy = myBank
+    let nextOpp = oppBank
+    if (pWin > pLoss) {
+      nextMy = simMy
+      nextOpp = simOppAfterMe
+    } else if (pLoss > pWin) {
+      nextOpp = [...oppBank, worst.card]
+    }
+
+    const nextU = this.searchMax(remainingHand, nextMy, nextOpp, pOpp, horizon - 1, memo)
+    return expectedImmediate + DISCOUNT * nextU
+  }
+
+  private searchMax(
+    hand: readonly CardData[],
+    myBank: readonly CardData[],
+    oppBank: readonly CardData[],
+    pOpp: Record<NinjaElement, number>,
+    horizon: number,
+    memo: Map<string, number>,
+  ): number {
+    if (hand.length === 0 || checkWinCondition(myBank).won || checkWinCondition(oppBank).won) {
+      if (checkWinCondition(myBank).won) return W_TRIAD
+      if (checkWinCondition(oppBank).won) return -W_TRIAD
+      return bankPotential(myBank) - bankPotential(oppBank)
+    }
+
+    const stateKey = `${horizon}:${hand.map((c) => c.id).sort((a, b) => a - b).join(',')}:${bankKey(myBank)}:${bankKey(oppBank)}`
+    const cached = memo.get(stateKey)
+    if (cached !== undefined) return cached
+
+    let maxVal = -Infinity
+    for (const card of hand) {
+      const nextHand = hand.filter((c) => c.id !== card.id)
+      const u = this.evaluateCandidate(card, nextHand, myBank, oppBank, pOpp, horizon, memo)
+      if (u > maxVal) maxVal = u
+    }
+
+    memo.set(stateKey, maxVal)
+    return maxVal
+  }
+
+  private worstCaseMemo = new Map<string, { card: CardData; wouldWin: boolean }>()
+
+  private getWorstCaseOpponentCard(
+    oppBank: readonly CardData[],
+    element: NinjaElement,
+  ): { card: CardData; wouldWin: boolean } {
+    const key = `${element}:${bankKey(oppBank)}`
+    const cached = this.worstCaseMemo.get(key)
+    if (cached !== undefined) return cached
+
+    let maxDelta = -Infinity
+    let bestCard: CardData = { id: -1, element, color: 'r', value: 10, powerId: 0 }
+    const basePhi = bankPotential(oppBank)
+
+    for (const color of ALL_COLORS) {
+      const candidate: CardData = { id: -1, element, color, value: 10, powerId: 0 }
+      if (checkWinCondition([...oppBank, candidate]).won) {
+        const res = { card: candidate, wouldWin: true }
+        this.worstCaseMemo.set(key, res)
+        return res
+      }
+      const delta = bankPotential([...oppBank, candidate]) - basePhi
+      if (delta > maxDelta) {
+        maxDelta = delta
+        bestCard = candidate
+      }
+    }
+
+    const res = { card: bestCard, wouldWin: false }
+    this.worstCaseMemo.set(key, res)
+    return res
   }
 }
 
 /**
- * Tier 9 Policy: One-ply Expectimax with peeking at oppHand
- * mistakeRate = 0.05
+ * Creates the authoritative bot policy for a given belt rank per BOT_TIERS.
  */
-export class ExpectimaxPolicy implements BotPolicy {
-  constructor(private readonly mistakeRate: number = 0.05) {}
-
-  pick(ctx: BotContext): number {
-    if (ctx.hand.length === 0) return 0
-    if (Math.random() < this.mistakeRate) {
-      return randomPick(ctx.hand)
-    }
-
-    // Immediate win
-    for (const card of ctx.hand) {
-      if (wouldWinTriad(ctx.myBank, card.card)) {
-        return card.dealtId
-      }
-    }
-
-    const oppCards = ctx.oppHand && ctx.oppHand.length > 0 ? ctx.oppHand : ctx.hand
-
-    let bestDealtId = ctx.hand[0]!.dealtId
-    let bestUtility = -Infinity
-
-    for (const myCard of ctx.hand) {
-      let utility = 0
-      for (const oppCard of oppCards) {
-        if (beatsCard(myCard.card, oppCard.card)) {
-          utility += 2.0
-          if (wouldWinTriad(ctx.myBank, myCard.card)) {
-            utility += 5.0
-          }
-        } else if (beatsCard(oppCard.card, myCard.card)) {
-          utility -= 2.0
-          if (wouldWinTriad(ctx.oppBank, oppCard.card)) {
-            utility -= 5.0
-          }
-        } else {
-          utility += 0.1
-        }
-      }
-
-      if (utility > bestUtility) {
-        bestUtility = utility
-        bestDealtId = myCard.dealtId
-      }
-    }
-
-    return bestDealtId
-  }
-}
-
-/**
- * Creates the authentic bot policy for a given belt rank.
- */
-export function createBotPolicy(
-  botRank: number,
-  mistakeRateOverride?: number,
-): BotPolicy {
-  if (botRank <= 2) {
+export function createBotPolicy(rank: number): BotPolicy {
+  const clampedRank = Math.max(1, Math.min(9, Math.floor(rank))) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  const tier = BOT_TIERS[clampedRank]
+  if (tier.policy === 'random') {
     return new UniformRandomPolicy()
   }
-  if (botRank <= 5) {
-    return new GreedyHeuristicPolicy(mistakeRateOverride ?? 0.2)
-  }
-  if (botRank <= 8) {
-    return new OpponentModelPolicy(mistakeRateOverride ?? 0.1)
-  }
-  return new ExpectimaxPolicy(mistakeRateOverride ?? 0.05)
+  return new StrategicPolicy(tier.policy)
 }

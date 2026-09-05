@@ -18,6 +18,7 @@ export interface SessionConfig {
   readonly playerColor?: number
   readonly cardStore?: CardStore
   readonly opponentPolicy?: BotPolicy
+  readonly opponentTemperature?: number
   readonly onStateChange?: (stats: MatchStats, phase: CardJitsuPhase) => void
   readonly onClashDone?: (result: ClashResult, winCondition: WinConditionResult) => void
   readonly onMatchEnd?: OnMatchEndCallback

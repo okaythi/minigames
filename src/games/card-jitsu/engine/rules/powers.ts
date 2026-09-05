@@ -7,6 +7,8 @@ export interface ActivePowerCard {
   readonly card: CardData
 }
 
+export type ActivePowerState = ActivePowerCard
+
 export interface ActiveCardState {
   element: NinjaElement
   value: number

@@ -1,6 +1,15 @@
 import type { CardData, ClashResult, NinjaElement } from '../../types'
 import { TIE_SEAT } from '../protocol/packets'
-import type { ActiveCardState, ActivePowerCard } from './powers'
+import { NORMAL_POOL } from '../deck/cards'
+import {
+  type ActiveCardState,
+  type ActivePowerCard,
+  type ActivePowerState,
+  DiscardElements,
+  DiscardColors,
+  onPlayedEffects,
+} from './powers'
+import { checkWinCondition } from './combos'
 
 export const RULE_SET: Readonly<Record<NinjaElement, NinjaElement>> = {
   f: 's',
@@ -44,7 +53,7 @@ export const doesCardBeat = beatsCard
 export function adjustCardValues(
   firstCard: ActiveCardState,
   secondCard: ActiveCardState,
-  powers: ReadonlyMap<number, ActivePowerCard>,
+  powers: ReadonlyMap<number, ActivePowerState>,
 ): void {
   for (const [, powerCard] of powers) {
     if (powerCard.card.powerId === 1 && firstCard.element === secondCard.element) {
@@ -87,6 +96,203 @@ export function getWinnerSeatId(
   return TIE_SEAT
 }
 
+/**
+ * Single authoritative clash resolver returning 1 (a wins), -1 (b wins), or 0 (tie).
+ * Consistently used across MatchFlow, bot policies, and headless simulation.
+ */
+export function resolveClash(
+  a: CardData,
+  b: CardData,
+  powers: ReadonlyMap<number, ActivePowerState> = new Map(),
+): 1 | 0 | -1 {
+  const first: ActiveCardState = {
+    element: a.element,
+    value: a.value,
+    card: a,
+    player: 1,
+    opponent: 0,
+  }
+  const second: ActiveCardState = {
+    element: b.element,
+    value: b.value,
+    card: b,
+    player: 0,
+    opponent: 1,
+  }
+
+  adjustCardValues(first, second, powers)
+  const tempNextPowers = new Map<number, ActivePowerCard>()
+  onPlayedEffects(first, second, tempNextPowers)
+
+  const winner = getWinnerSeatId(first, second)
+  if (winner === 1) return 1
+  if (winner === 0) return -1
+  return 0
+}
+
+/**
+ * Pure simulation of discard power cards on player and opponent scored banks.
+ */
+export function applyPowerToBanks(
+  powerId: number,
+  myBank: readonly CardData[],
+  oppBank: readonly CardData[],
+): { myBank: CardData[]; oppBank: CardData[] } {
+  const newMyBank = [...myBank]
+  const newOppBank = [...oppBank]
+
+  const discardElem = DiscardElements[powerId]
+  if (discardElem) {
+    for (let i = newOppBank.length - 1; i >= 0; i--) {
+      if (newOppBank[i]!.element === discardElem) {
+        newOppBank.splice(i, 1)
+        break
+      }
+    }
+    return { myBank: newMyBank, oppBank: newOppBank }
+  }
+
+  const discardColor = DiscardColors[powerId]
+  if (discardColor) {
+    for (let i = newOppBank.length - 1; i >= 0; i--) {
+      if (newOppBank[i]!.color === discardColor) {
+        newOppBank.splice(i, 1)
+        break
+      }
+    }
+  }
+
+  return { myBank: newMyBank, oppBank: newOppBank }
+}
+
+const ALL_ELEMENTS: readonly NinjaElement[] = ['f', 'w', 's']
+const ALL_COLORS: readonly CardData['color'][] = ['r', 'b', 'g', 'y', 'o', 'p']
+
+/**
+ * Elements that can complete a winning triad for the given bank across all 6 colors.
+ */
+export function finishingElements(bank: readonly CardData[]): ReadonlySet<NinjaElement> {
+  const finishers = new Set<NinjaElement>()
+
+  for (const element of ALL_ELEMENTS) {
+    for (const color of ALL_COLORS) {
+      const dummyCard: CardData = {
+        id: -1,
+        element,
+        color,
+        value: 10,
+        powerId: 0,
+      }
+      if (checkWinCondition([...bank, dummyCard]).won) {
+        finishers.add(element)
+        break
+      }
+    }
+  }
+
+  return finishers
+}
+
+const bankPotentialCache = new Map<string, number>()
+
+/**
+ * Computes bank potential Φ ∈ [0, 1] measuring progress toward a 3-element or same-element triad.
+ * Φ = max(same, tri) + 0.1 · (same + tri)
+ */
+export function bankPotential(bank: readonly CardData[]): number {
+  if (bank.length === 0) return 0
+  const key = bank
+    .map((c) => `${c.element}${c.color}`)
+    .sort()
+    .join('')
+  const cached = bankPotentialCache.get(key)
+  if (cached !== undefined) return cached
+
+  // 1. same = max_e |distinct colors in element e| / 3
+  const colorsByElem: Record<NinjaElement, Set<string>> = {
+    f: new Set(),
+    w: new Set(),
+    s: new Set(),
+  }
+  for (const card of bank) {
+    colorsByElem[card.element].add(card.color)
+  }
+
+  const maxSameColors = Math.min(
+    3,
+    Math.max(
+      colorsByElem.f.size,
+      colorsByElem.w.size,
+      colorsByElem.s.size,
+    ),
+  )
+  const same = maxSameColors / 3
+
+  // 2. tri = maxMatching(elements -> distinct colors) / 3
+  const fColors = Array.from(colorsByElem.f)
+  const wColors = Array.from(colorsByElem.w)
+  const sColors = Array.from(colorsByElem.s)
+
+  let matching = 0
+  if (fColors.length > 0 || wColors.length > 0 || sColors.length > 0) {
+    matching = 1
+  }
+
+  const canMatch2 = (c1: string[], c2: string[]): boolean => {
+    for (const a of c1) {
+      for (const b of c2) {
+        if (a !== b) return true
+      }
+    }
+    return false
+  }
+  if (canMatch2(fColors, wColors) || canMatch2(fColors, sColors) || canMatch2(wColors, sColors)) {
+    matching = 2
+  }
+
+  let canMatch3 = false
+  for (const f of fColors) {
+    for (const w of wColors) {
+      if (w === f) continue
+      for (const s of sColors) {
+        if (s !== f && s !== w) {
+          canMatch3 = true
+          break
+        }
+      }
+      if (canMatch3) break
+    }
+    if (canMatch3) break
+  }
+  if (canMatch3) {
+    matching = 3
+  }
+
+  const tri = matching / 3
+  const phi = Math.max(same, tri) + 0.1 * (same + tri)
+  bankPotentialCache.set(key, phi)
+  return phi
+}
+
+function computeValueDistribution(element: NinjaElement) {
+  const cards = NORMAL_POOL.filter((c) => c.element === element)
+  const n = Math.max(1, cards.length)
+  const values = cards.map((c) => c.value).sort((a, b) => a - b)
+
+  return {
+    values,
+    pWin: (val: number) => cards.filter((c) => c.value < val).length / n,
+    pTie: (val: number) => cards.filter((c) => c.value === val).length / n,
+    pLoss: (val: number) => cards.filter((c) => c.value > val).length / n,
+  }
+}
+
+export const VALUE_CDF_BY_ELEMENT: Readonly<Record<NinjaElement, ReturnType<typeof computeValueDistribution>>> = {
+  f: computeValueDistribution('f'),
+  w: computeValueDistribution('w'),
+  s: computeValueDistribution('s'),
+}
+
 export interface ActiveEffects {
   readonly reverseActive: boolean
   readonly playerBuff: number
@@ -104,7 +310,7 @@ export const INITIAL_EFFECTS: ActiveEffects = {
 /**
  * Resolves a round clash between player card and opponent card for UI display.
  */
-export function resolveClash(
+export function resolveClashUI(
   playerCard: CardData,
   senseiCard: CardData,
   effects: ActiveEffects = INITIAL_EFFECTS,

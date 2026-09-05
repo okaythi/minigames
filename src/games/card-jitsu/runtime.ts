@@ -31,6 +31,7 @@ export interface CardJitsuRuntimeOptions {
   readonly cardStore?: CardStore
   readonly mode?: 'sensei' | 'belts'
   readonly opponentPolicy?: BotPolicy
+  readonly opponentTemperature?: number
   readonly onMatchEnd?: OnMatchEndCallback
   readonly onExit?: () => void
 }
@@ -119,6 +120,7 @@ export const createCardJitsuRuntime = (
     playerColor,
     cardStore: options?.cardStore ?? new DefaultCardStore(),
     ...(options?.opponentPolicy ? { opponentPolicy: options.opponentPolicy } : {}),
+    ...(options?.opponentTemperature !== undefined ? { opponentTemperature: options.opponentTemperature } : {}),
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase

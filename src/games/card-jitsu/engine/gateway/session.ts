@@ -25,6 +25,8 @@ import {
 } from '../protocol/packets'
 import { BELT_TO_RANK, RANK_TO_BELT, getBeltRank, getRankBelt } from '../progression'
 import { selectOpponent, type BotOpponent } from '../opponents/roster'
+import { BotDeck } from '../opponents/bot-deck'
+import { BOT_TIERS, clampTemperature } from '../opponents/tiers'
 import { MatchFlow, type DealtCard } from './match-flow'
 import type { GameMode, SessionConfig } from './session-types'
 
@@ -51,12 +53,14 @@ export class CardJitsuSession {
   private botNick = 'Ninja Student'
   private botColor = 2
   private botPolicy: BotPolicy | null = null
+  private botDeck: BotDeck | null = null
   private playerRank = 0
 
   private playerDealtMap = new Map<number, CardData>()
   private oppDealtMap = new Map<number, CardData>()
   private senseiMoveMap = new Map<number, number>()
   private playerHistory: CardData[] = []
+  private botHistory: CardData[] = []
   private playerSelectedCard: CardData | null = null
   private oppSelectedCard: CardData | null = null
 
@@ -89,6 +93,7 @@ export class CardJitsuSession {
       this.botColor = 14
       this.botOpponent = null
       this.botPolicy = null
+      this.botDeck = null
     } else {
       this.botOpponent = selectOpponent(
         this.getPlayerBeltRank(),
@@ -98,7 +103,13 @@ export class CardJitsuSession {
       )
       this.botNick = this.botOpponent.name
       this.botColor = this.botOpponent.colorId
-      this.botPolicy = config.opponentPolicy ?? createBotPolicy(this.botOpponent.rank)
+      const rank = this.botOpponent.rank
+      const tier = BOT_TIERS[rank]
+      const resolvedTemp = clampTemperature(
+        config.opponentTemperature ?? this.botOpponent.temperature ?? tier.temperature,
+      )
+      this.botPolicy = config.opponentPolicy ?? createBotPolicy(rank)
+      this.botDeck = new BotDeck(tier, resolvedTemp)
     }
 
     this.matchFlow = new MatchFlow({
@@ -142,7 +153,15 @@ export class CardJitsuSession {
     } else if (rank === 10) {
       this.config = { ...this.config, playerBelt: 'black' }
     }
-    this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(Math.min(this.getPlayerBeltRank() + 1, 9))
+    if (!this.isSenseiMode()) {
+      const oppRank = (this.botOpponent?.rank ?? Math.min(this.getPlayerBeltRank() + 1, 9)) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+      const tier = BOT_TIERS[oppRank]
+      const resolvedTemp = clampTemperature(
+        this.config.opponentTemperature ?? this.botOpponent?.temperature ?? tier.temperature,
+      )
+      this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(oppRank)
+      this.botDeck = new BotDeck(tier, resolvedTemp)
+    }
     this.notify()
   }
 
@@ -164,6 +183,7 @@ export class CardJitsuSession {
 
   public getMode(): GameMode { return this.config.mode }
   public getOpponentNick(): string { return this.botNick }
+  public getBotDeck(): BotDeck | null { return this.botDeck }
 
   private introSeen = false
   private inventory = new Set<number>()
@@ -235,7 +255,16 @@ export class CardJitsuSession {
 
   public setPlayerBelt(belt: NinjaBelt): void {
     this.config = { ...this.config, playerBelt: belt }
-    this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(Math.min(this.getPlayerBeltRank() + 1, 9))
+    this.playerRank = getBeltRank(belt)
+    if (!this.isSenseiMode()) {
+      const oppRank = (this.botOpponent?.rank ?? Math.min(this.getPlayerBeltRank() + 1, 9)) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+      const tier = BOT_TIERS[oppRank]
+      const resolvedTemp = clampTemperature(
+        this.config.opponentTemperature ?? this.botOpponent?.temperature ?? tier.temperature,
+      )
+      this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(oppRank)
+      this.botDeck = new BotDeck(tier, resolvedTemp)
+    }
     this.notify()
   }
 
@@ -243,6 +272,7 @@ export class CardJitsuSession {
     if (mode) this.config = { ...this.config, mode }
     this.nextDealtId = 1
     this.playerHistory = []
+    this.botHistory = []
     this.playerSelectedCard = null
     this.oppSelectedCard = null
     this.playerDealtMap.clear()
@@ -255,6 +285,7 @@ export class CardJitsuSession {
       this.botColor = 14
       this.botOpponent = null
       this.botPolicy = null
+      this.botDeck = null
     } else {
       this.botOpponent = selectOpponent(
         this.getPlayerBeltRank(),
@@ -264,7 +295,13 @@ export class CardJitsuSession {
       )
       this.botNick = this.botOpponent.name
       this.botColor = this.botOpponent.colorId
-      this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(this.botOpponent.rank)
+      const rank = this.botOpponent.rank
+      const tier = BOT_TIERS[rank]
+      const resolvedTemp = clampTemperature(
+        this.config.opponentTemperature ?? this.botOpponent.temperature ?? tier.temperature,
+      )
+      this.botPolicy = this.config.opponentPolicy ?? createBotPolicy(rank)
+      this.botDeck = new BotDeck(tier, resolvedTemp)
     }
     this.matchFlow.reset()
     this.phase = 'choosing'
@@ -311,7 +348,7 @@ export class CardJitsuSession {
       Array.from(this.playerDealtMap.values()),
       this.oppDealtMap.size,
       this.senseiColors,
-      this.botOpponent?.deckCards,
+      (count) => (this.botDeck ? this.botDeck.draw(count) : []),
     )
     if (batch.playerDealt.length === 0) return
 
@@ -333,7 +370,6 @@ export class CardJitsuSession {
 
     this.playerDealtMap.delete(playerDealtId)
     this.playerSelectedCard = pCard
-    this.playerHistory.push(pCard)
 
     if (this.isSenseiMode()) {
       const oppDealtId = this.senseiMoveMap.get(playerDealtId)
@@ -344,6 +380,9 @@ export class CardJitsuSession {
       this.oppDealtMap.delete(oppDealtId)
       this.senseiMoveMap.delete(playerDealtId)
       this.oppSelectedCard = oppCard
+
+      this.playerHistory.push(pCard)
+      this.botHistory.push(oppCard)
 
       this.sendRaw(buildPickPacket(PLAYER_SEAT, playerDealtId))
       this.sendRaw(buildPickPacket(OPP_SEAT, oppDealtId))
@@ -360,20 +399,24 @@ export class CardJitsuSession {
 
   private scheduleBotTurn(playerDealtId: number, playerCard: CardData): void {
     const oppEntries = Array.from(this.oppDealtMap.entries())
-    const playerEntries = Array.from(this.playerDealtMap.entries())
     const botContext: BotContext = {
       hand: oppEntries.map(([dealtId, card]) => ({ dealtId, card })),
       myBank: [...this.matchFlow.oppWonCards],
       oppBank: [...this.matchFlow.playerWonCards],
-      oppHand: playerEntries.map(([dealtId, card]) => ({ dealtId, card })),
       oppHistory: [...this.playerHistory],
+      myHistory: [...this.botHistory],
       activePowers: this.matchFlow.powers,
+      round: this.matchFlow.round,
+      rng: Math.random,
     }
     const botDealtId = this.botPolicy?.pick(botContext) ?? oppEntries[0]![0]
     const oppCard = this.oppDealtMap.get(botDealtId)
     if (!oppCard) return
     this.oppDealtMap.delete(botDealtId)
     this.oppSelectedCard = oppCard
+
+    this.playerHistory.push(playerCard)
+    this.botHistory.push(oppCard)
 
     setTimeout(() => {
       if (this.matchFlow.matchEnded) return

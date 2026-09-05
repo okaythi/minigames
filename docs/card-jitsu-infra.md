@@ -46,6 +46,8 @@ export interface CardJitsuRuntimeOptions {
   readonly mode?: 'sensei' | 'belts'
   /** Custom bot policy (defaults to belt-appropriate difficulty tier) */
   readonly opponentPolicy?: BotPolicy
+  /** Temperature bias (0.0-1.0) overriding tier and roster defaults */
+  readonly opponentTemperature?: number
   /** Asynchronous match end hook for ranking, rewards, and achievements */
   readonly onMatchEnd?: OnMatchEndCallback
   /** Callback when user exits the match back to product lobby */
@@ -185,9 +187,10 @@ Implementation files:
 - **Opponent Roster & Matchmaking**: [`src/games/card-jitsu/engine/opponents/roster.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts)
 - **Turn Scheduling & Bridge**: [`src/games/card-jitsu/engine/gateway/session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts)
 
-### 4.1 Dojo Student Bot Opponents (4 Difficulty Tiers & Roster)
+### 4.1 Dojo Student Bot Opponents (BOT_TIERS Matrix & Strategic Policy)
 
-Student bots represent other penguins training in the Dojo. Matchmaking selects an opponent from the authentic student roster ([`roster.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.json)) with belt rank equal to $\min(\text{playerBelt} + 1, 9)$, authentic penguin colors, and tier-specific deck restrictions:
+Student bots represent other penguins training in the Dojo. Matchmaking selects an opponent from the authentic student roster ([`roster.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.json)) with belt rank equal to $\min(\text{playerBelt} + 1, 9)$, authentic penguin colors, and tier-specific deck constraints defined authoritatively in [`tiers.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/tiers.ts):
+
 - **Tier 1 (White)**: Daffodaily5
 - **Tier 2 (Yellow)**: Happy77, Businesmoose
 - **Tier 3 (Orange)**: Graser8, Loustik005
@@ -198,49 +201,46 @@ Student bots represent other penguins training in the Dojo. Matchmaking selects 
 - **Tier 8 (Brown)**: Trainman1405, Thinknoodles
 - **Tier 9 (Black)**: Billybob, Rsnail, Watex, Saracontemporary
 
-Bots operate across four progressive difficulty tiers implemented in [`bot-policy.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/ai/bot-policy.ts):
+#### BOT_TIERS Specification Matrix
 
 ```
-+-------------------------------------------------------------------------+
-|                        BOT DIFFICULTY TIERS                             |
-+---------+--------------------+---------------+--------------------------+
-| Tier    | Belts              | Policy Class  | Strategy                 |
-+---------+--------------------+---------------+--------------------------+
-| Tier 1  | White, Yellow      | UniformRandom | Uniform random choice.   |
-| Tier 2  | Orange, Green, Blue| Greedy        | Element match + values.  |
-|         |                    | (mistake=20%) | Blocks player win.       |
-| Tier 3  | Red, Purple, Brown | OpponentModel | Frequency tracker.       |
-|         |                    | (mistake=10%) | Counter-picks predicted. |
-| Tier 4  | Black              | Expectimax    | Full 2-ply game tree.    |
-|         |                    | (mistake=5%)  | Optimal state score.     |
-+---------+--------------------+---------------+--------------------------+
++----+---------+-------+-------------+-------------------------------------------------------------+
+| Rk | Normal  | Power | Temperature | Policy Configuration                                        |
++----+---------+-------+-------------+-------------------------------------------------------------+
+| 1  | starter |starter| 0.5         | UniformRandomPolicy (exact 12 starter IDs)                  |
+| 2  | 30      | 2     | 0.5         | UniformRandomPolicy                                         |
+| 3  | 40      | 4     | 0.5         | StrategicPolicy { precision: 0.6, horizon: 0, model: 0.0 }  |
+| 4  | 60      | 8     | 0.5         | StrategicPolicy { precision: 1.0, horizon: 0, model: 0.25 } |
+| 5  | 90      | 15    | 0.5         | StrategicPolicy { precision: 1.5, horizon: 1, model: 0.5 }  |
+| 6  | 180     | 30    | 0.6         | StrategicPolicy { precision: 2.5, horizon: 1, model: 0.75 } |
+| 7  | 180     | 60    | 0.5         | StrategicPolicy { precision: 4.0, horizon: 2, model: 1.0 }  |
+| 8  | 250     | 80    | 0.5         | StrategicPolicy { precision: 8.0, horizon: 2, model: 1.0 }  |
+| 9  | 320     | 100   | 0.5         | StrategicPolicy { precision: ∞,   horizon: 3, model: 1.0 }  |
++----+---------+-------+-------------+-------------------------------------------------------------+
 ```
 
-#### Tier 1: `UniformRandomPolicy` (Belts 1–2: White, Yellow)
-- Selects a random card uniformly from its dealable 5-card hand.
-- Simulates early novice students learning the elemental rules without foresight.
+#### Unified `StrategicPolicy`
+All ranks $\ge 3$ operate using a single parameterized `StrategicPolicy`:
+1. **Immediate-Win Shortcut**: Immediately selects any card completing a winning triad (3 same-element distinct colors, or 3 distinct elements distinct colors).
+2. **Opponent Element Modeling**:
+   - Maintains a recency-weighted Dirichlet distribution over elements ($P(e)$, $\gamma = 0.7$, prior = 1 each).
+   - Overlays rational opponent behavior weighted by `modelStrength`: predicts opponent will attempt to complete finishing triad elements if close to victory, or counter bot's potential finishing elements.
+3. **Expectimax Lookahead**:
+   - Searches up to `horizon` plies ahead ($W_{\text{TRIAD}} = 10$, $\text{BASE} = 1$, discount = 0.9/ply).
+   - Incorporates bank potential flexibility $\Phi \in [0, 1]$ and full discard power card simulation via pure `applyPowerToBanks`.
+   - Evaluates same-element outcomes using precomputed value CDFs.
+4. **Action Selection**:
+   - Softmax selection: $P(c) \propto \exp(\text{precision} \cdot U(c))$.
+   - Rank 9 ($\text{precision} = \infty$): Argmax with uniform tie-break among moves within $\varepsilon = 0.05$ of maximum expected utility.
 
-#### Tier 2: `GreedyHeuristicPolicy` (Belts 3–5: Orange, Green, Blue)
-- Computes immediate win and block potential:
-  1. **Winning Move**: Checks if any card in hand completes a winning triad (3 same-element different-color, or 1 of each element all different colors).
-  2. **Block Move**: Checks if the player is one card away from winning, prioritizing cards that counter the player's missing element.
-  3. **High Value / Power**: Otherwise prefers highest numerical value cards and active power cards.
-- **Mistake Rate (20%)**: Has a 20% probability of lapsing into a random pick, simulating realistic beginner mistakes.
-
-#### Tier 3: `OpponentModelPolicy` (Belts 6–8: Red, Purple, Brown)
-- Tracks player choice history over the current match:
-  - Maintains an elemental frequency vector (Fire, Water, Snow) of player plays.
-  - Predicts the player's next move based on unfulfilled player triads.
-  - Counter-picks the predicted element using its highest card.
-- **Mistake Rate (10%)**: Highly disciplined, with only a 10% blunder rate.
-
-#### Tier 4: `ExpectimaxPolicy` (Belt 9: Black Belt)
-- Evaluates a full 2-ply Expectimax search tree over all potential card clash matchups.
-- Evaluates mat territory, blocker utility, card conservation, and power card multipliers.
-- **Mistake Rate (5%)**: Plays nearly optimal tournament-level Card-Jitsu.
+#### Fairness Guarantee
+Dojo student bots receive **zero information** regarding the player's hand or unresolved pick:
+- The immutable `BotContext` type contains only the bot's own hand, public banks, resolved round history, active powers, round number, and seeded PRNG.
+- `playerDealtMap`, `oppHand`, and `playerSelectedCard` are strictly absent from the AI boundary and verified by automated static analysis.
+- The player's picked card is only pushed to history *after* the bot has finalized and committed its pick.
 
 #### Human Realism Latency Delay
-To prevent bot picks from appearing instantaneous and robotic, [`session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts#L320-L335) introduces an asynchronous deliberation delay:
+To prevent bot picks from appearing instantaneous and robotic, [`session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts) introduces an asynchronous deliberation delay:
 - Uniform random distribution between 400 ms and 1500 ms.
 - The player's pick is broadcast immediately (`pick 1 <cardSlot>`), after which the bot "deliberates" before broadcasting its own pick (`pick 0 <cardSlot>`), matching authentic online player interaction.
 
@@ -317,12 +317,26 @@ export function drawPlayerCards(
 5. **Sampling Without Replacement**: Randomly samples `count` cards (5 on round 1; 1 on subsequent rounds) from the expanded deck pool.
 6. **Fallback**: If the player's owned pool is completely exhausted, draws from verified `DEALABLE_CARDS`.
 
-### 6.2 Dojo Bot Card Deal
+### 6.2 Dojo Bot Card Deal (`BotDeck` & Temperature Dealing)
 
-1. **Roster Composition**: Every bot in [`roster.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.json) defines exact card ranges for `deck.normal` and `deck.power`.
-2. **Integrity Validation**: [`roster.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts#L57-L110) validates that power ranges contain only power cards and normal ranges contain only normal cards.
-3. **Deck Compilation**: [`buildBotDeck(bot)`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/roster.ts#L112-L154) maps ranges into `DealableCard` arrays.
-4. **Dealing**: Bot hands are sampled uniformly without replacement from `botOpponent.deckCards`.
+Bot card pools are managed dynamically per match by [`BotDeck`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/opponents/bot-deck.ts):
+
+1. **Rank-Driven Pool Partition**:
+   - `NORMAL_POOL` (405 cards with `powerId === 0`) and `POWER_POOL` (104 cards with `powerId !== 0`) partition the 509 dealable catalog.
+   - For Rank 1, the deck is fixed to the exact 12 starter deck cards (9 normal, 3 power).
+   - For Ranks 2–9, the deck draws $N_{\text{normal}}$ and $N_{\text{power}}$ cards uniformly from the pools at match start per `BOT_TIERS`.
+2. **Temperature-Biased Dealing**:
+   - Card dealing is biased according to value-normalized temperature $\tau \in [0.0, 1.0]$:
+     $$\text{weight}(c) = \exp\left(\text{TEMPERATURE\_SHARPNESS} \cdot (2\tau - 1) \cdot (w - 0.5)\right)$$
+     where $\text{TEMPERATURE\_SHARPNESS} = 4$ and $w = \frac{\text{value}(c) - \min(V)}{\max(V) - \min(V)} \in [0, 1]$.
+   - At $\tau = 0.5$, weights are uniform ($1.0$).
+   - At $\tau = 1.0$, top-value cards have $\approx e^4 \approx 54.6\times$ higher probability of being dealt.
+   - At $\tau = 0.0$, low-value cards are heavily preferred.
+3. **Sampling Without Replacement**:
+   - Draws use the Efraimidis–Spirakis algorithm (`weightedSample` in [`cards.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/cards.ts)) computing keys $k_i = u_i^{1/w_i}$ with uniform random $u_i \in (0, 1]$.
+4. **Drawdown Semantics**:
+   - Drawn cards are removed from the deck without replacement across rounds.
+   - If the deck is completely exhausted during an extended match, it automatically calls `reset()` to refill and shuffle from the tier configuration.
 
 ---
 

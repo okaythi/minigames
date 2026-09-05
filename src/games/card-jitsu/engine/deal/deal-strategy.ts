@@ -74,11 +74,6 @@ export function getSenseiCounterCard(playerCard: CardData, usedColors: string[])
   return dealable[Math.floor(Math.random() * dealable.length)]!
 }
 
-export function drawBotCards(count: number): DealableCard[] {
-  if (count <= 0) return []
-  return sample(DEALABLE_CARDS, count)
-}
-
 export function executeDealRound(
   isSensei: boolean,
   canBeat: boolean,
@@ -87,7 +82,7 @@ export function executeDealRound(
   currentPHand: readonly CardData[],
   currentOHandSize: number,
   senseiColors: string[],
-  oppDeckPool?: readonly DealableCard[],
+  drawOpp: (count: number) => DealableCard[],
 ): DealBatch {
   let nextId = startDealtId
   const needPlayer = 5 - currentPHand.length
@@ -116,8 +111,8 @@ export function executeDealRound(
       const pId = nextId++
       playerDealt.push({ dealtId: pId, card, wire: formatCardWire(pId, card) })
     }
-    const pool = oppDeckPool && oppDeckPool.length > 0 ? oppDeckPool : DEALABLE_CARDS
-    for (const oppCard of sample(pool, 5 - currentOHandSize)) {
+    const oppCards = drawOpp(5 - currentOHandSize)
+    for (const oppCard of oppCards) {
       const sId = nextId++
       oppDealt.push({ dealtId: sId, card: oppCard, wire: formatCardWire(sId, oppCard) })
     }

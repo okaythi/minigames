@@ -47,6 +47,14 @@ export const DEALABLE_CARDS: readonly DealableCard[] = ALL_CARDS.filter(
   (c): c is DealableCard => DEALABLE_IDS.has(c.id),
 )
 
+export const NORMAL_POOL: readonly DealableCard[] = DEALABLE_CARDS.filter(
+  (c) => c.powerId === 0,
+)
+
+export const POWER_POOL: readonly DealableCard[] = DEALABLE_CARDS.filter(
+  (c) => c.powerId !== 0,
+)
+
 export const DEALABLE_CARD_BY_ID: ReadonlyMap<number, DealableCard> = new Map(
   DEALABLE_CARDS.map((c) => [c.id, c]),
 )
@@ -63,16 +71,36 @@ export class DefaultCardStore implements CardStore {
   }
 }
 
-export function sample<T>(population: readonly T[], k: number): T[] {
+export function sample<T>(population: readonly T[], k: number, rng: () => number = Math.random): T[] {
   const copy = [...population]
   const result: T[] = []
   const count = Math.min(k, copy.length)
   for (let i = 0; i < count; i++) {
-    const idx = Math.floor(Math.random() * copy.length)
+    const idx = Math.floor(rng() * copy.length)
     result.push(copy[idx]!)
     copy.splice(idx, 1)
   }
   return result
+}
+
+export function weightedSample<T>(
+  population: readonly T[],
+  k: number,
+  weight: (item: T) => number,
+  rng: () => number = Math.random,
+): T[] {
+  if (k <= 0 || population.length === 0) return []
+  const count = Math.min(k, population.length)
+
+  const keyed = population.map((item, index) => {
+    const w = weight(item)
+    const u = Math.max(1e-15, rng())
+    const key = w > 0 ? Math.pow(u, 1 / w) : -Infinity
+    return { item, index, key }
+  })
+
+  keyed.sort((a, b) => b.key - a.key)
+  return keyed.slice(0, count).map((k) => k.item)
 }
 
 export function shuffleDeck<T>(deck: readonly T[]): T[] {

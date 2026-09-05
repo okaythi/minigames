@@ -11,8 +11,8 @@ import {
   AffectsOwnPlayer,
   OnPlayed,
   adjustCardValues,
+  resolveClash,
   getWinningCombo,
-  getWinnerSeatId,
   hasCardsToPlay,
   onPlayedEffects,
   onScoredEffects,
@@ -106,7 +106,9 @@ export class MatchFlow {
       this.options.onSendRaw(buildPowerPacket(OPP_SEAT, PLAYER_SEAT, oCard.powerId))
     }
 
-    const winnerSeatId = getWinnerSeatId(first, second) as SeatId | typeof TIE_SEAT
+    const clashWinner = resolveClash(pCard, oCard, this.powers)
+    const winnerSeatId: SeatId | typeof TIE_SEAT =
+      clashWinner === 1 ? PLAYER_SEAT : clashWinner === -1 ? OPP_SEAT : TIE_SEAT
     this.discards = []
     let winningCard: CardData | null = null
 
