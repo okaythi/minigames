@@ -186,10 +186,10 @@ export class CardJitsuSession {
       this.sendRaw(buildGetGamePacket())
       this.sendRaw(buildJoinGamePacket(this.getPlayerNick(), this.getPlayerColor(), this.getPlayerBeltRank()))
     } else if (action === 'uz') {
-      const p0 = `${PLAYER_SEAT}|${this.getPlayerNick()}|${this.getPlayerColor()}|${this.getPlayerBeltRank()}`
-      const p1 = this.isSenseiMode()
+      const p0 = this.isSenseiMode()
         ? `${OPP_SEAT}|Sensei|14|10`
         : `${OPP_SEAT}|${this.botNick}|${this.botColor}|${this.botOpponent?.rank ?? Math.min(this.getPlayerBeltRank() + 1, 9)}`
+      const p1 = `${PLAYER_SEAT}|${this.getPlayerNick()}|${this.getPlayerColor()}|${this.getPlayerBeltRank()}`
       this.sendRaw(buildUpdateGamePacket(p0, p1))
       this.sendRaw(buildStartGamePacket())
     } else if (action === 'zm') {

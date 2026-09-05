@@ -1,7 +1,7 @@
 import type { CardData } from '../../types'
 
-export const PLAYER_SEAT = 0 as const
-export const OPP_SEAT = 1 as const
+export const OPP_SEAT = 0 as const
+export const PLAYER_SEAT = 1 as const
 export const TIE_SEAT = -1 as const
 export const MATCH_COINS = 0 as const
 

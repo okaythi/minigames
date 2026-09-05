@@ -183,8 +183,8 @@ assert.equal(beatsCard(cardF8, cardS12), true, 'Element beats element regardless
 }
 
 // 11. Seat Constants & Wire Integrity
-assert.equal(PLAYER_SEAT, 0, 'PLAYER_SEAT must be 0')
-assert.equal(OPP_SEAT, 1, 'OPP_SEAT must be 1')
+assert.equal(PLAYER_SEAT, 1, 'PLAYER_SEAT must be 1')
+assert.equal(OPP_SEAT, 0, 'OPP_SEAT must be 0')
 assert.equal(TIE_SEAT, -1, 'TIE_SEAT must be -1')
 assert.equal(MATCH_COINS, 0, 'MATCH_COINS must be 0')
 
