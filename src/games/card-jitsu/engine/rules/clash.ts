@@ -3,7 +3,6 @@ import { TIE_SEAT } from '../protocol/packets'
 import { NORMAL_POOL } from '../deck/cards'
 import {
   type ActiveCardState,
-  type ActivePowerCard,
   type ActivePowerState,
   DiscardElements,
   DiscardColors,
@@ -11,7 +10,6 @@ import {
   POWER_CLASS,
   advancePowers,
   type PowerClass,
-  onPlayedEffects,
 } from './powers'
 import { checkWinCondition } from './combos'
 

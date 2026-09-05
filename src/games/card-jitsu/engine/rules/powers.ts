@@ -87,7 +87,7 @@ export const POWER_CLASS: ReadonlyMap<number, PowerClass> = new Map<number, Powe
  * - Scored powers of class DISCARD execute immediately and do not enter next round's active powers.
  */
 export function advancePowers(
-  powers: ReadonlyMap<number, ActivePowerState>,
+  _powers: ReadonlyMap<number, ActivePowerState>,
   played: { seat: number; card: CardData } | readonly { seat: number; card: CardData }[],
   scored: { seat: number; card: CardData } | null,
 ): ReadonlyMap<number, ActivePowerState> {

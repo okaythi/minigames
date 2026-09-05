@@ -1,11 +1,9 @@
 import type { CardData, NinjaElement } from '../../types'
 import {
-  doesElementBeat,
   checkWinCondition,
   finishingElements,
   bankPotential,
   applyPowerToBanks,
-  VALUE_CDF_BY_ELEMENT,
   type EffectiveRules,
   effectiveRules,
   advancePowers,

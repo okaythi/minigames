@@ -204,40 +204,49 @@ Student bots represent other penguins training in the Dojo. Matchmaking selects 
 #### BOT_TIERS Specification Matrix
 
 ```
-+----+---------+-------+-------------+-------------------------------------------------------------+
-| Rk | Normal  | Power | Temperature | Policy Configuration                                        |
-+----+---------+-------+-------------+-------------------------------------------------------------+
-| 1  | starter |starter| 0.5         | UniformRandomPolicy (exact 12 starter IDs)                  |
-| 2  | 30      | 2     | 0.5         | UniformRandomPolicy                                         |
-| 3  | 40      | 4     | 0.5         | StrategicPolicy { precision: 0.6, horizon: 0, model: 0.0 }  |
-| 4  | 60      | 8     | 0.5         | StrategicPolicy { precision: 1.0, horizon: 0, model: 0.25 } |
-| 5  | 90      | 15    | 0.5         | StrategicPolicy { precision: 1.5, horizon: 1, model: 0.5 }  |
-| 6  | 180     | 30    | 0.6         | StrategicPolicy { precision: 2.5, horizon: 1, model: 0.75 } |
-| 7  | 180     | 60    | 0.5         | StrategicPolicy { precision: 4.0, horizon: 2, model: 1.0 }  |
-| 8  | 250     | 80    | 0.5         | StrategicPolicy { precision: 8.0, horizon: 2, model: 1.0 }  |
-| 9  | 320     | 100   | 0.5         | StrategicPolicy { precision: ∞,   horizon: 3, model: 1.0 }  |
-+----+---------+-------+-------------+-------------------------------------------------------------+
++----+---------+-------+-------------+-------------------------------------------------------------------------------+
+| Rk | Normal  | Power | Temperature | Policy Configuration                                                          |
++----+---------+-------+-------------+-------------------------------------------------------------------------------+
+| 1  | starter |starter| 0.5         | UniformRandomPolicy (exact 12 starter IDs)                                    |
+| 2  | 30      | 2     | 0.5         | UniformRandomPolicy                                                           |
+| 3  | 40      | 4     | 0.5         | StrategicPolicy { precision: 0.6, horizon: 0, model: 0.00, powerAwareness: 0 }|
+| 4  | 60      | 8     | 0.5         | StrategicPolicy { precision: 1.0, horizon: 0, model: 0.25, powerAwareness: 1 }|
+| 5  | 90      | 15    | 0.5         | StrategicPolicy { precision: 1.5, horizon: 1, model: 0.50, powerAwareness: 1 }|
+| 6  | 180     | 30    | 0.6         | StrategicPolicy { precision: 2.5, horizon: 1, model: 0.75, powerAwareness: 1 }|
+| 7  | 180     | 60    | 0.5         | StrategicPolicy { precision: 4.0, horizon: 2, model: 1.00, powerAwareness: 2 }|
+| 8  | 250     | 80    | 0.5         | StrategicPolicy { precision: 8.0, horizon: 2, model: 1.00, powerAwareness: 2 }|
+| 9  | 320     | 100   | 0.5         | StrategicPolicy { precision: ∞,   horizon: 3, model: 1.00, powerAwareness: 2 }|
++----+---------+-------+-------------+-------------------------------------------------------------------------------+
 ```
+
+#### Tier-Scaled Power Awareness (`powerAwareness: 0 | 1 | 2`)
+
+| Level | Belts (Ranks) | Rules Model | Lookahead Search | Payoff & Pruning |
+|---|---|---|---|---|
+| **0 (Ignore)** | White–Orange (1–3) | Evaluates candidate cards with `BASE_RULES` (`RULE_SET`, identity element replacement, standard value comparison). | Ignores active modifiers entirely (`EMPTY_POWERS`). Power cards are evaluated as vanilla normal cards. | Discard powers and value limiters yield zero additional payoff. |
+| **1 (Static 1-Step)** | Green–Red (4–6) | Clashes evaluated under `effectiveRules(activePowers, 1)`: element replacement, reversal, and `sameElementOutcome(v, e, rules)`. | Future plies do not advance powers; un-scored/future effects are approximated. | Scored power cards receive static $+0.5 \cdot \text{BASE}$ hold bonus; discard powers evaluate one-step potential delta $(\Phi(\text{opp}) - \Phi(\text{simOpp})) \cdot \frac{W_{\text{TRIAD}}}{2}$. |
+| **2 (Full Search Advance)** | Purple–Black (7–9) | Full dynamic rules under `effectiveRules(activePowers, 1)` and opponent distribution rational overlay updated to post-reversal/replacement rules. | Every search branch advances powers via pure `advancePowers(powers, played, scored)`. Powers take effect in child nodes. | Discard planning, combo sequencing (e.g. Reverse into Snow), and bank vulnerability penalty ($-0.05 \cdot \text{maxConcentration}$) in Rank 9 tie-breaking. |
 
 #### Unified `StrategicPolicy`
 All ranks $\ge 3$ operate using a single parameterized `StrategicPolicy`:
 1. **Immediate-Win Shortcut**: Immediately selects any card completing a winning triad (3 same-element distinct colors, or 3 distinct elements distinct colors).
 2. **Opponent Element Modeling**:
    - Maintains a recency-weighted Dirichlet distribution over elements ($P(e)$, $\gamma = 0.7$, prior = 1 each).
-   - Overlays rational opponent behavior weighted by `modelStrength`: predicts opponent will attempt to complete finishing triad elements if close to victory, or counter bot's potential finishing elements.
+   - Overlays rational opponent behavior weighted by `modelStrength`: predicts opponent will attempt to complete finishing triad elements if close to victory, or counter bot's potential finishing elements. Under `powerAwareness: 2`, rational candidate sets are mapped through `rules.replace` and `rules.beats`.
 3. **Expectimax Lookahead**:
    - Searches up to `horizon` plies ahead ($W_{\text{TRIAD}} = 10$, $\text{BASE} = 1$, discount = 0.9/ply).
    - Incorporates bank potential flexibility $\Phi \in [0, 1]$ and full discard power card simulation via pure `applyPowerToBanks`.
-   - Evaluates same-element outcomes using precomputed value CDFs.
+   - Evaluates same-element outcomes using precomputed value CDFs adjusted by active `valueDelta` and `lowestWins`.
 4. **Action Selection**:
    - Softmax selection: $P(c) \propto \exp(\text{precision} \cdot U(c))$.
-   - Rank 9 ($\text{precision} = \infty$): Argmax with uniform tie-break among moves within $\varepsilon = 0.05$ of maximum expected utility.
+   - Rank 9 ($\text{precision} = \infty$): Argmax with bank vulnerability penalty ($-0.05 \cdot \text{maxConcentration}$) tie-breaker among moves within $\varepsilon = 0.05$ of maximum expected utility.
 
 #### Fairness Guarantee
 Dojo student bots receive **zero information** regarding the player's hand or unresolved pick:
 - The immutable `BotContext` type contains only the bot's own hand, public banks, resolved round history, active powers, round number, and seeded PRNG.
 - `playerDealtMap`, `oppHand`, and `playerSelectedCard` are strictly absent from the AI boundary and verified by automated static analysis.
 - The player's picked card is only pushed to history *after* the bot has finalized and committed its pick.
+- Opponent power cards are unobservable until clash; the bot models only powers already resolved into `activePowers`.
 
 #### Human Realism Latency Delay
 To prevent bot picks from appearing instantaneous and robotic, [`session.ts`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts) introduces an asynchronous deliberation delay:
@@ -286,6 +295,10 @@ Implementation files:
   2. **Power Cards Unlocked**: The player is permitted to draw and play all power cards against Sensei.
   3. **Competitive Policy**: Sensei evaluates turns using `ExpectimaxPolicy` without knowing the player's pick ahead of time.
   4. **Ninja Mask Award**: Defeating Sensei at Black Belt awards Rank 10 (Ninja Master) and grants the Ninja Mask (Club Penguin item ID `104`).
+
+### 5.3 Progression Invariant: Zero XP / Progress in Sensei Mode
+- **Zero XP Guarantee**: Matches against Sensei **never** award progress nor XP (`applyMatchProgression` strictly awards 0 XP on both wins and losses). Sensei is a master teacher and challenge matches do not yield Dojo training experience.
+- **Master Advancement**: Defeating Sensei at Rank 9 (Black Belt) in `sensei` mode awards Rank 10 (Ninja Master) with progress unchanged. For players below Rank 9 who challenge Sensei, neither progress nor rank can advance under any circumstance.
 
 ---
 
