@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { HorizontalGameTemplate } from '../template/horizontal-game-template'
 import { manifest } from './manifest'
 import {
@@ -9,6 +9,7 @@ import { RuffleStage } from './components/ruffle-stage'
 import { InstructionsModal } from './components/instructions-modal'
 import { BeltHud } from './components/belt-hud'
 import { DojoStore } from './components/shop/dojo-store'
+import { subscribeAuth } from '../../services/auth-api'
 import type { NinjaBelt } from './types'
 
 export default function CardJitsuGame() {
@@ -17,6 +18,14 @@ export default function CardJitsuGame() {
   const [showInstructions, setShowInstructions] = useState(false)
 
   const runtimeRef = useRef<CardJitsuRuntimeExtended | null>(null)
+
+  // Re-fetch server-authoritative ninja profile if auth resolves/changes
+  useEffect(() => {
+    const unsub = subscribeAuth(() => {
+      void runtimeRef.current?.refreshProfile?.()
+    })
+    return unsub
+  }, [])
 
   // The factory must be referentially stable: `useGameRuntime` recreates the
   // runtime (and the Ruffle-backed CardJitsuSession) whenever `create` changes

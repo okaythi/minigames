@@ -241,7 +241,25 @@ export class CardJitsuSession {
       quantity: 1,
       memberQuantity: 0,
     }))
-    this.setOwnedCards(starterCards)
+    // Preserve existing cards if the player already owns cards
+    const currentOwned = this.getOwnedCards()
+    if (currentOwned.length > 0) {
+      const cardMap = new Map<number, OwnedCard>(currentOwned.map((c) => [c.cardId, { ...c }]))
+      for (const sc of starterCards) {
+        const existing = cardMap.get(sc.cardId)
+        if (existing) {
+          cardMap.set(sc.cardId, {
+            ...existing,
+            quantity: Math.max(existing.quantity, sc.quantity),
+          })
+        } else {
+          cardMap.set(sc.cardId, sc)
+        }
+      }
+      this.setOwnedCards(Array.from(cardMap.values()))
+    } else {
+      this.setOwnedCards(starterCards)
+    }
     try {
       const res = await fetch('/api/card-jitsu/intro-complete', {
         method: 'POST',

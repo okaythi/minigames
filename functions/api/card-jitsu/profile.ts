@@ -82,12 +82,17 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     })
     .map((item) => item.name)
 
-  const ownedColorRows = await db
-    .select({ colorId: cjNinjaColors.colorId })
-    .from(cjNinjaColors)
-    .where(eq(cjNinjaColors.userId, playerId))
-    .all()
-  const ownedColors = Array.from(new Set<number>([1, ...ownedColorRows.map((r) => r.colorId)]))
+  let ownedColors = [1]
+  try {
+    const ownedColorRows = await db
+      .select({ colorId: cjNinjaColors.colorId })
+      .from(cjNinjaColors)
+      .where(eq(cjNinjaColors.userId, playerId))
+      .all()
+    ownedColors = Array.from(new Set<number>([1, ...ownedColorRows.map((r) => r.colorId)]))
+  } catch (err) {
+    console.warn('[Card-Jitsu Profile] Error loading owned colors:', err)
+  }
 
   const profile: CardJitsuProfileResponse = {
     rank: ninja.rank,
