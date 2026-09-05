@@ -547,8 +547,8 @@
 }
 
 .dojo-card-container.card-sm {
-  width: 100px;
-  height: 140px;
+  width: 111px;
+  height: 155px;
 }
 
 .dojo-card-container.card-md {
@@ -683,6 +683,16 @@
   justify-content: center;
 }
 
+.dojo-card-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
 .dojo-card-art-pin {
   width: 38px;
   height: 38px;
@@ -692,8 +702,21 @@
 }
 
 .card-sm .dojo-card-art-pin {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+}
+
+.card-sm .dojo-card-elem-pin {
+  width: 16px;
+  height: 16px;
+}
+
+.card-sm .dojo-card-value-badge {
+  font-size: 14px;
+}
+
+.card-sm .dojo-card-name {
+  font-size: 10px;
 }
 
 .card-lg .dojo-card-art-pin {
@@ -1079,15 +1102,15 @@
 }
 
 .dojo-cards-scroll-container {
-  max-height: 320px;
+  max-height: 380px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .dojo-cards-scroll-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(111px, 1fr));
+  gap: 10px;
 }
 
 .dojo-browser-card-slot {

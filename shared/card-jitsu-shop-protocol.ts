@@ -16,6 +16,8 @@ export interface ShopPackInfo {
   readonly originalPrice?: number
   readonly isPromoActive?: boolean
   readonly promoBadge?: string
+  readonly promoTagline?: string
+  readonly isFirstPurchasePromo?: boolean
   readonly name: string
   readonly description: string
   readonly iconUrl: string

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ShopColorItem } from '../../../../../shared/card-jitsu-shop-protocol'
+import { calculateDiscountPercent } from '../../../../../shared/card-jitsu-store-config'
 import { playCandySpend } from './shop-audio'
 
 interface ColorSelectPanelProps {
@@ -94,9 +95,13 @@ export function ColorSelectPanel({
               }
             >
               {/* Promo Badge */}
-              {c.promoBadge && !c.owned && (
+              {!c.owned && (c.originalPrice && c.originalPrice > c.price ? (
+                <span className="dojo-color-promo-badge">
+                  {calculateDiscountPercent(c.originalPrice, c.price)}% OFF
+                </span>
+              ) : c.promoBadge ? (
                 <span className="dojo-color-promo-badge">{c.promoBadge}</span>
-              )}
+              ) : null)}
 
               {/* Authentic Color Blob PNG */}
               <div className="dojo-color-blob-wrapper">

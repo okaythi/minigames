@@ -244,6 +244,7 @@ export const cjNinja = sqliteTable('cj_ninja', {
   matchesWon: integer('matches_won').notNull().default(0),
   colorId: integer('color_id').notNull().default(1),
   introSeen: integer('intro_seen').notNull().default(0),
+  packsPurchased: integer('packs_purchased').notNull().default(0),
   updatedAt: text('updated_at').notNull(),
 })
 

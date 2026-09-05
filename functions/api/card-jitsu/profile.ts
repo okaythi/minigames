@@ -44,10 +44,15 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       matchesWon: 0,
       colorId: 1,
       introSeen: 0,
+      packsPurchased: 0,
       updatedAt: nowIso,
     }
     await db.insert(cjNinja).values(defaultNinja).onConflictDoNothing()
     ninja = (await db.select().from(cjNinja).where(eq(cjNinja.userId, playerId)).get()) ?? defaultNinja
+  }
+
+  if (!ninja) {
+    return jsonResponse(500, { ok: false, error: 'failed-to-initialize-ninja' })
   }
 
   // Fetch owned cards

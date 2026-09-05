@@ -31,6 +31,15 @@ export interface CardRaritySetting {
   readonly rarity: number
 }
 
+/**
+ * Automatically calculates the discount percentage based on full price and actual price.
+ * e.g., fullPrice = 80, actualPrice = 50 -> 38
+ */
+export function calculateDiscountPercent(fullPrice: number, actualPrice: number): number {
+  if (fullPrice <= 0 || actualPrice >= fullPrice) return 0
+  return Math.round(((fullPrice - actualPrice) / fullPrice) * 100)
+}
+
 export const DOJO_STORE_CONFIG = {
   // ==========================================
   // 1. BOOSTER PACK PRICING & PROMOTIONS
@@ -42,8 +51,6 @@ export const DOJO_STORE_CONFIG = {
     originalPrice: 80,
     /** Whether the promotional discount is currently active */
     isPromoActive: true,
-    /** Promotional banner/badge label shown on the pack */
-    promoBadge: '38% OFF',
     /** Promotional tagline */
     promoTagline: 'LIMITED TIME DOJO DEAL',
     /** Name of the pack displayed in store */
@@ -52,6 +59,19 @@ export const DOJO_STORE_CONFIG = {
     description: 'Guaranteed 9 Combat Cards + 1 Epic Power Card. Every card in the pack is strictly unique.',
     /** Official Club Penguin booster deck icon */
     iconUrl: '/games/card-jitsu/assets/card-packs/booster-pack.png',
+  },
+
+  // ==========================================
+  // 1b. FIRST PURCHASE PROMOTION
+  // Applies strictly to the user's first ever card pack purchase
+  // ==========================================
+  firstPurchasePromo: {
+    /** Baseline full price for the promo */
+    fullPrice: 80,
+    /** Special discounted price for the user's first pack purchase */
+    actualPrice: 20,
+    /** Tagline displayed on first purchase hero card */
+    promoTagline: 'FIRST PACK WELCOME DEAL',
   },
 
   // ==========================================

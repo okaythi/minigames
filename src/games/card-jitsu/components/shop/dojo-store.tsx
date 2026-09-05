@@ -34,7 +34,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
     price: DOJO_STORE_CONFIG.pack.price,
     originalPrice: DOJO_STORE_CONFIG.pack.originalPrice,
     isPromoActive: DOJO_STORE_CONFIG.pack.isPromoActive,
-    promoBadge: DOJO_STORE_CONFIG.pack.promoBadge,
+    promoTagline: DOJO_STORE_CONFIG.pack.promoTagline,
     name: DOJO_STORE_CONFIG.pack.name,
     description: DOJO_STORE_CONFIG.pack.description,
     iconUrl: DOJO_STORE_CONFIG.pack.iconUrl,

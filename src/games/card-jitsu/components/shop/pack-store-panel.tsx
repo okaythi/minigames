@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ShopPackInfo } from '../../../../../shared/card-jitsu-shop-protocol'
+import { calculateDiscountPercent } from '../../../../../shared/card-jitsu-store-config'
 
 interface PackStorePanelProps {
   readonly packInfo: ShopPackInfo
@@ -17,6 +18,12 @@ export function PackStorePanel({
   const [loading, setLoading] = useState(false)
   const canAfford = userCandy >= packInfo.price
 
+  const discountPercent =
+    packInfo.originalPrice && packInfo.originalPrice > packInfo.price
+      ? calculateDiscountPercent(packInfo.originalPrice, packInfo.price)
+      : 0
+  const promoRibbonText = discountPercent > 0 ? `${discountPercent}% OFF` : packInfo.promoBadge
+
   const handleBuyClick = async () => {
     if (loading || isOpening || !canAfford) return
     setLoading(true)
@@ -31,9 +38,9 @@ export function PackStorePanel({
     <div className="dojo-pack-panel" data-protected-image="true">
       <div className="dojo-pack-hero-card">
         {/* Promo Ribbon */}
-        {packInfo.promoBadge && (
+        {promoRibbonText && (
           <div className="dojo-pack-ribbon">
-            <span>{packInfo.promoBadge}</span>
+            <span>{promoRibbonText}</span>
           </div>
         )}
 
@@ -51,7 +58,9 @@ export function PackStorePanel({
 
         {/* Right / Center Details */}
         <div className="dojo-pack-details">
-          <div className="dojo-pack-tag">OFFICIAL CLUB PENGUIN BOOSTER</div>
+          <div className="dojo-pack-tag">
+            {packInfo.promoTagline || 'OFFICIAL CLUB PENGUIN BOOSTER'}
+          </div>
           <h3 className="dojo-pack-title">{packInfo.name}</h3>
           <p className="dojo-pack-desc">{packInfo.description}</p>
 

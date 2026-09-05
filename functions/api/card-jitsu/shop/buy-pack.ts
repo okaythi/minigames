@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq, inArray, and } from 'drizzle-orm'
-import { users, players, cjCard } from '../../../../src/db/schema'
+import { users, players, cjCard, cjNinja } from '../../../../src/db/schema'
 import { identifyPlayer } from '../../stats/identity'
 import { storeFor, type StatsEnv } from '../../stats/store-for'
 import { jsonResponse } from '../../stats/respond'
@@ -71,7 +71,14 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
 
   const playerRow = await db.select().from(players).where(eq(players.id, playerId)).get()
   const currentCandy = playerRow?.candy ?? 0
-  const packPrice = DOJO_STORE_CONFIG.pack.price
+
+  const ninja = await db.select().from(cjNinja).where(eq(cjNinja.userId, playerId)).get()
+  const packsPurchased = (ninja as { packsPurchased?: number } | undefined)?.packsPurchased ?? 0
+  const isFirstPurchase = packsPurchased === 0
+
+  const packPrice = isFirstPurchase
+    ? DOJO_STORE_CONFIG.firstPurchasePromo.actualPrice
+    : DOJO_STORE_CONFIG.pack.price
 
   if (currentCandy < packPrice) {
     return jsonResponse(400, { ok: false, error: 'insufficient-candy' })
@@ -103,6 +110,14 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     .update(players)
     .set({ candy: newCandy })
     .where(eq(players.id, playerId))
+
+  // 2b. Increment packs_purchased in cj_ninja
+  if (ninja) {
+    await db
+      .update(cjNinja)
+      .set({ packsPurchased: packsPurchased + 1, updatedAt: new Date().toISOString() })
+      .where(eq(cjNinja.userId, playerId))
+  }
 
   // 3. Upsert cards into cj_card
   for (const card of selectedCards) {

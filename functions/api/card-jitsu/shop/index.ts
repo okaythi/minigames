@@ -40,9 +40,36 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
   // Color 1 is always unlocked by default
   const ownedColorSet = new Set<number>([1, ...ownedColorRows.map((r) => r.colorId)])
 
+  const packsPurchased = (ninja as { packsPurchased?: number } | undefined)?.packsPurchased ?? 0
+  const isFirstPurchase = packsPurchased === 0
+
+  const packPrice = isFirstPurchase
+    ? DOJO_STORE_CONFIG.firstPurchasePromo.actualPrice
+    : DOJO_STORE_CONFIG.pack.price
+
+  const packOriginalPrice = isFirstPurchase
+    ? DOJO_STORE_CONFIG.firstPurchasePromo.fullPrice
+    : DOJO_STORE_CONFIG.pack.originalPrice
+
+  const packPromoTagline = isFirstPurchase
+    ? DOJO_STORE_CONFIG.firstPurchasePromo.promoTagline
+    : DOJO_STORE_CONFIG.pack.promoTagline
+
+  const discountPercent =
+    packOriginalPrice !== undefined && packOriginalPrice > packPrice
+      ? Math.round(((packOriginalPrice - packPrice) / packOriginalPrice) * 100)
+      : 0
+  const promoBadge = discountPercent > 0 ? `${discountPercent}% OFF` : undefined
+
   const colors: ShopColorItem[] = DOJO_STORE_CONFIG.colors.map((c) => {
     const isOwned = ownedColorSet.has(c.id) || c.defaultUnlocked === true
     const isEquipped = c.id === equippedColorId
+    const colorDiscount =
+      c.originalPrice !== undefined && c.originalPrice > c.price
+        ? Math.round(((c.originalPrice - c.price) / c.originalPrice) * 100)
+        : 0
+    const colorBadge = colorDiscount > 0 ? `${colorDiscount}% OFF` : c.promoBadge
+
     return {
       id: c.id,
       name: c.name,
@@ -50,7 +77,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       price: c.price,
       ...(c.originalPrice !== undefined ? { originalPrice: c.originalPrice } : {}),
       ...(c.isPromoActive !== undefined ? { isPromoActive: c.isPromoActive } : {}),
-      ...(c.promoBadge !== undefined ? { promoBadge: c.promoBadge } : {}),
+      ...(colorBadge !== undefined ? { promoBadge: colorBadge } : {}),
       iconUrl: `/games/card-jitsu/assets/colors/${c.iconFile}`,
       owned: isOwned,
       equipped: isEquipped,
@@ -64,10 +91,12 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     ownedColorIds: Array.from(ownedColorSet),
     colors,
     pack: {
-      price: DOJO_STORE_CONFIG.pack.price,
-      ...(DOJO_STORE_CONFIG.pack.originalPrice !== undefined ? { originalPrice: DOJO_STORE_CONFIG.pack.originalPrice } : {}),
-      ...(DOJO_STORE_CONFIG.pack.isPromoActive !== undefined ? { isPromoActive: DOJO_STORE_CONFIG.pack.isPromoActive } : {}),
-      ...(DOJO_STORE_CONFIG.pack.promoBadge !== undefined ? { promoBadge: DOJO_STORE_CONFIG.pack.promoBadge } : {}),
+      price: packPrice,
+      ...(packOriginalPrice !== undefined ? { originalPrice: packOriginalPrice } : {}),
+      isPromoActive: isFirstPurchase || DOJO_STORE_CONFIG.pack.isPromoActive,
+      ...(promoBadge !== undefined ? { promoBadge } : {}),
+      ...(packPromoTagline !== undefined ? { promoTagline: packPromoTagline } : {}),
+      isFirstPurchasePromo: isFirstPurchase,
       name: DOJO_STORE_CONFIG.pack.name,
       description: DOJO_STORE_CONFIG.pack.description,
       iconUrl: DOJO_STORE_CONFIG.pack.iconUrl,

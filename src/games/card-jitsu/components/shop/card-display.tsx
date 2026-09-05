@@ -92,7 +92,21 @@ export function CardDisplay({
 
           {/* Center Illustration Frame */}
           <div className="dojo-card-art-frame">
-            <div className="dojo-card-art-center">
+            <img
+              src={`/games/card-jitsu/card/icons_png/${card.id}.png`}
+              alt={card.name || `Card #${card.id}`}
+              className="dojo-card-art-img"
+              draggable={false}
+              data-protected-image="true"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                const parent = e.currentTarget.parentElement
+                const fb = parent?.querySelector('.dojo-card-art-fallback') as HTMLElement | null
+                if (fb) fb.style.display = 'flex'
+              }}
+            />
+            <div className="dojo-card-art-center dojo-card-art-fallback" style={{ display: 'none' }}>
               <img
                 src={elem.pin}
                 alt={elem.name}
