@@ -246,7 +246,15 @@ export const createCardJitsuRuntime = (
         totalWins = profile.matchesWon
         eligibleOpponents = profile.eligibleOpponents
         const hasCards = profile.cards.length > 0
-        const introSeen = profile.introSeen || hasCards
+        // Never replay the first-time Sensei intro for a veteran: any belt,
+        // any win progress, or any owned card counts as having played before,
+        // even if the stored intro flag was never persisted.
+        const introSeen =
+          profile.introSeen ||
+          hasCards ||
+          profile.rank > 0 ||
+          profile.progress > 0 ||
+          profile.matchesWon > 0
         session.setIntroSeen(introSeen)
         if (hasCards) {
           session.addInventoryItem(821)

@@ -5,7 +5,7 @@ import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
 import rawRoster from '../../../src/games/card-jitsu/engine/opponents/roster.json'
-import { BELT_TO_RANK, type NinjaBelt } from '../../../shared/progression'
+import { BELT_TO_RANK, STARTER_DECK_CARDS, type NinjaBelt } from '../../../shared/progression'
 import type { OwnedCard, CardJitsuProfileResponse } from '../../../shared/card-jitsu-protocol'
 
 interface PagesContext {
@@ -102,12 +102,42 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
   const playerRow = await db.select().from(players).where(eq(players.id, playerId)).get()
   const candy = playerRow?.candy ?? 0
 
+  // A player with ANY progression (belt rank, wins toward the next belt, or
+  // owned cards) must never be treated as brand new: the intro_seen flag is
+  // only persisted when the Sensei intro animation runs to completion, so
+  // veterans who skipped it (or progressed before that persistence existed)
+  // would otherwise get the first-time intro on every visit. Derive the
+  // effective value from progression itself, and self-heal the stored state
+  // to what intro-complete would have written (flag + starter deck).
+  const hasProgression =
+    ninja.rank > 0 || ninja.progress > 0 || ninja.matchesWon > 0 || cards.length > 0
+  const introSeen = ninja.introSeen === 1 || hasProgression
+  if (hasProgression && ninja.introSeen !== 1) {
+    try {
+      await db
+        .update(cjNinja)
+        .set({ introSeen: 1, updatedAt: new Date().toISOString() })
+        .where(eq(cjNinja.userId, playerId))
+      for (const cardId of STARTER_DECK_CARDS) {
+        await db
+          .insert(cjCard)
+          .values({ userId: playerId, cardId, quantity: 1, memberQuantity: 0 })
+          .onConflictDoNothing()
+      }
+      console.log('[Card-Jitsu Profile] Healed intro state for veteran player', playerId)
+    } catch (err) {
+      // The derived value already covers this session; the stored flag is
+      // only an optimization for the next load.
+      console.warn('[Card-Jitsu Profile] Failed to heal intro state:', err)
+    }
+  }
+
   const profile: CardJitsuProfileResponse = {
     rank: ninja.rank,
     progress: ninja.progress,
     matchesWon: ninja.matchesWon,
     colorId: ninja.colorId,
-    introSeen: ninja.introSeen === 1,
+    introSeen,
     cards,
     eligibleOpponents,
     ownedColors,
