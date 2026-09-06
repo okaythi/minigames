@@ -10,6 +10,7 @@ const STATUS_LABEL: Readonly<Record<GameStatus, string>> = {
   playable: 'Playable',
   prototype: 'Prototype',
   'coming-soon': 'In the lab',
+  new: 'New',
 }
 
 /**
