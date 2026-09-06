@@ -521,7 +521,7 @@ export function RuffleStage({
                   : 'Visiting Sensei • Entering Dojo'}
             </div>
             <div className="nx-card-jitsu-loading-sub">
-              Executing authentic Disney Flash engine via WebAssembly...
+              Starting Flash engine...
             </div>
           </div>
         )}
