@@ -170,7 +170,7 @@ class Menu {
 
         setSenseiAnim("point");
         setHowToPlay(null, false);
-        setSpeech("Here is your starter deck of 12 cards. Train diligently and your ninja skills will grow, grasshopper.");
+        setSpeech("Here is your starter deck of 12 cards. Train diligently and your ninja skills will grow, grasshopper.\nYou can purchase more cards with Candy.");
 
         var self:Menu = this;
         setOption(options.item1, "How do I win?", function():Void {
@@ -208,7 +208,7 @@ class Menu {
     public function showMainMenu():Void {
         setSenseiAnim("wait");
         setHowToPlay(null, false);
-        setSpeech("Do you wish to play and compete with another student, grasshopper?");
+        setSpeech("Do you wish to compete with another student, grasshopper?");
 
         var self:Menu = this;
         setOption(options.item1, "Earn your belts", function():Void {

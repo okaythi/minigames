@@ -2,7 +2,7 @@ class Locale {
     static function main(root:MovieClip):Void {
         var items:Array = [
             { id: "sensei_label", value: "Sensei" },
-            { id: "pow_1", value: "Lowest card value wins this round" },
+            { id: "pow_1", value: "Lowest card value wins next round" },
             { id: "pow_2", value: "+2 to next round's card value" },
             { id: "pow_3", value: "-2 to opponent's next card value" },
             { id: "pow_4", value: "Discards opponent's Snow card" },
@@ -17,9 +17,9 @@ class Locale {
             { id: "pow_13", value: "Block opponent Snow card next round" },
             { id: "pow_14", value: "Block opponent Fire card next round" },
             { id: "pow_15", value: "Block opponent Water card next round" },
-            { id: "pow_16", value: "Snow becomes Water this round" },
-            { id: "pow_17", value: "Water becomes Fire this round" },
-            { id: "pow_18", value: "Fire becomes Snow this round" },
+            { id: "pow_16", value: "Water becomes Snow this round" },
+            { id: "pow_17", value: "Fire becomes Water this round" },
+            { id: "pow_18", value: "Snow becomes Fire this round" },
             { id: "help", value: "Card-Jitsu Help" },
             { id: "loading", value: "Loading..." }
         ];
