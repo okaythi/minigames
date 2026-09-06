@@ -4,7 +4,7 @@ import type { GameFlag } from '../../shared/flags'
 /** Colour keys map onto `accentOf()` in src/theme/palette.ts. */
 export type GameAccentName = 'orange' | 'amber' | 'blue' | 'green' | 'red'
 
-export type GameStatus = 'playable' | 'prototype' | 'coming-soon'
+export type GameStatus = 'playable' | 'prototype' | 'coming-soon' | 'new'
 
 export interface GameControlHint {
   /** What the visitor presses, e.g. `Space` or `Click / tap`. */

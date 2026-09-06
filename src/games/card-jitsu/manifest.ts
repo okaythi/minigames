@@ -10,17 +10,16 @@ export const manifest: GameManifest = {
   gameFlag: GameFlags.GAME_BETA,
   tagline: 'Master Fire, Water, and Snow to earn your belts and defeat Sensei.',
   description:
-    'The authentic Club Penguin martial arts card game. Face Sensei in the ancient Dojo, command the elemental trinity, and unleash unique power cards to earn your Black Belt.',
-  status: 'playable',
+    'The Club Penguin martial arts card game. Face Sensei in the ancient Dojo, command the elemental trinity, and unleash unique power cards to earn your Black Belt.',
+  status: 'new',
   accent: 'orange',
   layout: 'horizontal',
-  tags: ['Club Penguin', 'Strategy', 'Card Battle', 'Sensei', 'Martial Arts'],
+  tags: ['Club Penguin', 'Strategy', 'Card Battle'],
   cover,
   banner,
   controls: [
     { input: 'Mouse Hover', action: 'Inspect card & view elevated power details' },
-    { input: 'Left Click', action: 'Lock in chosen card for the center clash' },
-    { input: 'Escape', action: 'Pause meditation or open Dojo menu' },
+    { input: 'Left Click', action: 'Lock in chosen card for the center clash' }
   ],
   mechanics: [
     {
@@ -33,11 +32,11 @@ export const manifest: GameManifest = {
     },
     {
       title: 'Power Cards',
-      body: 'Special power cards can alter this clash or set up the next: turn Water into Fire for one round, make lower same-element values win, boost your card by +2, or freeze an element.',
+      body: 'Power cards can alter this clash or set up the next: turn Water into Fire for one round, make lower same-element values win, boost your card by +2, or freeze an element.',
     },
     {
-      title: 'Authentic Sensei AI',
-      body: 'Sensei evaluates his honest 5-card hand using tactical triad completion and opponent blocking heuristics, scaling dynamically to your current belt.',
+      title: 'The Real Sensei',
+      body: 'Sensei behaves exactly like on Club Penguin. Or at least very close to it. Can you beat him?',
     },
   ],
   year: 2026,
@@ -46,11 +45,11 @@ export const manifest: GameManifest = {
   bonusLabel: 'Candy',
   primaryLabel: 'Enter Dojo',
   scoringNote:
-    'Defeat Sensei to earn 50 Candy and advance your ninja belt rank towards the Black Belt.',
+    'Defeat Sensei to earn your Master Ninja status.',
   startLine: 'Enter the Ancient Dojo',
   intro: 'Select your card wisely and anticipate your opponent’s elemental path.',
   pauseNote: 'Meditation in progress. Click resume to continue your duel.',
-  tip: 'Track which elements you and Sensei need to complete a triad. Anticipate which counter card he will play to block you.',
+  tip: 'Track which elements you and your oponent need to complete a triad. Anticipate which counter card they will play to block you.',
   legend: [
     { swatch: 'red', text: 'Fire Element' },
     { swatch: 'blue', text: 'Water Element' },
