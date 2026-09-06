@@ -5,7 +5,7 @@ import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
 import rawRoster from '../../../src/games/card-jitsu/engine/opponents/roster.json'
-import { BELT_TO_RANK, type NinjaBelt } from '../../../shared/progression'
+import { BELT_TO_RANK, type NinjaBelt, STARTER_DECK_CARDS } from '../../../shared/progression'
 import { validateCardInventory } from '../../../shared/card-jitsu-store-config'
 import type { OwnedCard, CardJitsuProfileResponse } from '../../../shared/card-jitsu-protocol'
 
@@ -64,11 +64,30 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     console.error('[Card-Jitsu Profile] Catastrophic inventory invariant violation:', err)
     return jsonResponse(500, { ok: false, error: 'inventory-invariant-violation' })
   }
-  const cards: OwnedCard[] = cardRows.map((r) => ({
+  let cards: OwnedCard[] = cardRows.map((r) => ({
     cardId: r.cardId,
     quantity: r.quantity,
     memberQuantity: r.memberQuantity,
   }))
+
+  if (cards.length === 0 && (ninja.introSeen === 1 || ninja.matchesWon > 0 || ninja.rank > 0)) {
+    for (const cardId of STARTER_DECK_CARDS) {
+      await db
+        .insert(cjCard)
+        .values({
+          userId: playerId,
+          cardId,
+          quantity: 1,
+          memberQuantity: 0,
+        })
+        .onConflictDoNothing()
+    }
+    cards = STARTER_DECK_CARDS.map((cardId) => ({
+      cardId,
+      quantity: 1,
+      memberQuantity: 0,
+    }))
+  }
 
   // Compute eligible opponents: min(rank + 1, 9) minus any with a cj_match row where onceOnly is true
   const maxOpponentRank = Math.min(ninja.rank + 1, 9)

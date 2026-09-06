@@ -1,10 +1,10 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
-import { users, cjNinja, cjMatch } from '../../../src/db/schema'
+import { users, cjNinja, cjMatch, cjCard } from '../../../src/db/schema'
 import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
-import { applyMatchProgression } from '../../../shared/progression'
+import { applyMatchProgression, STARTER_DECK_CARDS } from '../../../shared/progression'
 import { recordDailyActivity } from '../achievements/d1-achievements'
 import type { CardJitsuMatchPayload, CardJitsuMatchResponse } from '../../../shared/card-jitsu-protocol'
 
@@ -117,9 +117,31 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       rank: outcome.rank,
       progress: outcome.progress,
       matchesWon: outcome.matchesWon,
+      introSeen: 1,
       updatedAt: nowIso,
     })
     .where(eq(cjNinja.userId, playerId))
+
+  // Ensure starter cards exist in cj_card if the player has played a match
+  const cardCount = await db
+    .select({ cardId: cjCard.cardId })
+    .from(cjCard)
+    .where(eq(cjCard.userId, playerId))
+    .limit(1)
+    .all()
+  if (cardCount.length === 0) {
+    for (const cardId of STARTER_DECK_CARDS) {
+      await db
+        .insert(cjCard)
+        .values({
+          userId: playerId,
+          cardId,
+          quantity: 1,
+          memberQuantity: 0,
+        })
+        .onConflictDoNothing()
+    }
+  }
 
   // Record daily activity so Card-Jitsu matches maintain player login streaks
   await recordDailyActivity(db, playerId, nowIso.slice(0, 10))
