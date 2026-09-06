@@ -40,6 +40,13 @@ class Menu {
         var scope:MovieClip = (_root.introSeen != undefined) ? _root : root;
 
         introSeen = toBool(scope.introSeen);
+        // A non-zero ninja rank is persisted proof that the player has already
+        // entered the Dojo. Older records may predate intro_seen and the
+        // starter-deck item, so do not show onboarding to those players.
+        var rank:Number = Number(scope.rank);
+        if (!isNaN(rank) && rank > 0) {
+            introSeen = true;
+        }
         hasCards = toBool(scope.hasCards) || introSeen;
 
         // Populate global SHELL mock with isItemInMyInventory(821)

@@ -27,7 +27,7 @@ import type {
 export interface CardJitsuRuntimeOptions {
   readonly player?: {
     readonly nick?: string
-    readonly colorId?: number // CP 1–15
+    readonly colorId?: number // CP 1–16 (14 is reserved for Sensei)
     readonly beltRank?: number // 1–9
   }
   readonly cardStore?: CardStore
@@ -113,7 +113,7 @@ export const createCardJitsuRuntime = (
   const profileColor = (currentUser as { colorId?: number } | null)?.colorId
   const candidateColor = options?.player?.colorId ?? profileColor ?? 1
   const playerColor =
-    candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 15 ? candidateColor : 1
+    candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 16 ? candidateColor : 1
 
   const session = new CardJitsuSession({
     playerBelt,
@@ -243,7 +243,11 @@ export const createCardJitsuRuntime = (
         totalWins = profile.matchesWon
         eligibleOpponents = profile.eligibleOpponents
         const hasCards = profile.cards.length > 0
-        const introSeen = profile.introSeen || hasCards
+        // A saved rank can only be earned after entering the Dojo. Treat it as
+        // proof that onboarding is complete as well; this also keeps existing
+        // Ninja Masters (rank 10) from being sent back through the welcome
+        // dialogue when their legacy record has no intro_seen flag or cards.
+        const introSeen = profile.introSeen || hasCards || profile.rank > 0
         session.setIntroSeen(introSeen)
         if (hasCards) {
           session.addInventoryItem(821)

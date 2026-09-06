@@ -37,7 +37,7 @@ export interface CardJitsuRuntimeOptions {
   /** Player identity passed into the Flash engine */
   readonly player?: {
     readonly nick?: string         // Player username displayed in hand & mat
-    readonly colorId?: number      // Club Penguin color index (1–15)
+    readonly colorId?: number      // Club Penguin color index (1–16; 14 is Sensei gray)
     readonly beltRank?: number     // 1 (White) through 9 (Black)
   }
   /** Custom inventory provider for owned cards */
@@ -62,7 +62,7 @@ External products can dynamically configure every player attribute:
 | Field | Range / Type | Purpose / Wire Impact |
 |---|---|---|
 | `nick` | `string` | Displayed above the player's 5 cards and in the match-end dialogue. Wire packet: `jz [0, nick, color, rank]`. |
-| `colorId` | `1` to `15` | Sets the player penguin's body color in Flash: `1=Blue, 2=Green, 3=Pink, 4=Black, 5=Red, 6=Orange, 7=Yellow, 8=Purple, 9=Brown, 10=Peach, 11=Dark Green, 12=Light Blue, 13=Lime, 14=Sensei Gray, 15=Aqua`. |
+| `colorId` | `1` to `16` | Sets the player penguin's body color in Flash: `1=Blue, 2=Green, 3=Pink, 4=Black, 5=Red, 6=Orange, 7=Yellow, 8=Purple, 9=Brown, 10=Peach, 11=Dark Green, 12=Light Blue, 13=Lime, 14=Sensei Gray, 15=Aqua, 16=Arctic White`. Player selection still excludes Sensei gray (`14`). |
 | `beltRank` | `1` to `9` | Sets the player's current belt rank: `1=White, 2=Yellow, 3=Orange, 4=Green, 5=Blue, 6=Red, 7=Purple, 8=Brown, 9=Black`. Determines the belt asset worn by the player penguin on the mat. |
 | `cardStore` | `CardStore` | Controls the pool of cards owned by the player. |
 
@@ -74,7 +74,8 @@ Upon user authentication and profile load:
 1. `GET /api/card-jitsu/profile` retrieves the user's authoritative card collection from Cloudflare D1 table `cj_card`.
 2. The runtime forwards `profile.cards` to the active session via [`session.setOwnedCards(profile.cards)`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/gateway/session.ts#L152-L158).
 3. For special/test accounts like `@test`, all 509 cards (104 power cards + 405 normal cards) are injected directly into the session's dealing pool.
-4. For new players, completing the Sensei dialogue triggers `POST /api/card-jitsu/intro-complete`, idempotently inserting the 12 starter cards into `cj_card` and granting inventory item `821`.
+4. Existing ranked accounts skip the first-login dialogue even when their legacy record predates `intro_seen` or the starter-deck item.
+5. For new players, completing the Sensei dialogue triggers `POST /api/card-jitsu/intro-complete`, idempotently inserting the 12 starter cards into `cj_card` and granting inventory item `821`.
 
 ```ts
 export interface OwnedCard {
@@ -366,7 +367,7 @@ Card-Jitsu state is fully server-authoritative and persisted in Cloudflare D1 vi
 - **`GET /api/card-jitsu/profile`**: Returns ninja rank, progress, color, intro state, owned cards, and dynamically computed `eligibleOpponents`.
 - **`POST /api/card-jitsu/intro-complete`**: Persists intro completion and grants the starter deck (`[1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89]`).
 - **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Standard Dojo wins award +5 XP and losses +1 XP; Sensei losses below Black Belt award +1 training XP, and a Black-Belt Sensei win awards Ninja Master. The response includes the actual `progressAwarded` receipt and any `awardRank`.
-- **`POST /api/card-jitsu/color`**: Updates penguin body color.
+- **`POST /api/card-jitsu/color`**: Updates penguin body color (catalog IDs `1`–`16`, excluding Sensei gray `14`).
 
 ### 7.3 Experience & Threshold Formula
 Progression uses authentic Club Penguin Houdini mathematics ([`shared/progression.ts`](file:///c:/Users/thy/Projects/minigames/shared/progression.ts)):
