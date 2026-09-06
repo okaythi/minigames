@@ -33,7 +33,7 @@ export interface AchievementUpdate {
 }
 
 /** All game slugs that must be played for Grand Tour. */
-const ALL_GAME_SLUGS = ['avoid-the-spikes', 'pong', 'fl-tron-3'] as const
+const ALL_GAME_SLUGS = ['avoid-the-spikes', 'pong', 'fl-tron-3', 'card-jitsu'] as const
 
 /**
  * Derive platform achievement updates from a player's current stats.

@@ -5,6 +5,7 @@ import { identifyPlayer } from '../stats/identity'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
 import { applyMatchProgression } from '../../../shared/progression'
+import { recordDailyActivity } from '../achievements/d1-achievements'
 import type { CardJitsuMatchPayload, CardJitsuMatchResponse } from '../../../shared/card-jitsu-protocol'
 
 interface PagesContext {
@@ -119,6 +120,9 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       updatedAt: nowIso,
     })
     .where(eq(cjNinja.userId, playerId))
+
+  // Record daily activity so Card-Jitsu matches maintain player login streaks
+  await recordDailyActivity(db, playerId, nowIso.slice(0, 10))
 
   const response: CardJitsuMatchResponse = {
     ...(outcome.awardRank !== undefined ? { awardRank: outcome.awardRank } : {}),

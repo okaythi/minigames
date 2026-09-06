@@ -117,7 +117,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
         hasNickname: user.nickname !== null,
         arcadeRatingPercent,
         gamesPlayedSlugs,
-        allGameSlugs: ['avoid-the-spikes', 'pong', 'fl-tron-3'],
+        allGameSlugs: ['avoid-the-spikes', 'pong', 'fl-tron-3', 'card-jitsu'],
       },
       existing,
     )
