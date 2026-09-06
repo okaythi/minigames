@@ -46,18 +46,18 @@ export const DOJO_STORE_CONFIG = {
   // ==========================================
   pack: {
     /** Current cost in candy to purchase one booster pack */
-    price: 50,
+    price: 60,
     /** Original non-discounted price shown with strikethrough when promo is active */
-    originalPrice: 80,
+    originalPrice: 100,
     /** Whether the promotional discount is currently active */
     isPromoActive: true,
     /** Promotional tagline */
-    promoTagline: 'LIMITED TIME DOJO DEAL',
+    promoTagline: 'LIMITED TIME DEAL',
     /** Name of the pack displayed in store */
-    name: 'Card-Jitsu Booster Pack',
+    name: 'Card-Jitsu Power Pack',
     /** Detailed pack guarantee description */
-    description: 'Guaranteed 9 Combat Cards + 1 Epic Power Card. Every card in the pack is strictly unique.',
-    /** Official Club Penguin booster deck icon */
+    description: 'Guaranteed 9 Normal Cards + 1 Power Card.',
+    /** Deck icon */
     iconUrl: '/games/card-jitsu/assets/card-packs/booster-pack.png',
   },
 
@@ -67,11 +67,11 @@ export const DOJO_STORE_CONFIG = {
   // ==========================================
   firstPurchasePromo: {
     /** Baseline full price for the promo */
-    fullPrice: 80,
+    fullPrice: 100,
     /** Special discounted price for the user's first pack purchase */
-    actualPrice: 20,
+    actualPrice: 30,
     /** Tagline displayed on first purchase hero card */
-    promoTagline: 'FIRST PACK WELCOME DEAL',
+    promoTagline: 'WELCOME DEAL',
   },
 
   // ==========================================
@@ -151,7 +151,7 @@ export const DOJO_STORE_CONFIG = {
       name: 'Black',
       hex: '#333333',
       price: 20,
-      originalPrice: 25,
+      originalPrice: 30,
       isPromoActive: true,
       promoBadge: 'POPULAR',
       iconFile: '4.png',
@@ -181,28 +181,28 @@ export const DOJO_STORE_CONFIG = {
       id: 8,
       name: 'Dark Purple',
       hex: '#660099',
-      price: 20,
+      price: 30,
       iconFile: '8.png',
     },
     {
       id: 9,
       name: 'Brown',
       hex: '#996600',
-      price: 20,
+      price: 30,
       iconFile: '9.png',
     },
     {
       id: 10,
       name: 'Peach',
       hex: '#ff6666',
-      price: 20,
+      price: 40,
       iconFile: '10.png',
     },
     {
       id: 11,
       name: 'Dark Green',
       hex: '#006600',
-      price: 20,
+      price: 40,
       originalPrice: 30,
       isPromoActive: true,
       promoBadge: 'SALE',
@@ -212,15 +212,15 @@ export const DOJO_STORE_CONFIG = {
       id: 12,
       name: 'Light Blue',
       hex: '#0099cc',
-      price: 20,
+      price: 40,
       iconFile: '12.png',
     },
     {
       id: 13,
       name: 'Lime Green',
       hex: '#8ae302',
-      price: 20,
-      originalPrice: 35,
+      price: 50,
+      originalPrice: 60,
       isPromoActive: true,
       promoBadge: 'VOTE WINNER',
       iconFile: '13.png',
@@ -229,8 +229,8 @@ export const DOJO_STORE_CONFIG = {
       id: 15,
       name: 'Aqua',
       hex: '#02a797',
-      price: 20,
-      originalPrice: 30,
+      price: 50,
+      originalPrice: 60,
       isPromoActive: true,
       promoBadge: 'VOTE WINNER',
       iconFile: '15.png',
@@ -239,8 +239,8 @@ export const DOJO_STORE_CONFIG = {
       id: 16,
       name: 'Arctic White',
       hex: '#e2e8f0',
-      price: 25,
-      originalPrice: 40,
+      price: 100,
+      originalPrice: 500,
       isPromoActive: true,
       promoBadge: 'HOLIDAY SPECIAL',
       iconFile: '16.png',
