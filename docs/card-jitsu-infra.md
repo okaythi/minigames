@@ -418,3 +418,79 @@ The table below summarizes the SmartFox wire packets exchanged between Flash and
 | `lz`   | Flash -> TS | `[]` | Player leaves match back to Dojo. |
 | `cjsi` | TS -> Flash | `[]` | Stamp / achievement info response. |
 
+---
+
+## 9. Dojo Store Mechanics, Surplus Replacement & Collection Completion Specification
+
+### 9.1 Formal Specification
+
+The Card-Jitsu store, inventory, and roll mechanics adhere strictly to the following formal specification:
+
+```
+IN card-jitsu:
+IF system THEN (player AND shop AND card_inventory AND (card == normal_card XOR card == power_card))
+
+IF (has_all_normal_cards(player) AND buys_from_shop(player, shop) AND (rolled_card == normal_card) AND (card_inventory_count(player, rolled_card) >= 2)) THEN replace_surplus_in_chest_roll(rolled_card, power_card)
+
+IF (has_all_power_cards(player) AND buys_from_shop(player, shop) AND (rolled_card == power_card) AND (card_inventory_count(player, rolled_card) >= 2)) THEN replace_surplus_in_chest_roll(rolled_card, normal_card)
+
+IFF (card_inventory_size(player) === 509) THEN has_all_cards(player)
+
+IF has_all_cards(player) THEN ((NOT shop_deck_purchase_section_visible(shop, player)) AND api_hard_lock_deck_purchase(api, player))
+
+IFF (NOT has_all_cards(player)) THEN (shop_deck_purchase_section_visible(shop, player) AND (NOT api_hard_lock_deck_purchase(api, player)))
+
+IF specification THEN (documented_in(specification, docs) AND documented_in(specification, code))
+```
+
+### 9.2 Card Classification: 405 Normal XOR 104 Power (509 Total)
+
+All dealable cards in Card-Jitsu are sourced from [`cards.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/cards.json) and verified via [`dealable-ids.json`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/engine/deck/dealable-ids.json).
+
+- **Total Dealable Cards**: Exactly 509 cards.
+- **Normal Cards** (`power_id === 0`): Exactly 405 combat cards spanning elements (Fire, Water, Snow) and values 2–12.
+- **Power Cards** (`power_id !== 0`): Exactly 104 power cards with custom ActionScript clash rules and elemental reversal buffs.
+- **Strict XOR Invariant**: Every card in the system satisfies:
+  $$\forall c \in \text{Cards},\quad (c \in \text{NormalCards}) \oplus (c \in \text{PowerCards})$$
+
+### 9.3 Single Source of Truth & Inventory Invariant (`IF card.amount > 1 THEN error`)
+
+In Card-Jitsu, cards are unique binder collectibles. A player can possess at most 1 copy of any dealable card.
+- If a player possesses more than 1 of any card (`quantity + memberQuantity > 1`), this constitutes an invariant corruption (catastrophic failure).
+- Centralized validator [`validateCardInventory`](file:///c:/Users/thy/Projects/minigames/shared/card-jitsu-inventory.ts) serves as the authoritative single source of truth and is enforced across:
+  1. [`functions/api/card-jitsu/profile.ts`](file:///c:/Users/thy/Projects/minigames/functions/api/card-jitsu/profile.ts)
+  2. [`functions/api/card-jitsu/shop/index.ts`](file:///c:/Users/thy/Projects/minigames/functions/api/card-jitsu/shop/index.ts)
+  3. [`functions/api/card-jitsu/shop/buy-pack.ts`](file:///c:/Users/thy/Projects/minigames/functions/api/card-jitsu/shop/buy-pack.ts)
+
+### 9.4 Pre-Sampling Pool Partitioning & Surplus Replacement
+
+Rather than drawing blindly from the global pool and attempting post-hoc duplicate replacement, [`buy-pack.ts`](file:///c:/Users/thy/Projects/minigames/functions/api/card-jitsu/shop/buy-pack.ts) checks the player's inventory **before sampling**:
+
+1. **Candidate Pool Partitioning**:
+   - `unownedNormals = NORMAL_POOL.filter(c => !ownedSet.has(c.id))`
+   - `unownedPowers = POWER_POOL.filter(c => !ownedSet.has(c.id))`
+2. **Surplus Replacement Mapping**:
+   - Standard pack targets up to 9 normal cards and 1 power card.
+   - **`has_all_normal_cards(player)`** (`unownedNormals.length === 0`):
+     Because all normal cards are owned, drawing any normal card would produce `card_inventory_count >= 2`. Therefore, normal card slots are replaced with power cards (`replace_surplus_in_chest_roll(rolled_card, power_card)`), targeting up to 10 power cards.
+   - **`has_all_power_cards(player)`** (`unownedPowers.length === 0`):
+     Because all power cards are owned, drawing any power card would produce `card_inventory_count >= 2`. Therefore, power card slots are replaced with normal cards (`replace_surplus_in_chest_roll(rolled_card, normal_card)`), targeting up to 10 normal cards.
+   - **Normal Deficit Conversion**:
+     If fewer than 9 unowned normal cards remain, all remaining unowned normal cards are granted and the deficit converts to power card slots.
+3. **Weighted Sampling & Zero Duplicates**:
+   - Cards are sampled without replacement from candidate pools using Efraimidis-Spirakis weighted sampling with rarity weights from [`DOJO_STORE_CONFIG.cardRarity`](file:///c:/Users/thy/Projects/minigames/shared/card-jitsu-store-config.ts).
+4. **End-Game Sub-10 Delivery**:
+   - If the total remaining unowned cards in the entire game is $< 10$ (e.g. 505 owned $\implies$ 4 cards left), the pack delivers however many cards remain, perfectly completing the collection.
+
+### 9.5 Collection Completion Hard Lock & Section Visibility
+
+- **Completion Invariant**:
+  $$\text{card\_inventory\_size}(\text{player}) = 509 \iff \text{has\_all\_cards}(\text{player})$$
+- **Shop Section Visibility**:
+  $$\text{NOT has\_all\_cards}(\text{player}) \iff \text{shop\_deck\_purchase\_section\_visible}(\text{shop}, \text{player})$$
+  When a player owns all 509 cards, the booster pack panel (`<PackStorePanel>`) is completely omitted from the DOM in [`dojo-store.tsx`](file:///c:/Users/thy/Projects/minigames/src/games/card-jitsu/components/shop/dojo-store.tsx).
+- **API Hard Lock**:
+  $$\text{has\_all\_cards}(\text{player}) \implies \text{api\_hard\_lock\_deck\_purchase}(\text{api}, \text{player})$$
+  Any invocation of `POST /api/card-jitsu/shop/buy-pack` when `hasAllCards` is true immediately returns HTTP 400 (`{ ok: false, error: 'deck-purchase-locked' }`).
+
+

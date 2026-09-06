@@ -1,10 +1,15 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { eq, inArray, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { users, players, cjCard, cjNinja } from '../../../../src/db/schema'
 import { identifyPlayer } from '../../stats/identity'
 import { storeFor, type StatsEnv } from '../../stats/store-for'
 import { jsonResponse } from '../../stats/respond'
-import { DOJO_STORE_CONFIG, calculateCardWeight } from '../../../../shared/card-jitsu-store-config'
+import {
+  DOJO_STORE_CONFIG,
+  calculateCardWeight,
+  validateCardInventory,
+  hasAllCards,
+} from '../../../../shared/card-jitsu-store-config'
 import rawCards from '../../../../src/games/card-jitsu/engine/deck/cards.json'
 import dealableIds from '../../../../src/games/card-jitsu/engine/deck/dealable-ids.json'
 import type { BuyPackResponse, DrawnCard } from '../../../../shared/card-jitsu-shop-protocol'
@@ -84,34 +89,76 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     return jsonResponse(400, { ok: false, error: 'insufficient-candy' })
   }
 
-  // 1. Draw exactly 9 normal cards and 1 power card with zero repeats
-  const drawnNormals = sampleWeightedWithoutReplacement(
-    NORMAL_POOL,
-    DOJO_STORE_CONFIG.packRules.normalCardsCount,
-  )
-  const drawnPowers = sampleWeightedWithoutReplacement(
-    POWER_POOL,
-    DOJO_STORE_CONFIG.packRules.powerCardsCount,
-  )
+  // 1. Fetch & Validate card inventory (Single Source of Truth)
+  const userCardRows = await db.select().from(cjCard).where(eq(cjCard.userId, playerId)).all()
+  try {
+    validateCardInventory(userCardRows)
+  } catch (err) {
+    console.error('[BuyPack] Catastrophic inventory invariant violation:', err)
+    return jsonResponse(500, { ok: false, error: 'inventory-invariant-violation' })
+  }
+
+  const inventorySize = userCardRows.length
+
+  // Hard Lock Check:
+  // IFF (card_inventory_size(player) === 509) THEN has_all_cards(player)
+  // IF has_all_cards(player) THEN api_hard_lock_deck_purchase(api, player)
+  if (hasAllCards(inventorySize)) {
+    return jsonResponse(400, { ok: false, error: 'deck-purchase-locked' })
+  }
+
+  // 2. Pre-Sampling Pool Partitioning & Surplus Replacement
+  const ownedSet = new Set<number>(userCardRows.map((r) => r.cardId))
+  const unownedNormals = NORMAL_POOL.filter((c) => !ownedSet.has(c.id))
+  const unownedPowers = POWER_POOL.filter((c) => !ownedSet.has(c.id))
+
+  const hasAllNormalCards = unownedNormals.length === 0
+  const hasAllPowerCards = unownedPowers.length === 0
+
+  let targetNormals: number = DOJO_STORE_CONFIG.packRules.normalCardsCount
+  let targetPowers: number = DOJO_STORE_CONFIG.packRules.powerCardsCount
+
+  if (hasAllNormalCards) {
+    // IF has_all_normal_cards THEN replace_surplus_in_chest_roll(rolled_card, power_card)
+    targetPowers = Math.min(DOJO_STORE_CONFIG.packRules.totalCards, unownedPowers.length)
+    targetNormals = 0
+  } else if (hasAllPowerCards) {
+    // IF has_all_power_cards THEN replace_surplus_in_chest_roll(rolled_card, normal_card)
+    targetNormals = Math.min(DOJO_STORE_CONFIG.packRules.totalCards, unownedNormals.length)
+    targetPowers = 0
+  } else {
+    // Standard draw with overflow handling for low remaining unowned normal cards
+    const actualNormals = Math.min(targetNormals, unownedNormals.length)
+    const normalDeficit = targetNormals - actualNormals
+    targetNormals = actualNormals
+    targetPowers = Math.min(targetPowers + normalDeficit, unownedPowers.length)
+  }
+
+  const drawnNormals = sampleWeightedWithoutReplacement(unownedNormals, targetNormals)
+  const drawnPowers = sampleWeightedWithoutReplacement(unownedPowers, targetPowers)
 
   const selectedCards = [...drawnNormals, ...drawnPowers]
 
+  if (selectedCards.length === 0) {
+    return jsonResponse(400, { ok: false, error: 'no-cards-available' })
+  }
+
   // Invariant verification: strict no duplicates
   const distinctIds = new Set(selectedCards.map((c) => c.id))
-  if (distinctIds.size !== DOJO_STORE_CONFIG.packRules.totalCards) {
+  if (distinctIds.size !== selectedCards.length) {
     console.error('[BuyPack] Duplicate card invariant violated in pull:', selectedCards.map((c) => c.id))
     return jsonResponse(500, { ok: false, error: 'draw-invariant-error' })
   }
 
   const newCandy = currentCandy - packPrice
 
-  // 2. Deduct candy atomically
+  // 3. Deduct candy atomically
   await db
     .update(players)
     .set({ candy: newCandy })
     .where(eq(players.id, playerId))
 
-  // 2b. Increment packs_purchased in cj_ninja
+  // 3b. Increment packs_purchased in cj_ninja
   if (ninja) {
     await db
       .update(cjNinja)
@@ -119,48 +166,25 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       .where(eq(cjNinja.userId, playerId))
   }
 
-  // 3. Upsert cards into cj_card
+  // 4. Insert cards into cj_card with strict quantity = 1 (no duplicates)
   for (const card of selectedCards) {
-    const existing = await db
-      .select()
-      .from(cjCard)
-      .where(and(eq(cjCard.userId, playerId), eq(cjCard.cardId, card.id)))
-      .get()
-
-    if (existing) {
-      await db
-        .update(cjCard)
-        .set({ quantity: existing.quantity + 1 })
-        .where(and(eq(cjCard.userId, playerId), eq(cjCard.cardId, card.id)))
-    } else {
-      await db.insert(cjCard).values({
-        userId: playerId,
-        cardId: card.id,
-        quantity: 1,
-        memberQuantity: 0,
-      }).onConflictDoNothing()
-    }
+    await db.insert(cjCard).values({
+      userId: playerId,
+      cardId: card.id,
+      quantity: 1,
+      memberQuantity: 0,
+    })
   }
 
-  // 4. Fetch updated quantities for the drawn cards
-  const updatedRows = await db
-    .select({ cardId: cjCard.cardId, quantity: cjCard.quantity })
-    .from(cjCard)
-    .where(
-      and(
-        eq(cjCard.userId, playerId),
-        inArray(
-          cjCard.cardId,
-          selectedCards.map((c) => c.id),
-        ),
-      ),
-    )
-    .all()
-
-  const quantityMap = new Map(updatedRows.map((r) => [r.cardId, r.quantity]))
+  // 5. Post-validation: assert single source of truth holds
+  const postCardRows = await db.select().from(cjCard).where(eq(cjCard.userId, playerId)).all()
+  try {
+    validateCardInventory(postCardRows)
+  } catch (err) {
+    console.error('[BuyPack] Post-insert inventory invariant violation:', err)
+  }
 
   const drawnCardResults: DrawnCard[] = selectedCards.map((c) => {
-    const totalOwned = quantityMap.get(c.id) ?? 1
     return {
       id: c.id,
       name: c.name,
@@ -169,8 +193,9 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
       value: c.value,
       powerId: c.power_id,
       description: c.description ?? '',
-      totalOwned,
-      isNew: totalOwned <= 1,
+      totalOwned: 1,
+      isNew: true,
+      wasSurplusReplaced: (hasAllNormalCards && c.power_id !== 0) || (hasAllPowerCards && c.power_id === 0),
     }
   })
 

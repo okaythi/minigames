@@ -130,10 +130,37 @@ export function ChestOpeningView({
   useEffect(() => {
     if (phase !== 'revealing') return
 
+    const total = cards.length
+    if (total === 0) {
+      setPhase('complete')
+      return
+    }
+
+    const initialFlipsCount = Math.max(0, total - 1)
     let current = 0
+
+    if (initialFlipsCount === 0) {
+      setTimeout(() => {
+        setFlippedCount(1)
+        const hasAnyPower = cards.some((c) => c.powerId > 0)
+        if (hasAnyPower) {
+          setPowerRevealed(true)
+          if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
+            playPowerReveal()
+          }
+        } else if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
+          playCardFlip()
+        }
+        setTimeout(() => {
+          setPhase('complete')
+        }, 800)
+      }, DOJO_STORE_CONFIG.animation.powerCardSuspenseMs)
+      return
+    }
+
     const flipInterval = setInterval(() => {
       current++
-      if (current <= 9) {
+      if (current <= initialFlipsCount) {
         setFlippedCount(current)
         if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
           playCardFlip()
@@ -141,12 +168,17 @@ export function ChestOpeningView({
       } else {
         clearInterval(flipInterval)
 
-        // Dramatic suspense before the 10th card (the Power Card)
+        // Dramatic suspense before revealing the final card
         setTimeout(() => {
-          setFlippedCount(10)
-          setPowerRevealed(true)
-          if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
-            playPowerReveal()
+          setFlippedCount(total)
+          const hasAnyPower = cards.some((c) => c.powerId > 0)
+          if (hasAnyPower) {
+            setPowerRevealed(true)
+            if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
+              playPowerReveal()
+            }
+          } else if (DOJO_STORE_CONFIG.animation.enableWebAudio) {
+            playCardFlip()
           }
 
           // Complete sequence
@@ -158,7 +190,7 @@ export function ChestOpeningView({
     }, DOJO_STORE_CONFIG.animation.normalCardFlipIntervalMs)
 
     return () => clearInterval(flipInterval)
-  }, [phase])
+  }, [phase, cards])
 
   return (
     <div className={`dojo-chest-stage ${phase}`} data-protected-image="true">
@@ -223,7 +255,7 @@ export function ChestOpeningView({
           <div className="dojo-cards-grid-5x2">
             {cards.map((c, index) => {
               const isFlipped = index < flippedCount
-              const isPower = index === 9
+              const isPower = c.powerId > 0
               return (
                 <div
                   key={c.id}

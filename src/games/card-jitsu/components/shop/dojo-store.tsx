@@ -12,7 +12,11 @@ import type {
   ShopPackInfo,
 } from '../../../../../shared/card-jitsu-shop-protocol'
 import type { OwnedCard } from '../../../../../shared/card-jitsu-protocol'
-import { DOJO_STORE_CONFIG } from '../../store.config'
+import {
+  DOJO_STORE_CONFIG,
+  hasAllCards as checkHasAllCards,
+  isShopDeckPurchaseSectionVisible,
+} from '../../store.config'
 import { PackStorePanel } from './pack-store-panel'
 import { ChestOpeningView } from './chest-opening-view'
 import { ColorSelectPanel } from './color-select-panel'
@@ -44,6 +48,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
   })
   const [ownedCards, setOwnedCards] = useState<readonly OwnedCard[]>([])
   const [activeDrawnCards, setActiveDrawnCards] = useState<readonly DrawnCard[] | null>(null)
+  const [serverHasAllCards, setServerHasAllCards] = useState<boolean>(false)
 
   // Fetch shop state and card collection
   const fetchShopData = useCallback(async () => {
@@ -61,6 +66,9 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
         setEquippedColorId(data.equippedColorId)
         setColors(data.colors)
         setPackInfo(data.pack)
+        if (typeof data.hasAllCards === 'boolean') {
+          setServerHasAllCards(data.hasAllCards)
+        }
       }
 
       if (profile && profile.cards) {
@@ -179,7 +187,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
       }
 
       const data = (await res.json()) as BuyPackResponse
-      if (data.ok && data.cards && data.cards.length === 10) {
+      if (data.ok && data.cards && data.cards.length > 0) {
         if (data.candy !== undefined) {
           setUserCandy(data.candy)
           broadcastCandyUpdate(data.candy)
@@ -203,6 +211,9 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
     }
   }
 
+  const hasAllCards = serverHasAllCards || checkHasAllCards(ownedCards.length)
+  const isDeckPurchaseVisible = isShopDeckPurchaseSectionVisible(hasAllCards ? 509 : ownedCards.length)
+
   if (loading && colors.length === 0) {
     return (
       <div className="dojo-store-loading" data-protected-image="true">
@@ -222,7 +233,6 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
 
   return (
     <section className="dojo-store-root" aria-label="Dojo Store" data-protected-image="true">
-      {/* Header bar with Candy Balance */}
       {/* Header bar with Candy Balance */}
       <div className="dojo-store-header-bar">
         <div className="dojo-store-branding">
@@ -252,7 +262,7 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
               cards={activeDrawnCards}
               onFinish={() => setActiveDrawnCards(null)}
               onOpenAnother={() => void handleBuyPack()}
-              canOpenAnother={userCandy >= packInfo.price}
+              canOpenAnother={userCandy >= packInfo.price && !hasAllCards}
             />
           ) : (
             <OwnedCardsBrowser ownedCards={ownedCards} />
@@ -261,12 +271,14 @@ export function DojoStore({ runtime, onColorEquipped }: DojoStoreProps) {
 
         {/* Right: Booster Pack Store (Top) & Colour Select (Bottom) */}
         <div className="dojo-store-col-right">
-          <PackStorePanel
-            packInfo={packInfo}
-            userCandy={userCandy}
-            isOpening={Boolean(activeDrawnCards)}
-            onBuyPack={handleBuyPack}
-          />
+          {isDeckPurchaseVisible && (
+            <PackStorePanel
+              packInfo={packInfo}
+              userCandy={userCandy}
+              isOpening={Boolean(activeDrawnCards)}
+              onBuyPack={handleBuyPack}
+            />
+          )}
           <ColorSelectPanel
             colors={colors}
             equippedColorId={equippedColorId}

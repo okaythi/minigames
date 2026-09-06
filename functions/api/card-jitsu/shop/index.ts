@@ -1,10 +1,15 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq } from 'drizzle-orm'
-import { users, players, cjNinja, cjNinjaColors } from '../../../../src/db/schema'
+import { users, players, cjNinja, cjNinjaColors, cjCard } from '../../../../src/db/schema'
 import { identifyPlayer } from '../../stats/identity'
 import { storeFor, type StatsEnv } from '../../stats/store-for'
 import { jsonResponse } from '../../stats/respond'
-import { DOJO_STORE_CONFIG } from '../../../../shared/card-jitsu-store-config'
+import {
+  DOJO_STORE_CONFIG,
+  validateCardInventory,
+  hasAllCards,
+  isDeckPurchaseLocked,
+} from '../../../../shared/card-jitsu-store-config'
 import type { CardJitsuShopStateResponse, ShopColorItem } from '../../../../shared/card-jitsu-shop-protocol'
 
 interface PagesContext {
@@ -39,6 +44,18 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
 
   // Color 1 is always unlocked by default
   const ownedColorSet = new Set<number>([1, ...ownedColorRows.map((r) => r.colorId)])
+
+  // Fetch and validate card inventory (Single Source of Truth)
+  const cardRows = await db.select().from(cjCard).where(eq(cjCard.userId, playerId)).all()
+  try {
+    validateCardInventory(cardRows)
+  } catch (err) {
+    console.error('[Card-Jitsu Shop] Catastrophic inventory invariant violation:', err)
+    return jsonResponse(500, { ok: false, error: 'inventory-invariant-violation' })
+  }
+  const cardInventorySize = cardRows.length
+  const playerHasAllCards = hasAllCards(cardInventorySize)
+  const isLocked = isDeckPurchaseLocked(cardInventorySize)
 
   const packsPurchased = (ninja as { packsPurchased?: number } | undefined)?.packsPurchased ?? 0
   const isFirstPurchase = packsPurchased === 0
@@ -90,6 +107,9 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     equippedColorId,
     ownedColorIds: Array.from(ownedColorSet),
     colors,
+    hasAllCards: playerHasAllCards,
+    isDeckPurchaseLocked: isLocked,
+    cardInventorySize,
     pack: {
       price: packPrice,
       ...(packOriginalPrice !== undefined ? { originalPrice: packOriginalPrice } : {}),

@@ -6,6 +6,7 @@ import { storeFor, type StatsEnv } from '../stats/store-for'
 import { jsonResponse } from '../stats/respond'
 import rawRoster from '../../../src/games/card-jitsu/engine/opponents/roster.json'
 import { BELT_TO_RANK, type NinjaBelt } from '../../../shared/progression'
+import { validateCardInventory } from '../../../shared/card-jitsu-store-config'
 import type { OwnedCard, CardJitsuProfileResponse } from '../../../shared/card-jitsu-protocol'
 
 interface PagesContext {
@@ -57,6 +58,12 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
 
   // Fetch owned cards
   const cardRows = await db.select().from(cjCard).where(eq(cjCard.userId, playerId)).all()
+  try {
+    validateCardInventory(cardRows)
+  } catch (err) {
+    console.error('[Card-Jitsu Profile] Catastrophic inventory invariant violation:', err)
+    return jsonResponse(500, { ok: false, error: 'inventory-invariant-violation' })
+  }
   const cards: OwnedCard[] = cardRows.map((r) => ({
     cardId: r.cardId,
     quantity: r.quantity,

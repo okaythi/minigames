@@ -32,6 +32,9 @@ export interface CardJitsuShopStateResponse {
   readonly ownedColorIds: readonly number[]
   readonly colors: readonly ShopColorItem[]
   readonly pack: ShopPackInfo
+  readonly hasAllCards?: boolean
+  readonly isDeckPurchaseLocked?: boolean
+  readonly cardInventorySize?: number
 }
 
 export interface BuyColorPayload {
@@ -65,6 +68,7 @@ export interface DrawnCard {
   readonly description: string
   readonly totalOwned: number
   readonly isNew: boolean
+  readonly wasSurplusReplaced?: boolean
 }
 
 export interface BuyPackResponse {
