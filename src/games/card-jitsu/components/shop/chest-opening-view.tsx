@@ -216,7 +216,7 @@ export function ChestOpeningView({
               {phase === 'complete' ? 'Pack Opened!' : 'Revealing Cards...'}
             </h3>
             {powerRevealed && (
-              <span className="dojo-power-alert">GUARANTEED POWER CARD UNLOCKED!</span>
+              <span className="dojo-power-alert">NEW POWER CARD UNLOCKED!</span>
             )}
           </div>
 
