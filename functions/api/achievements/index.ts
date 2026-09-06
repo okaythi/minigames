@@ -53,6 +53,11 @@ const VALID_ACHIEVEMENT_IDS = new Set<string>([
   'tron_dominant_round', 'tron_clean_sweep', 'tron_immortal_cycle',
   'tron_hairpin_double', 'tron_razor_corridor',
   'tron_five_second_blitz', 'tron_three_second_flash', 'tron_master_speedrunner',
+  'cj_belt_white', 'cj_belt_black', 'cj_ninja_master',
+  'cj_triad_fire', 'cj_triad_water', 'cj_triad_snow', 'cj_triad_harmony',
+  'cj_flawless_victory', 'cj_dojo_endurance', 'cj_power_surge', 'cj_rapid_strike',
+  'cj_binder_novice', 'cj_binder_deckbuilder', 'cj_binder_archivist', 'cj_binder_complete',
+  'cj_plays_apprentice', 'cj_plays_champion', 'cj_plays_legend', 'cj_pack_cracker',
 ])
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {

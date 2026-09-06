@@ -116,9 +116,29 @@ export type AchievementId =
   | 'tron_five_second_blitz'
   | 'tron_three_second_flash'
   | 'tron_master_speedrunner'
+  // Card-Jitsu
+  | 'cj_belt_white'
+  | 'cj_belt_black'
+  | 'cj_ninja_master'
+  | 'cj_triad_fire'
+  | 'cj_triad_water'
+  | 'cj_triad_snow'
+  | 'cj_triad_harmony'
+  | 'cj_flawless_victory'
+  | 'cj_dojo_endurance'
+  | 'cj_power_surge'
+  | 'cj_rapid_strike'
+  | 'cj_binder_novice'
+  | 'cj_binder_deckbuilder'
+  | 'cj_binder_archivist'
+  | 'cj_binder_complete'
+  | 'cj_plays_apprentice'
+  | 'cj_plays_champion'
+  | 'cj_plays_legend'
+  | 'cj_pack_cracker'
 
 /** Pillar grouping for display purposes. */
-export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3'
+export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu'
 
 /** Static definition of an achievement — never changes at runtime. */
 export interface AchievementDef {

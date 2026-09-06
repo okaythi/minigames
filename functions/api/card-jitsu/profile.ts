@@ -119,6 +119,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     eligibleOpponents,
     ownedColors,
     candy,
+    packsPurchased: ninja.packsPurchased ?? 0,
   }
 
   return jsonResponse(200, { ok: true, profile })

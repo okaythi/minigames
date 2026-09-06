@@ -7,6 +7,8 @@ import { emptyGameSnapshot, type GameSnapshot } from '../template/snapshot'
 import { CardJitsuSession } from './engine/gateway/session'
 import { getRankBelt } from '../../../shared/progression'
 import { DefaultCardStore } from './engine/deck/cards'
+import { CardJitsuAchievementTracker } from './achievement-tracker'
+import { getAchievementBus } from '../../lib/achievement-bus'
 import type {
   CardJitsuPhase,
   CardStore,
@@ -53,6 +55,7 @@ export interface CardJitsuRuntimeExtended extends GameRuntime {
   readonly exitToMenu: () => void
   readonly refreshProfile: () => Promise<CardJitsuProfileResponse | null>
   readonly getIntroSeen: () => boolean
+  readonly achievementTracker: CardJitsuAchievementTracker
 }
 
 
@@ -115,6 +118,8 @@ export const createCardJitsuRuntime = (
   const playerColor =
     candidateColor === 14 ? 1 : candidateColor >= 1 && candidateColor <= 16 ? candidateColor : 1
 
+  const achievementTracker = new CardJitsuAchievementTracker(getAchievementBus())
+
   const session = new CardJitsuSession({
     playerBelt,
     mode: options?.mode ?? 'sensei',
@@ -123,6 +128,15 @@ export const createCardJitsuRuntime = (
     cardStore: options?.cardStore ?? new DefaultCardStore(),
     ...(options?.opponentPolicy ? { opponentPolicy: options.opponentPolicy } : {}),
     ...(options?.opponentTemperature !== undefined ? { opponentTemperature: options.opponentTemperature } : {}),
+    onClashDone: (clash) => {
+      if (
+        clash.winner === 'player' &&
+        ((clash.playerCard.powerId !== undefined && clash.playerCard.powerId > 0) ||
+          (clash.powerTriggered !== undefined && clash.powerTriggered > 0))
+      ) {
+        achievementTracker.onPowerClashWon()
+      }
+    },
     onStateChange: (stats, phase) => {
       _currentStats = stats
       _currentPhase = phase
@@ -216,6 +230,13 @@ export const createCardJitsuRuntime = (
 
       deps.current.finishRun(totalWins, { won: result.winner === 'player' })
 
+      achievementTracker.onMatchCompleted(
+        result,
+        currentRank,
+        totalWins,
+        session.getOwnedCards().length,
+      )
+
       let productDecision: MatchEndDecision = {}
       if (options?.onMatchEnd) {
         try {
@@ -272,6 +293,12 @@ export const createCardJitsuRuntime = (
           score: totalWins,
           best: Math.max(prev.best ?? 0, totalWins),
         }))
+        achievementTracker.onProfileLoaded(
+          profile.rank,
+          profile.matchesWon,
+          profile.cards.length,
+          profile.packsPurchased,
+        )
       }
       return profile
     } finally {
@@ -343,6 +370,7 @@ export const createCardJitsuRuntime = (
     },
     refreshProfile,
     getIntroSeen: () => session.getIntroSeen(),
+    achievementTracker,
   }
 
 

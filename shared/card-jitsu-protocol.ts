@@ -16,6 +16,7 @@ export interface CardJitsuProfileResponse {
   readonly eligibleOpponents: readonly string[]
   readonly ownedColors?: readonly number[]
   readonly candy?: number
+  readonly packsPurchased?: number
 }
 
 export interface CardJitsuMatchPayload extends MatchEndResult {

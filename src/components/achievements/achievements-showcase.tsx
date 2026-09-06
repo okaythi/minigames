@@ -9,7 +9,7 @@ interface AchievementsShowcaseProps {
   readonly title?: string
 }
 
-type PillarFilter = 'all' | 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3'
+type PillarFilter = 'all' | 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu'
 type StatusFilter = 'all' | 'unlocked' | 'locked'
 
 interface EnrichedBadge extends Badge {
@@ -116,7 +116,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'all' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('all')}
           >
-            All (80)
+            All ({allEnrichedBadges.length})
           </button>
           <button
             type="button"
@@ -149,6 +149,14 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             onClick={() => setSelectedPillar('fl-tron-3')}
           >
             🏍️ FL Tron 3.0
+          </button>
+          <button
+            type="button"
+            className="nx-achievements-tab"
+            data-active={selectedPillar === 'card-jitsu' ? 'true' : 'false'}
+            onClick={() => setSelectedPillar('card-jitsu')}
+          >
+            🥋 Card-Jitsu
           </button>
         </div>
 
