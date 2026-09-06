@@ -148,8 +148,8 @@ export interface ProgressionOutputState {
 
 /**
  * Authoritative progression calculation:
- * - 'sensei' mode: Sensei wins grant the normal +1 training XP while the
- *   challenger is below Black Belt. Defeating Sensei at rank 9 awards rank 10.
+ * - 'sensei' mode: Sensei does not give XP. The only thing Sensei awards is
+ *   Ninja Master (Rank 10) if and only if the player is already Black Belt (Rank 9) and wins.
  * - 'belts' mode:
  *   - Win: +5 exp, matchesWon + 1
  *   - Loss: +1 exp
@@ -168,19 +168,12 @@ export function applyMatchProgression(
   const playerWon = match.winner === 'player'
 
   if (match.mode === 'sensei') {
-    // Houdini's Sensei handler awards normal loss progress to a challenger.
-    // Below Black Belt Sensei's counter-deal is unbeatable, so a player win is
-    // not a valid normal outcome. At Black Belt, a win earns Ninja Master.
+    // Sensei does not give XP.
+    // The only award from Sensei is Ninja Master (Rank 10) IFF the user is already Black Belt (Rank 9) and wins.
     if (rank === 9 && playerWon) {
       rank = 10
       awardRank = 10
       matchesWon += 1
-    } else if (!playerWon && rank < 9) {
-      progress += 1
-      while (rank < 9 && progress >= getThresholdForRank(rank + 1)) {
-        rank++
-        awardRank = rank
-      }
     }
 
     return {

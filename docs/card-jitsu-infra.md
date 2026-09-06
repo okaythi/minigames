@@ -366,7 +366,7 @@ Card-Jitsu state is fully server-authoritative and persisted in Cloudflare D1 vi
 ### 7.2 API Endpoints
 - **`GET /api/card-jitsu/profile`**: Returns ninja rank, progress, color, intro state, owned cards, and dynamically computed `eligibleOpponents`.
 - **`POST /api/card-jitsu/intro-complete`**: Persists intro completion and grants the starter deck (`[1, 6, 9, 14, 17, 20, 22, 23, 26, 73, 81, 89]`).
-- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Standard Dojo wins award +5 XP and losses +1 XP; Sensei losses below Black Belt award +1 training XP, and a Black-Belt Sensei win awards Ninja Master. The response includes the actual `progressAwarded` receipt and any `awardRank`.
+- **`POST /api/card-jitsu/match`**: Idempotent match progression execution (`applyMatchProgression`). Standard Dojo wins award +5 XP and losses +1 XP; Sensei matches award zero XP, and defeating Sensei at Black Belt (Rank 9) awards Ninja Master (Rank 10). The response includes the actual `progressAwarded` receipt and any `awardRank`.
 - **`POST /api/card-jitsu/color`**: Updates penguin body color (catalog IDs `1`–`16`, excluding Sensei gray `14`).
 
 ### 7.3 Experience & Threshold Formula

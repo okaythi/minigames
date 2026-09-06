@@ -112,19 +112,25 @@ describe('Card-Jitsu Progression Engine — Houdini & Disney Parity', () => {
       expect(res.awardRank).toBe(10)
     })
 
-    it('awards +1 training XP for Sensei losses below Black Belt', () => {
-      // Houdini's Sensei handler calls ninja_progress(p, False) when Sensei
-      // wins, so a training loss is still rewarded.
+    it('gives zero XP for Sensei losses at any belt rank', () => {
       const lossAtRank1 = applyMatchProgression(
         { rank: 1, progress: 8, matchesWon: 2 },
         { winner: 'opponent', mode: 'sensei' },
       )
-      expect(lossAtRank1.progress).toBe(9)
+      expect(lossAtRank1.progress).toBe(8)
       expect(lossAtRank1.rank).toBe(1)
       expect(lossAtRank1.awardRank).toBeUndefined()
 
-      // A below-Black-Belt win cannot occur in normal Sensei play, and does
-      // not create a rank shortcut if submitted by a client.
+      const lossAtRank0 = applyMatchProgression(
+        { rank: 0, progress: 4, matchesWon: 0 },
+        { winner: 'opponent', mode: 'sensei' },
+      )
+      expect(lossAtRank0.progress).toBe(4)
+      expect(lossAtRank0.rank).toBe(0)
+      expect(lossAtRank0.awardRank).toBeUndefined()
+    })
+
+    it('does not award Ninja Master if beating Sensei below Black Belt', () => {
       const winAtRank3 = applyMatchProgression(
         { rank: 3, progress: 32, matchesWon: 8 },
         { winner: 'player', mode: 'sensei' },
@@ -132,15 +138,6 @@ describe('Card-Jitsu Progression Engine — Houdini & Disney Parity', () => {
       expect(winAtRank3.progress).toBe(32)
       expect(winAtRank3.rank).toBe(3)
       expect(winAtRank3.awardRank).toBeUndefined()
-
-      // Loss progress can award the first belt as well.
-      const lossAtRank0 = applyMatchProgression(
-        { rank: 0, progress: 4, matchesWon: 0 },
-        { winner: 'opponent', mode: 'sensei' },
-      )
-      expect(lossAtRank0.progress).toBe(5)
-      expect(lossAtRank0.rank).toBe(1)
-      expect(lossAtRank0.awardRank).toBe(1)
     })
   })
 
