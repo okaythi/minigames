@@ -63,7 +63,7 @@ export function InstructionsModal({ onClose }: InstructionsModalProps) {
         </div>
 
         <button type="button" className="nx-scroll-close-btn" onClick={onClose}>
-          Understood, Sensei
+          Understood!
         </button>
       </div>
     </div>
