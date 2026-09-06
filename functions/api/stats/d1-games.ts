@@ -47,6 +47,10 @@ export async function bumpGames(
       .run()
     return
   }
+  if (game === 'card-jitsu') {
+    // Card-Jitsu has no world record or highscore
+    return
+  }
   if (game === 'fl-tron-3' && event.score <= 1000) {
     // Only full runs (> 1000 clear time score) set the FL Tron world record
     return

@@ -402,7 +402,7 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                               <p className="nx-game-card-tagline">{manifest.tagline}</p>
                             </div>
 
-                            {isRecord && (
+                            {!isCardJitsu && isRecord && (
                               <div className="nx-record-holder-badge">
                                 <span>🏆</span>
                                 <span>WORLD RECORD</span>

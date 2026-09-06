@@ -68,18 +68,18 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
 
     let ninjaData: UserGameStat['ninja'] = undefined
     if (slug === 'card-jitsu') {
+      userBest = null
+      globalBest = null
       if (ninjaRow) {
         ninjaData = {
           rank: ninjaRow.rank,
           colorId: ninjaRow.colorId,
           cardsCount: userCards.length,
+          progress: ninjaRow.progress,
         }
         if (plays === 0 && ninjaRow.matchesWon > 0) {
           plays = ninjaRow.matchesWon
           totalPlays += plays
-        }
-        if (userBest === null && ninjaRow.matchesWon > 0) {
-          userBest = ninjaRow.matchesWon
         }
       }
     }
@@ -90,14 +90,36 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
     }
 
     let isRecordHolder = false
-    if (userBest !== null && userBest > 0 && globalBest !== null && userBest >= globalBest) {
+    if (slug !== 'card-jitsu' && userBest !== null && userBest > 0 && globalBest !== null && userBest >= globalBest) {
       isRecordHolder = true
       recordsHeld += 1
       recordsList.push(title)
     }
 
     let percentile = 'Top 50%'
-    if (isRecordHolder) {
+    if (slug === 'card-jitsu') {
+      const totalXp = ninjaRow?.progress ?? 0
+      const rank = ninjaRow?.rank ?? 0
+      if (totalXp >= 225 || rank >= 9) {
+        percentile = 'Top 1%'
+      } else if (totalXp >= 180) {
+        percentile = 'Top 5%'
+      } else if (totalXp >= 140) {
+        percentile = 'Top 10%'
+      } else if (totalXp >= 105) {
+        percentile = 'Top 15%'
+      } else if (totalXp >= 75) {
+        percentile = 'Top 20%'
+      } else if (totalXp >= 50) {
+        percentile = 'Top 30%'
+      } else if (totalXp >= 30) {
+        percentile = 'Top 40%'
+      } else if (totalXp >= 5 || plays > 0) {
+        percentile = 'Top 50%'
+      } else {
+        percentile = 'Top 75%'
+      }
+    } else if (isRecordHolder) {
       percentile = 'Top 1%'
     } else if (userBest !== null && globalBest !== null && globalBest > 0) {
       const ratio = userBest / globalBest

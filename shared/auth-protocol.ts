@@ -59,6 +59,7 @@ export interface UserGameStat {
     rank: number
     colorId: number
     cardsCount: number
+    progress?: number
   } | undefined
 }
 

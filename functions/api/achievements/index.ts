@@ -90,6 +90,7 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     let arcadeRatingPercent = 100
     let recordsHeld = 0
     for (const pg of playerGameRows) {
+      if (pg.slug === 'card-jitsu') continue
       const gs = globalStatsMap.get(pg.slug)
       let userBest = pg.highscore
       let globalBest = gs?.highscore ?? null
