@@ -11,6 +11,8 @@ import { BadgeTooltip } from '../components/ui/badge-tooltip'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
 import { openChat, sendFriendAction, getMyFriends } from '../services/social-api'
+import { PenguinShowcaseAvatar } from '../games/card-jitsu/components/penguin-showcase-avatar'
+import { BELT_PROGRESSION } from '../../shared/progression'
 import './user-profile.css'
 
 interface UserProfilePageProps {
@@ -332,11 +334,17 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
         {(() => {
           const showcasedGames = MANIFESTS.filter((manifest) => {
             const gameStat = profile.games[manifest.slug]
+            if (!gameStat) return false
+            if (manifest.slug === 'card-jitsu') {
+              return gameStat.plays > 0 || (gameStat.ninja?.rank ?? 0) > 0 || gameStat.highscore !== null
+            }
             const userBest = gameStat?.highscore ?? null
             if (userBest === null) return false
             if (manifest.slug === 'fl-tron-3') return userBest > 1000
             return userBest > 0
-          }).slice(0, 3)
+          })
+            .sort((a, b) => (profile.games[b.slug]?.plays ?? 0) - (profile.games[a.slug]?.plays ?? 0))
+            .slice(0, 3)
 
           return (
             <div className="nx-profile-main-col">
@@ -357,6 +365,16 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                     const isRecord = gameStat?.isRecordHolder ?? false
                     const percentile = gameStat?.percentile ?? 'Top 50%'
 
+                    const isCardJitsu = manifest.slug === 'card-jitsu'
+                    const ninjaRank = gameStat?.ninja?.rank ?? 0
+                    const ninjaColor = gameStat?.ninja?.colorId ?? 1
+                    const ninjaCardsCount = gameStat?.ninja?.cardsCount ?? 0
+
+                    const beltName =
+                      ninjaRank >= 10
+                        ? 'Ninja Master'
+                        : BELT_PROGRESSION.find((b) => b.rank === ninjaRank)?.name ?? 'White Belt'
+
                     const formattedBest = userBest !== null
                       ? (manifest.formatScore ? manifest.formatScore(userBest) : userBest.toLocaleString())
                       : '—'
@@ -367,7 +385,14 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                     return (
                       <div key={manifest.slug} className="nx-game-showcase-card">
                         <div className="nx-game-card-cover">
-                          <img src={manifest.cover} alt={manifest.title} />
+                          {isCardJitsu ? (
+                            <PenguinShowcaseAvatar
+                              colorId={ninjaColor}
+                              beltRank={ninjaRank}
+                            />
+                          ) : (
+                            <img src={manifest.cover} alt={manifest.title} />
+                          )}
                         </div>
 
                         <div className="nx-game-card-content">
@@ -386,15 +411,31 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                           </div>
 
                           <div className="nx-game-metrics-row">
-                            <div className="nx-metric-block">
-                              <span className="nx-metric-label">Personal Best</span>
-                              <span className="nx-metric-value">{formattedBest}</span>
-                            </div>
+                            {isCardJitsu ? (
+                              <>
+                                <div className="nx-metric-block">
+                                  <span className="nx-metric-label">Martial Belt</span>
+                                  <span className="nx-metric-value">{beltName}</span>
+                                </div>
 
-                            <div className="nx-metric-block">
-                              <span className="nx-metric-label">World Record</span>
-                              <span className="nx-metric-value">{formattedGlobal}</span>
-                            </div>
+                                <div className="nx-metric-block">
+                                  <span className="nx-metric-label">Card Binder</span>
+                                  <span className="nx-metric-value">{ninjaCardsCount} / 509</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="nx-metric-block">
+                                  <span className="nx-metric-label">Personal Best</span>
+                                  <span className="nx-metric-value">{formattedBest}</span>
+                                </div>
+
+                                <div className="nx-metric-block">
+                                  <span className="nx-metric-label">World Record</span>
+                                  <span className="nx-metric-value">{formattedGlobal}</span>
+                                </div>
+                              </>
+                            )}
 
                             <div className="nx-metric-percentile">
                               {percentile}
@@ -403,14 +444,16 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
 
                           <div className="nx-game-card-footer">
                             <span className="nx-game-runs-count">
-                              {plays} {plays === 1 ? 'Run Played' : 'Runs Played'}
+                              {isCardJitsu
+                                ? `${plays} ${plays === 1 ? 'Duel Won' : 'Duels Won'}`
+                                : `${plays} ${plays === 1 ? 'Run Played' : 'Runs Played'}`}
                             </span>
 
                             <Link
                               to={ROUTES.game(manifest.slug)}
                               className="nx-game-challenge-btn"
                             >
-                              <span>{isOwner ? 'Play Again' : 'Challenge PB'}</span>
+                              <span>{isOwner ? (isCardJitsu ? 'Enter Dojo' : 'Play Again') : (isCardJitsu ? 'Challenge in Dojo' : 'Challenge PB')}</span>
                               <span>→</span>
                             </Link>
                           </div>

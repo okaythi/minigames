@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq, sql, or, and, inArray } from 'drizzle-orm'
-import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity, friendships, userPresence, userPrivacySettings } from '../../../src/db/schema'
+import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity, friendships, userPresence, userPrivacySettings, cjNinja, cjCard } from '../../../src/db/schema'
 import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem, FriendSummary } from '../../../shared/auth-protocol'
 import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
@@ -18,6 +18,7 @@ const KNOWN_GAMES: Record<string, string> = {
   'avoid-the-spikes': 'Avoid the Spikes!',
   'pong': 'Pong',
   'fl-tron-3': 'FL Tron 3.0',
+  'card-jitsu': 'Card-Jitsu',
 }
 
 export const onRequestGet = async ({ request, env, params }: PagesContext): Promise<Response> => {
@@ -30,12 +31,14 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
     return badRequest('user not found')
   }
 
-  const [playerRow, playerGameRows, globalStatsRows, achievementRows, dailyActivityRows] = await Promise.all([
+  const [playerRow, playerGameRows, globalStatsRows, achievementRows, dailyActivityRows, ninjaRow, userCards] = await Promise.all([
     db.select().from(players).where(eq(players.id, user.playerId)).get(),
     db.select().from(playerGames).where(eq(playerGames.playerId, user.playerId)).all(),
     db.select().from(gameStats).all(),
     db.select().from(playerAchievements).where(eq(playerAchievements.playerId, user.playerId)).all(),
     db.select().from(playerDailyActivity).where(eq(playerDailyActivity.playerId, user.playerId)).orderBy(sql`${playerDailyActivity.utcDay} DESC`).limit(14).all(),
+    db.select().from(cjNinja).where(eq(cjNinja.userId, user.playerId)).get(),
+    db.select().from(cjCard).where(eq(cjCard.userId, user.playerId)).all(),
   ])
 
   const globalStatsMap = new Map<string, { plays: number; highscore: number | null }>()
@@ -59,9 +62,27 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
     const gs = globalStatsMap.get(slug)
     let userBest = pg?.highscore ?? null
     let globalBest = gs?.highscore ?? null
-    const plays = pg?.plays ?? 0
+    let plays = pg?.plays ?? 0
     const candy = pg?.candy ?? 0
     const updatedAt = pg?.updatedAt ?? user.createdOn
+
+    let ninjaData: UserGameStat['ninja'] = undefined
+    if (slug === 'card-jitsu') {
+      if (ninjaRow) {
+        ninjaData = {
+          rank: ninjaRow.rank,
+          colorId: ninjaRow.colorId,
+          cardsCount: userCards.length,
+        }
+        if (plays === 0 && ninjaRow.matchesWon > 0) {
+          plays = ninjaRow.matchesWon
+          totalPlays += plays
+        }
+        if (userBest === null && ninjaRow.matchesWon > 0) {
+          userBest = ninjaRow.matchesWon
+        }
+      }
+    }
 
     if (slug === 'fl-tron-3') {
       if (userBest !== null && userBest <= 1000) userBest = null
@@ -98,6 +119,7 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
       isRecordHolder,
       percentile,
       updatedAt,
+      ...(ninjaData ? { ninja: ninjaData } : {}),
     }
   }
 

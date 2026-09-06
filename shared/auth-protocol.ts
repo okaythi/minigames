@@ -55,6 +55,11 @@ export interface UserGameStat {
   isRecordHolder: boolean
   percentile: string
   updatedAt: number
+  ninja?: {
+    rank: number
+    colorId: number
+    cardsCount: number
+  } | undefined
 }
 
 export interface Badge {
