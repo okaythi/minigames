@@ -1,6 +1,6 @@
 # Adding a Game (In-Repo or Separate Repository)
 
-Nixlabs Arcade supports plug-and-play game integration. A game can live either as an in-repo folder under `src/games/<slug>/` or in a **completely separate Git repository** published via NPM or Git tags.
+Nixlabs Arcade supports plug-and-play game integration. A game can live either as an in-repo folder under `src/games/<slug>/` or in a **completely separate Git repository** published via NPM or public Git repository URLs.
 
 A game contributes a manifest, an engine runtime, optional achievement packs, and optional profile card showcase hooks. The main platform handles the shell, HUD, navigation, edge leaderboards, presence, and failure containment.
 
@@ -18,14 +18,15 @@ npm run game:new <slug>
 This automates:
 1. Creating `../game-<slug>/` with TypeScript, Vite, and the standard Game Plugin boilerplate.
 2. Generating `manifest.ts`, `runtime.ts`, `achievements.ts`, `profile-card.tsx`, and `plugin.ts`.
-3. Initializing Git and preparing GitHub CLI (`gh repo create`) commands.
-4. Enabling standalone playtesting via `npm run dev` directly in the game repository.
+3. Setting `@nixlabs/game-core` as a `peerDependency`.
+4. Initializing Git and preparing GitHub CLI commands.
+5. Enabling standalone playtesting via `npm run dev` directly in the game repository.
 
 ---
 
 ## 2. The Game Plugin Contract (`GamePlugin`)
 
-Every game (local or external) implements the `GamePlugin` interface (`src/games/plugin-types.ts`):
+Every game implements the `GamePlugin` interface (`@nixlabs/game-core` or `src/games/plugin-types.ts`):
 
 ```ts
 export interface GamePlugin {
@@ -37,6 +38,9 @@ export interface GamePlugin {
 
   /** Optional custom full-page or stage component (e.g. Card-Jitsu Flash/Ruffle stage) */
   readonly Component?: React.ComponentType<Record<string, never>> | undefined
+
+  /** Optional decorator rendered in the stage left sidebar (e.g. Tron Quantum Hologram) */
+  readonly renderLeft?: ((snapshot: GameSnapshot) => React.ReactNode) | undefined
 
   /** Pluggable Mechanics: Self-contained achievement catalogue */
   readonly achievements?: readonly AchievementDef[] | undefined
@@ -54,7 +58,7 @@ export interface GamePlugin {
 ## 3. Pluggable Product Mechanics
 
 ### A. Pluggable Profile Card Showcase (`profileCard`)
-Games can customize their presentation on the player profile page (`/profile/@username`) without modifying platform page code:
+Games customize their presentation on player profile pages (`/profile/@username`) with zero changes to platform page code:
 
 ```tsx
 // src/games/<slug>/profile-card.tsx
@@ -93,7 +97,7 @@ export const myGameAchievements: readonly AchievementDef[] = [
   },
 ]
 ```
-Achievement IDs must follow the `${slug}_[a-z0-9_]+` naming pattern to prevent namespace collisions.
+Achievement IDs must follow `${slug}_[a-z0-9_]+` to prevent namespace collisions.
 
 ### C. Scoring & Highscore Validation (`scoring`)
 Map your game's domain scores to edge leaderboards:
@@ -102,23 +106,17 @@ Map your game's domain scores to edge leaderboards:
 
 ---
 
-## 4. The Single Source of Truth (`shared/game-registry.json`)
+## 4. Single Source of Truth (`shared/game-registry.json`)
 
 To register a game in the main product, add an entry to `shared/game-registry.json`:
 
 ```json
 [
   {
-    "slug": "avoid-the-spikes",
-    "title": "Avoid the Spikes!",
+    "slug": "asteroid-belt",
+    "title": "Asteroid Belt",
     "enabled": true,
-    "source": { "type": "local", "path": "./avoid-the-spikes" }
-  },
-  {
-    "slug": "space-invaders",
-    "title": "Space Invaders",
-    "enabled": true,
-    "source": { "type": "package", "name": "@nixlabs-games/space-invaders" }
+    "source": { "type": "package", "name": "@nixlabs-games/asteroid-belt" }
   }
 ]
 ```
@@ -127,32 +125,73 @@ To register a game in the main product, add an entry to `shared/game-registry.js
 
 ---
 
-## 5. Registering the Plugin in `src/games/registry.ts`
+## 5. Connecting a Separate Repo to the Platform
 
-Import your game's plugin into `src/games/registry.ts`:
+Follow these steps to wire a new standalone game into `minigames`:
 
-```ts
-import { myGamePlugin } from '@nixlabs-games/my-game' // or './my-game/plugin'
+### Step 1: Push the Game Repository to GitHub
+Create the repository as public using `gh`:
+```bash
+cd ../game-<slug>
+gh repo create game-<slug> --public --source=. --push
+```
 
-export const PLUGINS: readonly GamePlugin[] = [
-  // ...
-  myGamePlugin,
+### Step 2: Add Dependency in `minigames/package.json`
+Add the public HTTPS git URL to `dependencies`:
+```json
+"@nixlabs-games/<slug>": "git+https://github.com/okaythi/game-<slug>.git"
+```
+> [!IMPORTANT]
+> Always use `git+https://` rather than `git+ssh://` so that Cloudflare Pages build runners can fetch the package without requiring private SSH keys.
+
+### Step 3: Synchronize `package-lock.json`
+Cloudflare Pages executes `npm clean-install` (`npm ci`), which fails if `package.json` and `package-lock.json` are out of sync:
+```bash
+npm install --package-lock-only
+```
+If npm writes `git+ssh:` URLs into `package-lock.json`, ensure they are set to `git+https:`.
+
+### Step 4: Add Path Mappings in `tsconfig.base.json` & `vite.config.ts`
+Enable **Dual-Mode Resolution** (local sibling dev with instant hot-reload + CI fallback):
+
+In `tsconfig.base.json`:
+```json
+"@nixlabs-games/<slug>": [
+  "../game-<slug>/src/index.ts",
+  "./node_modules/@nixlabs-games/<slug>/src/index.ts"
 ]
 ```
 
-Nothing else in the app needs to be changed. The home grid, search combobox, profile passport, and edge leaderboards automatically configure themselves.
+In `vite.config.ts`:
+```ts
+'@nixlabs-games/<slug>': resolveGameEntry('@nixlabs-games/<slug>', '../game-<slug>/src/index.ts'),
+```
+
+### Step 5: Register in `src/games/registry.ts`
+```ts
+import { asteroidBeltPlugin } from '@nixlabs-games/asteroid-belt'
+
+export const PLUGINS: readonly GamePlugin[] = [
+  // ...
+  asteroidBeltPlugin,
+]
+```
 
 ---
 
 ## 6. Build-Time Validation & Safety Guarantees
 
-Before deploying, run the automated contract and integrity validator:
+Before pushing, verify all contracts:
 
 ```bash
+# 1. Run game contract validator
 npm run validate:games
+
+# 2. Run TypeScript build verification
+npm run typecheck
 ```
 
 ### Safety & Crash Isolation:
-1. **Validation Gate**: Verifies slugs, directory structure, manifest fields, cover art, and achievement uniqueness.
-2. **Runtime `GameErrorBoundary`**: The game surface is isolated in a React error boundary. If a third-party or external game crashes or throws during simulation, the main application (header, stats, presence, chat) remains online and displays an arcade error recovery surface.
-3. **Developer Mode**: Every engine receives `deps.current.developer: boolean` to enable or disable in-game sandboxes, hit-box debuggers, or telemetry.
+1. **Validation Gate**: Verifies slugs, directory/package structure, manifest fields, cover art, and achievement uniqueness.
+2. **Runtime `GameErrorBoundary`**: The game surface is isolated in a React error boundary. If a game crashes or throws during simulation, the main application (header, stats, presence, chat) remains online with an arcade error recovery surface.
+3. **Core SDK as Workspace**: Platform contracts and shared engine primitives are packaged in `packages/game-core` and managed as an npm workspace. External game repositories declare `@nixlabs/game-core` as a `peerDependency`.

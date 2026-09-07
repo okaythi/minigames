@@ -53,14 +53,17 @@ const pkgJson = {
     build: 'tsc && vite build',
     typecheck: 'tsc --noEmit',
   },
-  dependencies: {
-    react: '^19.1.1',
-    'react-dom': '^19.1.1',
+  peerDependencies: {
+    '@nixlabs/game-core': '>=0.1.0',
+    react: '>=18',
   },
   devDependencies: {
+    '@nixlabs/game-core': 'file:../minigames/packages/game-core',
     '@types/react': '^19.1.13',
     '@types/react-dom': '^19.1.9',
     '@vitejs/plugin-react': '^5.0.2',
+    react: '^19.1.1',
+    'react-dom': '^19.1.1',
     typescript: '^5.8.3',
     vite: '^7.1.5',
   },
@@ -79,6 +82,10 @@ const tsconfig = {
     exactOptionalPropertyTypes: true,
     noUncheckedIndexedAccess: true,
     skipLibCheck: true,
+    baseUrl: '.',
+    paths: {
+      '@nixlabs/game-core': ['../minigames/packages/game-core/src/index.ts'],
+    },
   },
   include: ['src'],
 }
@@ -248,8 +255,17 @@ npm run dev
    gh repo create <your-org>/game-${slug} --public --source=. --push
    \`\`\`
 
-2. In the main \`minigames\` repository:
-   Add entry to \`shared/game-registry.json\`:
+2. In the main \`minigames\` repository, add HTTPS dependency to \`package.json\`:
+   \`\`\`json
+   "@nixlabs-games/${slug}": "git+https://github.com/<your-org>/game-${slug}.git"
+   \`\`\`
+
+3. Sync \`package-lock.json\` for Cloudflare Pages CI:
+   \`\`\`bash
+   npm install --package-lock-only
+   \`\`\`
+
+4. Add entry to \`shared/game-registry.json\`:
    \`\`\`json
    {
      "slug": "${slug}",
@@ -258,7 +274,13 @@ npm run dev
      "source": { "type": "package", "name": "@nixlabs-games/${slug}" }
    }
    \`\`\`
-`
+
+5. Register plugin in \`src/games/registry.ts\`, then verify:
+   \`\`\`bash
+   npm run validate:games
+   npm run typecheck
+   \`\`\`
+\`
 fs.writeFileSync(path.join(targetDir, 'README.md'), readmeMd)
 
 // Git initialization
@@ -276,4 +298,6 @@ console.log(`\n🎉 Game repository ready at: ${targetDir}`)
 console.log('\nNext steps:')
 console.log(`  1. cd ${targetDir}`)
 console.log(`  2. gh repo create <your-org>/game-${slug} --public --source=. --push`)
-console.log(`  3. In minigames repo, add "${slug}" to shared/game-registry.json`)
+console.log(`  3. In minigames/package.json, add "@nixlabs-games/${slug}": "git+https://github.com/<your-org>/game-${slug}.git"`)
+console.log('  4. In minigames, run: npm install --package-lock-only')
+console.log(`  5. In minigames, add "${slug}" to shared/game-registry.json & src/games/registry.ts`)
