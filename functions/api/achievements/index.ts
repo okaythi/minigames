@@ -19,6 +19,7 @@ import {
 } from './d1-achievements'
 import { evaluatePlatformAchievements } from './evaluator'
 import type { AchievementId } from '../../../shared/achievements-protocol'
+import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
 import { isRecordOfStats, readField } from '../../../shared/stats-protocol'
 import { parseFlags } from '../../../shared/flags'
 
@@ -27,38 +28,8 @@ interface PagesContext {
   readonly env: StatsEnv & { NIXLABS_DB: D1Database }
 }
 
-const VALID_ACHIEVEMENT_IDS = new Set<string>([
-  'candy_sweet_tooth', 'candy_hoarder', 'candy_sugar_maniac', 'candy_confectionery_tycoon',
-  'runs_first_quarter', 'runs_arcade_regular', 'runs_arcade_veteran', 'runs_living_legend',
-  'streak_double_play', 'streak_workweek_warrior', 'streak_full_week_punch', 'streak_fortnight_fortitude',
-  'identity_claimed', 'identity_picture_perfect', 'identity_lab_pioneer', 'identity_developer',
-  'social_passport_stamp', 'social_gauntlet_thrown', 'social_top_bracket',
-  'explore_grand_tour', 'explore_terminal_velocity',
-  'avoid_wall_tapper', 'avoid_wall_bouncer', 'avoid_spike_hopper', 'avoid_century_flyer',
-  'avoid_candy_snack', 'avoid_candy_mid_air', 'avoid_candy_sweet_flight', 'avoid_candy_gem_swarm',
-  'avoid_mover_moving_teeth', 'avoid_mover_slalom_pilot', 'avoid_mover_chaos_navigator',
-  'avoid_destroy_movers_10', 'avoid_destroy_movers_50', 'avoid_destroy_movers_80',
-  'avoid_graze_razor', 'avoid_graze_danger_dancer', 'avoid_graze_needle_threader',
-  'avoid_edge_ceiling_skimmer', 'avoid_edge_floor_sweeper', 'avoid_edge_oblivion',
-  'avoid_flap_one_tap', 'avoid_flap_quick_turnaround', 'avoid_flap_veteran_grazer',
-  'pong_rally_opener', 'pong_paddle_ace', 'pong_kinetic_maestro', 'pong_infinite_volley',
-  'pong_novice_shifter', 'pong_calculated_return', 'pong_precision_veteran', 'pong_grandmasters_end',
-  'pong_kinematic_anomaly', 'pong_algorithm_slayer',
-  'pong_solid_defense', 'pong_total_shutout', 'pong_flawless_hard',
-  'pong_loaded_paddle', 'pong_tactical_triad', 'pong_full_arsenal', 'pong_max_loadout',
-  'pong_magnetic_trap', 'pong_glass_savior', 'pong_turbo_smash',
-  'tron_grid_initiate', 'tron_vector_hunter', 'tron_tactical_nemesis', 'tron_master_core_overload',
-  'tron_nitro_ignition', 'tron_turbo_cut', 'tron_triple_burner', 'tron_pure_kinetic',
-  'tron_closed_grid', 'tron_iron_coil', 'tron_claustrophobia',
-  'tron_dominant_round', 'tron_clean_sweep', 'tron_immortal_cycle',
-  'tron_hairpin_double', 'tron_razor_corridor',
-  'tron_five_second_blitz', 'tron_three_second_flash', 'tron_master_speedrunner',
-  'cj_belt_white', 'cj_belt_black', 'cj_ninja_master',
-  'cj_triad_fire', 'cj_triad_water', 'cj_triad_snow', 'cj_triad_harmony',
-  'cj_flawless_victory', 'cj_dojo_endurance', 'cj_power_surge', 'cj_rapid_strike',
-  'cj_binder_novice', 'cj_binder_deckbuilder', 'cj_binder_archivist', 'cj_binder_complete',
-  'cj_plays_apprentice', 'cj_plays_champion', 'cj_plays_legend', 'cj_pack_cracker',
-])
+const VALID_ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENT_DEFS.map((def) => def.id))
+
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
   const store = storeFor(env)

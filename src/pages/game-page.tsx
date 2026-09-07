@@ -11,6 +11,7 @@ import { getChallenge, resolveChallenge } from '../services/social-api'
 import { useCanSeeBetaGames } from '../services/auth-api'
 import { NotFoundPage } from './not-found-page'
 import { emptyGameStats } from './game-stats'
+import { GameErrorBoundary } from '../games/template/game-error-boundary'
 import './game-page.css'
 
 interface GamePageProps {
@@ -205,9 +206,11 @@ export function GamePage({ slug }: GamePageProps) {
       )}
 
       <div className="nx-game-play">
-        <Suspense fallback={<div className="nx-loading" />}>
-          <game.Component />
-        </Suspense>
+        <GameErrorBoundary slug={slug} title={manifest.title}>
+          <Suspense fallback={<div className="nx-loading" />}>
+            <game.Component />
+          </Suspense>
+        </GameErrorBoundary>
       </div>
 
       <section className="nx-game-notes">

@@ -11,8 +11,8 @@ import { BadgeTooltip } from '../components/ui/badge-tooltip'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
 import { getAchievementBus } from '../lib/achievement-bus'
 import { openChat, sendFriendAction, getMyFriends } from '../services/social-api'
-import { PenguinShowcaseAvatar } from '../games/card-jitsu/components/penguin-showcase-avatar'
-import { BELT_PROGRESSION } from '../../shared/progression'
+import { getGamePlugin } from '../games/registry'
+import { GameShowcaseCard } from '../components/profile/game-showcase-card'
 import './user-profile.css'
 
 interface UserProfilePageProps {
@@ -155,7 +155,10 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
   // Find best game to challenge (only games where user has an established personal best)
   const hasPb = (game: UserGameStat): boolean => {
     if (game.highscore === null) return false
-    if (game.slug === 'fl-tron-3') return game.highscore > 1000
+    const plugin = getGamePlugin(game.slug)
+    if (plugin?.scoring?.hasValidScore) {
+      return plugin.scoring.hasValidScore(game.highscore)
+    }
     return game.highscore > 0
   }
   const gamesWithPb = Object.values(profile.games).filter(hasPb)
@@ -335,12 +338,15 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
           const showcasedGames = MANIFESTS.filter((manifest) => {
             const gameStat = profile.games[manifest.slug]
             if (!gameStat) return false
-            if (manifest.slug === 'card-jitsu') {
-              return gameStat.plays > 0 || (gameStat.ninja?.rank ?? 0) > 0 || gameStat.highscore !== null
+            const plugin = getGamePlugin(manifest.slug)
+            if (plugin?.scoring?.hasValidScore) {
+              return (
+                plugin.scoring.hasValidScore(gameStat.highscore) &&
+                (gameStat.plays > 0 || (gameStat.ninja?.rank ?? 0) > 0 || gameStat.highscore !== null)
+              )
             }
             const userBest = gameStat?.highscore ?? null
             if (userBest === null) return false
-            if (manifest.slug === 'fl-tron-3') return userBest > 1000
             return userBest > 0
           })
             .sort((a, b) => (profile.games[b.slug]?.plays ?? 0) - (profile.games[a.slug]?.plays ?? 0))
@@ -357,110 +363,14 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
 
               <div className="nx-showcase-list">
                 {showcasedGames.length > 0 ? (
-                  showcasedGames.map((manifest) => {
-                    const gameStat = profile.games[manifest.slug]
-                    const userBest = gameStat?.highscore ?? null
-                    const globalRecord = gameStat?.globalHighscore ?? null
-                    const plays = gameStat?.plays ?? 0
-                    const isRecord = gameStat?.isRecordHolder ?? false
-                    const percentile = gameStat?.percentile ?? 'Top 50%'
-
-                    const isCardJitsu = manifest.slug === 'card-jitsu'
-                    const ninjaRank = gameStat?.ninja?.rank ?? 0
-                    const ninjaColor = gameStat?.ninja?.colorId ?? 1
-                    const ninjaCardsCount = gameStat?.ninja?.cardsCount ?? 0
-
-                    const beltName =
-                      ninjaRank >= 10
-                        ? 'Ninja Master'
-                        : BELT_PROGRESSION.find((b) => b.rank === ninjaRank)?.name ?? 'White Belt'
-
-                    const formattedBest = userBest !== null
-                      ? (manifest.formatScore ? manifest.formatScore(userBest) : userBest.toLocaleString())
-                      : '—'
-                    const formattedGlobal = (globalRecord !== null && (manifest.slug !== 'fl-tron-3' || globalRecord > 1000))
-                      ? (manifest.formatScore ? manifest.formatScore(globalRecord) : globalRecord.toLocaleString())
-                      : '—'
-
-                    return (
-                      <div key={manifest.slug} className="nx-game-showcase-card">
-                        <div className="nx-game-card-cover">
-                          {isCardJitsu ? (
-                            <PenguinShowcaseAvatar
-                              colorId={ninjaColor}
-                              beltRank={ninjaRank}
-                            />
-                          ) : (
-                            <img src={manifest.cover} alt={manifest.title} />
-                          )}
-                        </div>
-
-                        <div className="nx-game-card-content">
-                          <div className="nx-game-card-header">
-                            <div className="nx-game-card-title-group">
-                              <h3 className="nx-game-card-title">{manifest.title}</h3>
-                              <p className="nx-game-card-tagline">{manifest.tagline}</p>
-                            </div>
-
-                            {!isCardJitsu && isRecord && (
-                              <div className="nx-record-holder-badge">
-                                <span>🏆</span>
-                                <span>WORLD RECORD</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="nx-game-metrics-row">
-                            {isCardJitsu ? (
-                              <>
-                                <div className="nx-metric-block">
-                                  <span className="nx-metric-label">Martial Belt</span>
-                                  <span className="nx-metric-value">{beltName}</span>
-                                </div>
-
-                                <div className="nx-metric-block">
-                                  <span className="nx-metric-label">Card Binder</span>
-                                  <span className="nx-metric-value">{ninjaCardsCount} / 509</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="nx-metric-block">
-                                  <span className="nx-metric-label">Personal Best</span>
-                                  <span className="nx-metric-value">{formattedBest}</span>
-                                </div>
-
-                                <div className="nx-metric-block">
-                                  <span className="nx-metric-label">World Record</span>
-                                  <span className="nx-metric-value">{formattedGlobal}</span>
-                                </div>
-                              </>
-                            )}
-
-                            <div className="nx-metric-percentile">
-                              {percentile}
-                            </div>
-                          </div>
-
-                          <div className="nx-game-card-footer">
-                            <span className="nx-game-runs-count">
-                              {isCardJitsu
-                                ? `${plays} ${plays === 1 ? 'Duel Won' : 'Duels Won'}`
-                                : `${plays} ${plays === 1 ? 'Run Played' : 'Runs Played'}`}
-                            </span>
-
-                            <Link
-                              to={ROUTES.game(manifest.slug)}
-                              className="nx-game-challenge-btn"
-                            >
-                              <span>{isOwner ? (isCardJitsu ? 'Enter Dojo' : 'Play Again') : (isCardJitsu ? 'Challenge in Dojo' : 'Challenge PB')}</span>
-                              <span>→</span>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
+                  showcasedGames.map((manifest) => (
+                    <GameShowcaseCard
+                      key={manifest.slug}
+                      manifest={manifest}
+                      profile={profile}
+                      isOwner={isOwner}
+                    />
+                  ))
                 ) : (
                   <div className="nx-showcase-empty">
                     <div className="nx-showcase-empty-icon">🎮</div>

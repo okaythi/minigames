@@ -1,26 +1,69 @@
-import { lazy } from 'react'
-import type { GameManifest, GameModule } from './types'
+import { lazy, createElement } from 'react'
+import type { GameManifest, GameModule, GamePlugin } from './types'
 import { isPlayable } from './types'
-import { avoidTheSpikesManifest } from './avoid-the-spikes/manifest'
-import { pongManifest } from './pong/manifest'
-import { flTron3Manifest } from './fl-tron-3/manifest'
+import { avoidTheSpikesPlugin } from '@nixlabs-games/avoid-the-spikes'
+import { pongPlugin } from '@nixlabs-games/pong'
+import { flTron3Plugin } from '@nixlabs-games/fl-tron-3'
 import { manifest as cardJitsuManifest } from './card-jitsu/manifest'
+import { cardJitsuProfileCard } from './card-jitsu/profile-card'
 
-const AvoidTheSpikes = lazy(() => import('./avoid-the-spikes'))
-const Pong = lazy(() => import('./pong'))
-const FLTron3 = lazy(() => import('./fl-tron-3'))
 const CardJitsu = lazy(() => import('./card-jitsu'))
 
+function wrapPluginComponent(
+  plugin: GamePlugin,
+): React.LazyExoticComponent<React.ComponentType<Record<string, never>>> {
+  if (plugin.Component) {
+    return plugin.Component as React.LazyExoticComponent<
+      React.ComponentType<Record<string, never>>
+    >
+  }
+  return lazy(async () => {
+    const { GameTemplate } = await import('./template/game-template')
+    return {
+      default: function PluginGameStage() {
+        if (!plugin.createRuntime) {
+          return null
+        }
+        return createElement(GameTemplate, {
+          game: { manifest: plugin.manifest, createRuntime: plugin.createRuntime },
+          renderLeft: plugin.renderLeft,
+        })
+      },
+    }
+  })
+}
+
 /**
- * The catalogue. Adding a game means creating `src/games/<slug>/`, exporting a
- * `GameModule` from it and listing it here - nothing else knows about it.
+ * Registered Game Plugins.
+ * Future games from separate repositories export a GamePlugin conforming to the
+ * shared contract, which registers here with zero modifications to platform UI components.
  */
-export const GAMES: readonly GameModule[] = [
-  { manifest: avoidTheSpikesManifest, Component: AvoidTheSpikes },
-  { manifest: pongManifest, Component: Pong },
-  { manifest: flTron3Manifest, Component: FLTron3 },
-  { manifest: cardJitsuManifest, Component: CardJitsu },
+export const PLUGINS: readonly GamePlugin[] = [
+  avoidTheSpikesPlugin,
+  pongPlugin,
+  flTron3Plugin,
+  {
+    manifest: cardJitsuManifest,
+    Component: CardJitsu,
+    profileCard: cardJitsuProfileCard,
+    scoring: {
+      mode: 'custom',
+      hasValidScore: (_score) => true,
+    },
+  },
 ]
+
+const PLUGIN_MAP = new Map<string, GamePlugin>(
+  PLUGINS.map((plugin) => [plugin.manifest.slug, plugin]),
+)
+
+export const getGamePlugin = (slug: string): GamePlugin | undefined => PLUGIN_MAP.get(slug)
+
+export const GAMES: readonly GameModule[] = PLUGINS.map((plugin) => ({
+  manifest: plugin.manifest,
+  Component: wrapPluginComponent(plugin),
+  plugin,
+}))
 
 export const MANIFESTS: readonly GameManifest[] = GAMES.map((game) => game.manifest)
 
@@ -54,4 +97,3 @@ export function getVisibleGames(canSeeBeta: boolean): readonly GameModule[] {
 export function getVisibleManifests(canSeeBeta: boolean): readonly GameManifest[] {
   return getVisibleGames(canSeeBeta).map((g) => g.manifest)
 }
-

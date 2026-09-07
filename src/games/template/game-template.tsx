@@ -13,7 +13,7 @@ interface GameTemplateProps {
     readonly manifest: GameManifest
     readonly createRuntime: GameRuntimeFactory
   }
-  readonly renderLeft?: (snapshot: import('./snapshot').GameSnapshot) => React.ReactNode
+  readonly renderLeft?: ((snapshot: import('./snapshot').GameSnapshot) => React.ReactNode) | undefined
 }
 
 /**

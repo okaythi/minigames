@@ -1,168 +1,158 @@
-# Adding a game
+# Adding a Game (In-Repo or Separate Repository)
 
-A game is a folder. The site discovers it through one registry line; nothing else changes.
+Nixlabs Arcade supports plug-and-play game integration. A game can live either as an in-repo folder under `src/games/<slug>/` or in a **completely separate Git repository** published via NPM or Git tags.
 
-**A game never ships a custom page component.** The page around the canvas - readout panel, overlay cards,
-pause on scroll-away, mute, the stats round trip - is drawn once, in `src/games/template/`, for
-every game. A folder contributes an engine, a manifest of strings, and one function that builds
-the runtime. That is what keeps all games looking like one cohesive platform.
+A game contributes a manifest, an engine runtime, optional achievement packs, and optional profile card showcase hooks. The main platform handles the shell, HUD, navigation, edge leaderboards, presence, and failure containment.
 
-## 1. Create the folder
+---
 
-```
-src/games/<slug>/
-  index.tsx         exports default React component: <GameTemplate game={{ manifest, createRuntime }} />
-  manifest.ts       every word the chrome shows, plus the card and page copy
-  state.ts          the engine's own immutable snapshot
-  view-model.ts     state.ts -> the shared GameSnapshot (tiles, badges, run summary, formatters)
-  runtime.ts        builds the engine, owns audio/random, exposes the five actions
-  create-<slug>-game.ts attaches the GameHost, canvas layers, rAF loop, input listeners
-  cover.jpg         3:4 portrait card and game-stage cover art
-  banner.jpg        21:8 wide hero banner art for the top of the game page
-  engine/           the simulation (grid, physics, AI veto engines, procedural audio)
-  render/           canvas layers (renderer, layout transform, particles, hud, menus)
+## 1. Fast Track: Scaffold a New Separate Repo
+
+To create an independent game repository ready to plug into the platform:
+
+```bash
+npm run game:new <slug>
+# Example: npm run game:new asteroid-belt
 ```
 
-`<slug>` is kebab-case and becomes the URL (`/games/<slug>`) and the localStorage/stats key, so
-pick it once and keep it.
+This automates:
+1. Creating `../game-<slug>/` with TypeScript, Vite, and the standard Game Plugin boilerplate.
+2. Generating `manifest.ts`, `runtime.ts`, `achievements.ts`, `profile-card.tsx`, and `plugin.ts`.
+3. Initializing Git and preparing GitHub CLI (`gh repo create`) commands.
+4. Enabling standalone playtesting via `npm run dev` directly in the game repository.
 
-## 2. Write the manifest
+---
+
+## 2. The Game Plugin Contract (`GamePlugin`)
+
+Every game (local or external) implements the `GamePlugin` interface (`src/games/plugin-types.ts`):
 
 ```ts
-import cover from './cover.jpg'
-import banner from './banner.jpg'
-import type { GameManifest } from '../types'
-import { formatMyScore } from './view-model'
+export interface GamePlugin {
+  /** Manifest: Title, tags, layout, chrome labels, controls, aspect ratio */
+  readonly manifest: GameManifest
 
-export const MY_SLUG = 'my-game' as const
+  /** Engine runtime factory: Wires GameHost, actions, and simulation loop */
+  readonly createRuntime?: GameRuntimeFactory | undefined
 
-export const myGameManifest: GameManifest = {
-  slug: MY_SLUG,
-  title: 'My Game',
-  tagline: 'One line for the card.',
-  description: 'A short paragraph for the game page.',
-  status: 'playable', // 'playable' | 'prototype' | 'coming-soon'
-  accent: 'orange', // 'orange' | 'amber' | 'blue' | 'green' | 'red'
-  tags: ['arcade', 'retro', 'canvas'],
-  cover, // 3:4 portrait image
-  banner, // 21:8 wide hero banner image
-  controls: [{ input: 'Click / Space', action: 'Do the thing' }],
-  mechanics: [{ title: 'The hook', body: 'Why it works.' }],
-  year: 2026,
+  /** Optional custom full-page or stage component (e.g. Card-Jitsu Flash/Ruffle stage) */
+  readonly Component?: React.ComponentType<Record<string, never>> | undefined
 
-  // Copy for the shared chrome - the only way a game can talk about its own page.
-  aspect: 3 / 4, // canvas box: width / height
-  scoreLabel: 'Clear Time', // e.g. 'Points', 'Bounces', 'Clear Time'
-  formatScore: formatMyScore, // optional: custom formatter for time (mm:ss:ms) or units across cards/HUD/stats
-  bonusLabel: 'Turbos', // e.g. 'Candy', 'Turbos', 'Coins'
-  runDurationLabel: 'Clear Time', // optional label for run duration in game-over card
-  primaryLabel: 'Play', // label on the primary button
-  scoringNote: 'How score and records are calculated.',
-  startLine: 'Click, tap or hit Space.',
-  intro: 'Two sentences on the start card.',
-  pauseNote: 'One line on the pause card.',
-  tip: 'One line at the bottom of the readout.',
-  legend: [
-    { swatch: 'blue', text: 'player object' },
-    { swatch: 'orange', text: 'hazard or AI' },
-  ],
+  /** Pluggable Mechanics: Self-contained achievement catalogue */
+  readonly achievements?: readonly AchievementDef[] | undefined
+
+  /** Pluggable Mechanics: Custom Player Passport showcase hooks */
+  readonly profileCard?: GamePluginProfileCard | undefined
+
+  /** Pluggable Mechanics: Scoring rules and PB validation */
+  readonly scoring?: GamePluginScoring | undefined
 }
 ```
 
-The grid, search bar, card, and game page are all driven off this object. Titles are
-matched with a fuzzy matcher over `title`, `tags`, and `slug`, so no search registration is needed.
+---
 
-The template renders exactly what a game publishes (`src/games/template/snapshot.ts`):
+## 3. Pluggable Product Mechanics
 
-```ts
-interface GameSnapshot {
-  status: 'ready' | 'running' | 'paused' | 'over'
-  score: number
-  best: number | null
-  bonus: number
-  tiles: readonly { label: string; value: string; note: string }[] // the readout panel
-  badges: readonly string[] // tags under it
-  run: { score: number; bonus: number; seconds: number; note: string; isRecord: boolean; beatBestBy: number | null } | null
-  muted: boolean
-}
-```
+### A. Pluggable Profile Card Showcase (`profileCard`)
+Games can customize their presentation on the player profile page (`/profile/@username`) without modifying platform page code:
 
-## 3. Scoring & Cloudflare D1 Leaderboards
-
-The backend stores `highscore INTEGER` centrally per game and uses `MAX()` on writes.
-Games choose how to map their domain scores into this integer:
-
-- **Point / Bounce Games (e.g. Avoid the Spikes, Pong):**
-  Score is raw points/hits. `formatScore` defaults to numeric strings.
-- **Speedrun / Time-Elapsed Games (e.g. FL Tron 3.0):**
-  Lower elapsed time is better. Winning runs store `score = Math.floor(1000000 - elapsedSeconds * 1000)`.
-  Faster runs produce higher integer values, winning runs always beat non-winning runs, and `formatScore` converts `(1000000 - score) / 1000` back to `mm:ss:ms` on all UI surfaces (Card, Header, HUD, and Game Over).
-
-## 4. Start Flow & In-Canvas Menus
-
-Games support two starting styles:
-
-1. **Direct Start (e.g. Avoid the Spikes):**
-   Clicking "Start" immediately launches the physics and gameplay.
-2. **In-Canvas Start Menu (e.g. FL Tron 3.0):**
-   - Engine initializes with `isStarted = false` and `phase = 'menu'`. `toGameSnapshot` returns `status: 'ready'`.
-   - When the user clicks "Start" on the page overlay, `engine.start()` sets `isStarted = true` and publishes `status: 'running'`.
-   - The page overlay dismisses, revealing the canvas start menu (`drawMainMenu`) where players can view mode cards and instructions.
-   - Clicking "START CAMPAIGN" (or pressing Enter/Space) inside the canvas menu calls `engine.startCampaign()` to start the match.
-
-## 5. Export the module & Register
-
-In `src/games/<slug>/index.tsx`:
 ```tsx
-import { GameTemplate } from '../template/game-template'
-import { myGameManifest } from './manifest'
-import { createMyGameRuntime } from './runtime'
+// src/games/<slug>/profile-card.tsx
+export const myGameProfileCard: GamePluginProfileCard = {
+  // 1. Custom Visual / Avatar slot (e.g. Card-Jitsu penguin avatar or custom sprite)
+  renderCover: ({ stat }) => <MyCustomAvatar level={stat?.level} />,
 
-export default function MyGame() {
-  return <GameTemplate game={{ manifest: myGameManifest, createRuntime: createMyGameRuntime }} />
+  // 2. Custom Stat Strip Blocks (overrides default Personal Best & World Record)
+  getMetrics: ({ stat }) => [
+    { label: 'Wave Reached', value: String(stat?.wave ?? 1) },
+    { label: 'Alien Slain', value: String(stat?.kills ?? 0) },
+  ],
+
+  // 3. Custom Run Count and Action Button Labels
+  runsLabel: 'Battles Fought',
+  actionLabel: {
+    owner: 'Re-enter Arena',
+    other: 'Challenge Record',
+  },
 }
 ```
 
-In `src/games/registry.ts`:
-```ts
-const MyGame = lazy(() => import('./my-game'))
+### B. Pluggable Achievements (`achievements`)
+Games define their own achievements in `achievements.ts`:
 
-export const GAMES: readonly GameModule[] = [
-  // ...
-  { manifest: myGameManifest, Component: MyGame },
+```ts
+export const myGameAchievements: readonly AchievementDef[] = [
+  {
+    id: 'mygame_first_strike',
+    pillar: 'my-game',
+    track: 'Combat',
+    name: '🎯 First Strike',
+    description: 'Land a hit on a boss hazard.',
+    icon: '⚡',
+    maxProgress: null,
+  },
+]
+```
+Achievement IDs must follow the `${slug}_[a-z0-9_]+` naming pattern to prevent namespace collisions.
+
+### C. Scoring & Highscore Validation (`scoring`)
+Map your game's domain scores to edge leaderboards:
+* **Points-based (Avoid the Spikes, Pong)**: Higher integer is better (`score > 0`).
+* **Speedrun / Time-Elapsed (FL Tron 3.0)**: Lower elapsed time is better. Winning runs store `score = Math.floor(1000000 - elapsedSeconds * 1000)` and `hasValidScore: (s) => s !== null && s > 1000`.
+
+---
+
+## 4. The Single Source of Truth (`shared/game-registry.json`)
+
+To register a game in the main product, add an entry to `shared/game-registry.json`:
+
+```json
+[
+  {
+    "slug": "avoid-the-spikes",
+    "title": "Avoid the Spikes!",
+    "enabled": true,
+    "source": { "type": "local", "path": "./avoid-the-spikes" }
+  },
+  {
+    "slug": "space-invaders",
+    "title": "Space Invaders",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/space-invaders" }
+  }
 ]
 ```
 
-In `shared/game-slugs.ts`:
-Add `<slug>` to `ALLOWED_SLUGS` so Cloudflare D1 and dev middleware accept stats events for this game.
+`ALLOWED_SLUGS` in `shared/game-slugs.ts` and Cloudflare Pages edge functions derive automatically from this JSON file.
 
-## 6. The engine contract
+---
 
-React gives the game a `GameHost` (`src/games/runtime/types.ts`):
+## 5. Registering the Plugin in `src/games/registry.ts`
+
+Import your game's plugin into `src/games/registry.ts`:
 
 ```ts
-const host: GameHost = {
-  canvas, context, viewport(), onFrame, onResize, onVisibility,
-}
+import { myGamePlugin } from '@nixlabs-games/my-game' // or './my-game/plugin'
+
+export const PLUGINS: readonly GamePlugin[] = [
+  // ...
+  myGamePlugin,
+]
 ```
 
-`createRuntime(deps)` builds the engine and wires `attach`:
-```ts
-{
-  store: Store<GameSnapshot>,
-  actions: { primary, pause, resume, restart, toggleMute },
-  attach: (host) => Disposable,
-  dispose: () => void,
-}
+Nothing else in the app needs to be changed. The home grid, search combobox, profile passport, and edge leaderboards automatically configure themselves.
+
+---
+
+## 6. Build-Time Validation & Safety Guarantees
+
+Before deploying, run the automated contract and integrity validator:
+
+```bash
+npm run validate:games
 ```
 
-Rules that keep a game performant and reliable:
-
-- **Fixed timestep inside, variable outside.** `onFrame` hands a clamped delta; step the simulation via fixed accumulator (`1/120`). Calibrate for high refresh displays (e.g. screen FPS <= 61 targets 58.5 FPS).
-- **World units, not screen units.** Simulate in a fixed coordinate box (e.g. 480×640) and use `render/layout.ts` to map coordinates to the canvas with DPR scaling.
-- **Two-Layer Veto AI Architecture.** For intelligent NPCs, decouple the **Personality Engine** (what the AI *wants* to do) from the **Survival Engine** (what it is *mathematically allowed* to do via flood-fill safety checks). The Veto system runs every single frame to prevent accidental suicides even when decision timers are slow.
-- **No `Math.random()` in core simulation.** Use seeded `Random` from `src/lib/random.ts` for deterministic replays and simulation test suites (`npm run simulate:<game>`).
-- **Persistence through services.** Use `useGameStats(slug)` and `deps.current.finishRun(score)`. Never touch raw storage or fetch directly.
-- **Global Developer Flag (`deps.current.developer: boolean`).** Every engine receives `deps: { readonly current: GameRuntimeDeps }` at its main orchestrator. Games can query `deps.current.developer` (or an `isDeveloper` getter on the engine) to check if the active player is an authorized Lab Developer (`developer: true` in Cloudflare D1). The developer of the game may or may not use this flag (e.g. for debug telemetry, sandbox god-mode, hit-box visualizers, or custom playtest tools).
-- **Separation of Render Layers.** Compose visual systems into isolated modules: arena background, light trails, vehicles/sprites, particles, HUD, and phase menus.
-
+### Safety & Crash Isolation:
+1. **Validation Gate**: Verifies slugs, directory structure, manifest fields, cover art, and achievement uniqueness.
+2. **Runtime `GameErrorBoundary`**: The game surface is isolated in a React error boundary. If a third-party or external game crashes or throws during simulation, the main application (header, stats, presence, chat) remains online and displays an arcade error recovery surface.
+3. **Developer Mode**: Every engine receives `deps.current.developer: boolean` to enable or disable in-game sandboxes, hit-box debuggers, or telemetry.

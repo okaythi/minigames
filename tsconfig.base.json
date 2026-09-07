@@ -12,6 +12,28 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@nixlabs/game-core": [
+        "./packages/game-core/src/index.ts",
+        "./node_modules/@nixlabs/game-core/src/index.ts"
+      ],
+      "@nixlabs-games/avoid-the-spikes": [
+        "../game-avoid-the-spikes/src/index.ts",
+        "./node_modules/@nixlabs-games/avoid-the-spikes/src/index.ts"
+      ],
+      "@nixlabs-games/pong": [
+        "../game-pong/src/index.ts",
+        "./node_modules/@nixlabs-games/pong/src/index.ts"
+      ],
+      "@nixlabs-games/fl-tron-3": [
+        "../game-fl-tron-3/src/index.ts",
+        "./node_modules/@nixlabs-games/fl-tron-3/src/index.ts"
+      ],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
+      "react-dom": ["./node_modules/@types/react-dom"]
+    },
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,

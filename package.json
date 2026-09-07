@@ -11,6 +11,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
+    "validate:games": "node scripts/validate-games.mjs",
+    "game:new": "node scripts/new-game.mjs",
     "clean": "rm -rf dist .nixlabs node_modules/.tmp",
     "deploy": "npm run build && npx --yes wrangler pages deploy dist --project-name minigames",
     "preview:functions": "npm run build && npx --yes wrangler pages dev dist --d1 NIXLABS_DB=nix-minigames",
@@ -25,6 +27,10 @@
     "test:progression": "vitest run tests/progression.test.ts"
   },
   "dependencies": {
+    "@nixlabs/game-core": "file:./packages/game-core",
+    "@nixlabs-games/avoid-the-spikes": "git+https://github.com/okaythi/game-avoid-the-spikes.git",
+    "@nixlabs-games/pong": "git+https://github.com/okaythi/game-pong.git",
+    "@nixlabs-games/fl-tron-3": "git+https://github.com/okaythi/game-fl-tron-3.git",
     "@ruffle-rs/ruffle": "^0.5.0",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",

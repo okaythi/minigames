@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "avoid-the-spikes",
+    "title": "Avoid the Spikes!",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/avoid-the-spikes" }
+  },
+  {
+    "slug": "pong",
+    "title": "Pong",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/pong" }
+  },
+  {
+    "slug": "fl-tron-3",
+    "title": "FL Tron 3.0",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/fl-tron-3" }
+  },
+  {
+    "slug": "card-jitsu",
+    "title": "Card-Jitsu",
+    "enabled": true,
+    "source": { "type": "local", "path": "./card-jitsu" }
+  }
+]
