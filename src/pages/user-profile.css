@@ -588,15 +588,11 @@
 }
 
 .nx-badge-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--nx-card);
-  border: var(--nx-hairline);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   flex-shrink: 0;
 }
 

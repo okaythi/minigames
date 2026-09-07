@@ -91,6 +91,7 @@ public/
   _redirects _headers robots.txt site.webmanifest
 docs/
   adding-a-game.md      the recipe
+  brand-guidelines.md   visual identity, colour tokens, typography, marks
 ```
 
 ## Rules of the house
@@ -105,25 +106,9 @@ docs/
 - **State lives in one place.** The engine mutates its own state and publishes an immutable
   snapshot to a tiny store; React subscribes with `useSyncExternalStore`. No per-frame renders.
 
-## Colours
+## Brand & design guidelines
 
-Cloudflare's orange, unmodified, on an off-white paper (never pure `#fff`), with grey hairlines
-as the only structural ornament.
-
-| Token                  | Hex       | Used for                                  |
-| ---------------------- | --------- | ----------------------------------------- |
-| `--nx-orange`          | `#f6821f` | brand, primary actions, wall teeth        |
-| `--nx-orange-bright`   | `#fbad41` | amber secondary, candy                    |
-| `--nx-paper`           | `#faf7f2` | page background                           |
-| `--nx-card`            | `#fffdf9` | surfaces                                  |
-| `--nx-ink` / graphite  | `#232324` / `#404041` | text, outlines, permanent hazards |
-| `--nx-line`            | `#e6e0d6` | hairlines                                 |
-| `--nx-green`           | `#1f9d5b` | gems, personal-best state                 |
-| `--nx-blue`            | `#1f6fd1` | informational accents                     |
-| `--nx-red`             | `#d8433d` | floating spikes, destructive state        |
-
-Full list in [`src/styles/tokens.css`](src/styles/tokens.css); the canvas mirror is
-[`src/theme/palette.ts`](src/theme/palette.ts).
+The visual identity, official palette, typography, marks, and design system tokens are documented in [`docs/brand-guidelines.md`](docs/brand-guidelines.md). Full CSS variables live in [`src/styles/tokens.css`](src/styles/tokens.css) and the Canvas 2D mirror in [`src/theme/palette.ts`](src/theme/palette.ts).
 
 ## Counters: global plays, personal bests
 

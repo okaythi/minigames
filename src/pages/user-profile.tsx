@@ -6,6 +6,7 @@ import { Link } from '../app/link'
 import { ROUTES } from '../app/parse-route'
 import { SettingsDrawer } from '../components/settings-drawer'
 import { AchievementsShowcase } from '../components/achievements/achievements-showcase'
+import { AchievementIcon } from '../components/achievements/achievement-icon'
 import { DeveloperBadge } from '../components/ui/developer-badge'
 import { BadgeTooltip } from '../components/ui/badge-tooltip'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
@@ -433,7 +434,9 @@ export function UserProfilePage({ username }: UserProfilePageProps) {
                     className="nx-badge-item"
                     data-unlocked="true"
                   >
-                    <div className="nx-badge-icon">{badge.icon}</div>
+                    <div className="nx-badge-icon">
+                      <AchievementIcon id={badge.id} icon={badge.icon} unlocked={true} size={36} />
+                    </div>
                     <div className="nx-badge-info">
                       <div className="nx-badge-name">
                         <span>{badge.name}</span>

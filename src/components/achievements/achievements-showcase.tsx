@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Badge } from '../../../shared/auth-protocol'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
-import { DeveloperBadge } from '../ui/developer-badge'
+import { AchievementIcon } from './achievement-icon'
 import './achievements-showcase.css'
 
 interface AchievementsShowcaseProps {
@@ -124,7 +124,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'platform' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('platform')}
           >
-            🌐 Platform & Meta
+            Platform & Meta
           </button>
           <button
             type="button"
@@ -132,7 +132,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'avoid-the-spikes' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('avoid-the-spikes')}
           >
-            🎯 Avoid the Spikes!
+            Avoid the Spikes!
           </button>
           <button
             type="button"
@@ -140,7 +140,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'pong' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('pong')}
           >
-            🏓 Pong
+            Pong
           </button>
           <button
             type="button"
@@ -148,7 +148,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'fl-tron-3' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('fl-tron-3')}
           >
-            🏍️ FL Tron 3.0
+            FL Tron 3.0
           </button>
           <button
             type="button"
@@ -156,7 +156,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedPillar === 'card-jitsu' ? 'true' : 'false'}
             onClick={() => setSelectedPillar('card-jitsu')}
           >
-            🥋 Card-Jitsu
+            Card-Jitsu
           </button>
         </div>
 
@@ -175,7 +175,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedStatus === 'unlocked' ? 'true' : 'false'}
             onClick={() => setSelectedStatus('unlocked')}
           >
-            ✓ Unlocked
+            Unlocked
           </button>
           <button
             type="button"
@@ -183,7 +183,7 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
             data-active={selectedStatus === 'locked' ? 'true' : 'false'}
             onClick={() => setSelectedStatus('locked')}
           >
-            🔒 Locked
+            Locked
           </button>
         </div>
 
@@ -223,11 +223,12 @@ export function AchievementsShowcase({ badges, title = 'Arcade Achievements & Ba
                     data-unlocked={badge.unlocked ? 'true' : 'false'}
                   >
                     <div className="nx-achievement-card-icon" aria-hidden="true">
-                      {badge.id === 'identity_developer' ? (
-                        <DeveloperBadge size={30} title="Develops games for our Lab." />
-                      ) : (
-                        badge.icon
-                      )}
+                      <AchievementIcon
+                        id={badge.id}
+                        icon={badge.icon}
+                        unlocked={badge.unlocked}
+                        size={48}
+                      />
                     </div>
 
                     <div className="nx-achievement-card-content">

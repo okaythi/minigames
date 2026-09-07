@@ -15,6 +15,9 @@ export default defineConfig({
   plugins: [react(), statsDevPlugin(), cardJitsuStrict404Plugin()],
   resolve: {
     alias: {
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       '@nixlabs/game-core': path.resolve(__dirname, 'packages/game-core/src/index.ts'),
       '@nixlabs-games/avoid-the-spikes': resolveGameEntry('@nixlabs-games/avoid-the-spikes', '../game-avoid-the-spikes/src/index.ts'),
       '@nixlabs-games/pong': resolveGameEntry('@nixlabs-games/pong', '../game-pong/src/index.ts'),

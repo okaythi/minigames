@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { getAchievementBus, type AchievementUnlockNotification } from '../../lib/achievement-bus'
+import { AchievementIcon } from './achievement-icon'
 import './achievement-toast.css'
 
 export function AchievementToast() {
@@ -57,11 +58,10 @@ export function AchievementToast() {
     <div className="nx-achievement-toast-container" aria-live="polite" role="status">
       <div className="nx-achievement-toast-pill" data-visible={visible ? 'true' : 'false'}>
         <div className="nx-achievement-toast-icon-wrap" aria-hidden="true">
-          {current.icon}
+          <AchievementIcon id={current.id} icon={current.icon} unlocked={true} size={42} />
         </div>
         <div className="nx-achievement-toast-body">
           <div className="nx-achievement-toast-tag">
-            <span>✨</span>
             <span>Achievement Unlocked</span>
           </div>
           <div className="nx-achievement-toast-title">{current.name}</div>
