@@ -154,3 +154,33 @@ export const FLAGS_METADATA = {
 ```
 
 That's it! Consumers can immediately check `hasFlag(user.flags, UserFlags.VIP_PLAYER)`.
+
+---
+
+## 7. Game Flags Bitmask System
+
+Games use an identical bitmask vector model for discrete capabilities, access gating, and feature tiers.
+
+### Canonical Game Flag Definitions ([shared/flags/types.ts](file:///home/thy/Projects/minigames/shared/flags/types.ts))
+
+```ts
+export const GameFlags = {
+  NONE:      0,
+  GAME_BETA: 1 << 0, // Bit 0 (0001) = 1
+} as const
+
+export type GameFlagsBit = (typeof GameFlags)[keyof typeof GameFlags]
+export type GameFlags = number
+```
+
+### Game Bitwise Helpers ([shared/flags/helpers.ts](file:///home/thy/Projects/minigames/shared/flags/helpers.ts))
+
+| Helper | Signature | Description |
+| :--- | :--- | :--- |
+| `hasGameFlag(target, flag)` | `(target: GameManifest \| number \| null, flag: GameFlagsBit \| string) => boolean` | Checks if manifest (or raw bitmask) contains the specified flag bit. |
+| `enableGameFlag(flags, flag)` | `(flags: number, flag: GameFlagsBit \| string) => number` | Returns vector with game flag bit set. |
+| `disableGameFlag(flags, flag)` | `(flags: number, flag: GameFlagsBit \| string) => number` | Returns vector with game flag bit cleared. |
+| `hasAllGameFlags(flags, mask)` | `(flags: number, mask: number) => boolean` | Validates all bits in mask are present. |
+| `hasAnyGameFlag(flags, mask)` | `(flags: number, mask: number) => boolean` | Validates at least one bit in mask is present. |
+| `parseGameFlags(raw)` | `(raw: unknown) => number` | Coerces numeric or string flag representation into a bitmask. |
+

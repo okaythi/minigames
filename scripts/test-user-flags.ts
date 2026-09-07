@@ -7,8 +7,17 @@ import {
   hasAllFlags,
   hasAnyFlag,
   parseFlags,
+  GameFlags,
+  GAME_FLAGS_METADATA,
+  hasGameFlag,
+  enableGameFlag,
+  disableGameFlag,
+  hasAllGameFlags,
+  hasAnyGameFlag,
+  parseGameFlags,
   type MaxFourWords,
 } from '../shared/flags'
+
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -76,4 +85,43 @@ assert(parseFlags('3') === 3, 'parseFlags("3") -> 3')
 assert(parseFlags('invalid') === 0, 'parseFlags(invalid) -> 0')
 assert(parseFlags('{"USER_PIONEER":{"enabled":true}}') === 2, 'parseFlags legacy JSON string')
 
-console.log('✅ All User Flags Bitmask unit tests passed successfully!')
+// 5. Game Flags Bitmask tests
+console.log('🧪 Running Game Flags Bitmask system unit tests...')
+assert(GameFlags.NONE === 0, 'GameFlags.NONE === 0')
+assert(GameFlags.GAME_BETA === 1, 'GameFlags.GAME_BETA === 1')
+assert(GAME_FLAGS_METADATA[GameFlags.GAME_BETA].description === 'Early Access Beta', 'GAME_BETA metadata description')
+
+// Game Flags bitwise ops
+let gflags = GameFlags.NONE
+assert(!hasGameFlag(gflags, GameFlags.GAME_BETA), 'NONE should not have GAME_BETA')
+gflags = enableGameFlag(gflags, GameFlags.GAME_BETA)
+assert(hasGameFlag(gflags, GameFlags.GAME_BETA), 'gflags should have GAME_BETA')
+assert(hasGameFlag(gflags, 'GAME_BETA'), 'hasGameFlag with string flag name')
+assert(gflags === 1, 'gflags vector should equal 1')
+assert(hasAllGameFlags(gflags, GameFlags.GAME_BETA), 'hasAllGameFlags with GAME_BETA')
+assert(hasAnyGameFlag(gflags, GameFlags.GAME_BETA), 'hasAnyGameFlag with GAME_BETA')
+
+gflags = disableGameFlag(gflags, GameFlags.GAME_BETA)
+assert(!hasGameFlag(gflags, GameFlags.GAME_BETA), 'GAME_BETA should be disabled')
+assert(gflags === 0, 'gflags vector should equal 0')
+
+// Game Manifest integration checks
+assert(hasGameFlag({ flags: GameFlags.GAME_BETA }, GameFlags.GAME_BETA), 'manifest.flags vector')
+assert(hasGameFlag({ flag: GameFlags.GAME_BETA }, GameFlags.GAME_BETA), 'manifest.flag bitmask')
+assert(hasGameFlag({ flag: 'GAME_BETA' }, GameFlags.GAME_BETA), 'manifest.flag string')
+assert(hasGameFlag({ gameFlag: 'GAME_BETA' }, GameFlags.GAME_BETA), 'manifest.gameFlag alias string')
+assert(!hasGameFlag({ flags: 0 }, GameFlags.GAME_BETA), 'manifest with flags: 0')
+assert(!hasGameFlag({}, GameFlags.GAME_BETA), 'manifest with no flags')
+assert(!hasGameFlag(null, GameFlags.GAME_BETA), 'manifest null')
+assert(!hasGameFlag(undefined, GameFlags.GAME_BETA), 'manifest undefined')
+
+// Game Flags parsing
+assert(parseGameFlags(null) === 0, 'parseGameFlags(null) -> 0')
+assert(parseGameFlags(undefined) === 0, 'parseGameFlags(undefined) -> 0')
+assert(parseGameFlags(1) === 1, 'parseGameFlags(1) -> 1')
+assert(parseGameFlags('1') === 1, 'parseGameFlags("1") -> 1')
+assert(parseGameFlags('GAME_BETA') === 1, 'parseGameFlags("GAME_BETA") -> 1')
+assert(parseGameFlags('UNKNOWN') === 0, 'parseGameFlags("UNKNOWN") -> 0')
+
+console.log('✅ All User Flags and Game Flags Bitmask unit tests passed successfully!')
+

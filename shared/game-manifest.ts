@@ -1,4 +1,4 @@
-import type { GameFlag } from './flags/types'
+import type { GameFlag, GameFlags } from './flags/types'
 
 /** Colour keys map onto `accentOf()` in src/theme/palette.ts. */
 export type GameAccentName = 'orange' | 'amber' | 'blue' | 'green' | 'red'
@@ -30,11 +30,14 @@ export interface GameMechanic {
 export interface GameManifest {
   readonly slug: string
   readonly title: string
+  /** Bitmask vector representing discrete game capabilities / gating */
+  readonly flags?: GameFlags | undefined
   /** Optional game flag for access control / beta visibility */
-  readonly flag?: GameFlag | undefined
+  readonly flag?: GameFlags | GameFlag | undefined
   /** Alias for flag */
-  readonly gameFlag?: GameFlag | undefined
+  readonly gameFlag?: GameFlags | GameFlag | undefined
   /** One line for the card. */
+
   readonly tagline: string
   /** Short paragraph for the game page. */
   readonly description: string

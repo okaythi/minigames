@@ -1,4 +1,4 @@
-import type { GameFlag } from './flags/types'
+import type { GameFlag, GameFlags } from './flags/types'
 import registryData from './game-registry.json'
 
 /**
@@ -17,11 +17,14 @@ export interface GameRegistryEntry {
   readonly title: string
   /** Whether the game is actively enabled and accepted by edge/API */
   readonly enabled: boolean
+  /** Access flag bitmask vector required to play */
+  readonly flags?: GameFlags | undefined
   /** Access flag required to play (e.g. GAME_BETA, STAFF) */
-  readonly flag?: GameFlag | undefined
+  readonly flag?: GameFlags | GameFlag | undefined
   /** How the game code is sourced */
   readonly source: GameSource
 }
+
 
 /**
  * THE SINGLE SOURCE OF TRUTH FOR ALL GAMES IN NIXLABS MINIGAMES.

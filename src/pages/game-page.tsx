@@ -9,7 +9,9 @@ import { useGameStats } from '../services/stats/stats-provider'
 import { setCurrentlyPlaying } from '../services/presence-service'
 import { getChallenge, resolveChallenge } from '../services/social-api'
 import { useCanSeeBetaGames } from '../services/auth-api'
+import { hasGameFlag, GameFlags } from '../../shared/flags'
 import { NotFoundPage } from './not-found-page'
+
 import { emptyGameStats } from './game-stats'
 import { GameErrorBoundary } from '../games/template/game-error-boundary'
 import './game-page.css'
@@ -31,7 +33,8 @@ export function GamePage({ slug }: GamePageProps) {
   const [challengeWon, setChallengeWon] = useState(false)
 
   const game = findGame(slug)
-  const isBetaGame = game?.manifest.flag === 'GAME_BETA' || game?.manifest.gameFlag === 'GAME_BETA'
+  const isBetaGame = hasGameFlag(game?.manifest, GameFlags.GAME_BETA)
+
 
   useEffect(() => {
     if (authLoading) return

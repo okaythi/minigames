@@ -1,4 +1,4 @@
-import { UserFlags, type FlagDefinition, type MaxFourWords } from './types'
+import { UserFlags, GameFlags, type FlagDefinition, type MaxFourWords } from './types'
 
 /**
  * Type-safe flag definition helper.
@@ -51,3 +51,14 @@ export const FLAGS_METADATA = {
 } as const
 
 export const FLAGS = FLAGS_METADATA
+
+/**
+ * Canonical registry of active game flag metadata.
+ */
+export const GAME_FLAGS_METADATA = {
+  [GameFlags.GAME_BETA]: defineFlag({
+    name: 'Beta',
+    description: 'Early Access Beta',
+  }),
+} as const
+

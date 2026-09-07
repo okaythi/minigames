@@ -1,7 +1,9 @@
 import { lazy, createElement } from 'react'
 import type { GameManifest, GameModule, GamePlugin } from './types'
 import { isPlayable } from './types'
+import { hasGameFlag, GameFlags } from '../../shared/flags'
 import { avoidTheSpikesPlugin } from '@nixlabs-games/avoid-the-spikes'
+
 import { pongPlugin } from '@nixlabs-games/pong'
 import { flTron3Plugin } from '@nixlabs-games/fl-tron-3'
 import { manifest as cardJitsuManifest } from './card-jitsu/manifest'
@@ -86,10 +88,9 @@ export const gameCount = GAMES.length
  */
 export function getVisibleGames(canSeeBeta: boolean): readonly GameModule[] {
   if (canSeeBeta) return GAMES
-  return GAMES.filter(
-    (g) => g.manifest.flag !== 'GAME_BETA' && g.manifest.gameFlag !== 'GAME_BETA',
-  )
+  return GAMES.filter((g) => !hasGameFlag(g.manifest, GameFlags.GAME_BETA))
 }
+
 
 /**
  * Returns the game manifests visible to the user.

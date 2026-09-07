@@ -126,9 +126,11 @@ export interface GameMechanic {
 export interface GameManifest {
   readonly slug: string
   readonly title: string
-  readonly flag?: string | undefined
-  readonly gameFlag?: string | undefined
+  readonly flags?: number | undefined
+  readonly flag?: number | string | undefined
+  readonly gameFlag?: number | string | undefined
   readonly tagline: string
+
   readonly description: string
   readonly status: GameStatus
   readonly accent: GameAccentName

@@ -55,10 +55,14 @@ export interface FlagDefinition<TDesc extends string = string> {
 
 /**
  * Game Flags — Discrete feature/visibility gating for games.
+ * Compressed into a compact integer bitmask vector.
  */
 export const GameFlags = {
-  NONE: '',
-  GAME_BETA: 'GAME_BETA',
+  NONE: 0,
+  GAME_BETA: 1 << 0, // Bit 0 (0001) = 1
 } as const
 
-export type GameFlag = (typeof GameFlags)[keyof typeof GameFlags] | string
+export type GameFlagsBit = (typeof GameFlags)[keyof typeof GameFlags]
+export type GameFlags = number
+export type GameFlag = GameFlagsBit | number | string
+

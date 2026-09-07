@@ -1,4 +1,4 @@
-import { UserFlags, type UserFlagsBit } from './types'
+import { UserFlags, GameFlags, type UserFlagsBit, type GameFlagsBit } from './types'
 
 /**
  * Checks whether a specific flag bit is set on the user's bitmask vector.
@@ -101,15 +101,113 @@ export function parseFlags(raw: unknown): number {
 }
 
 /**
- * Checks whether a game manifest has a specific game flag.
+ * Safely coerces raw game flag representation (number, numeric string, or name) into bitmask integer.
+ */
+export function parseGameFlags(raw: unknown): number {
+  if (typeof raw === 'number' && !Number.isNaN(raw)) {
+    return Math.floor(raw)
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    const numeric = Number(trimmed)
+    if (!Number.isNaN(numeric)) {
+      return Math.floor(numeric)
+    }
+    const bit = (GameFlags as Record<string, number>)[trimmed]
+    if (bit !== undefined) {
+      return bit
+    }
+  }
+  return 0
+}
+
+/**
+ * Checks whether a game manifest or vector has a specific game flag bit.
+ * Supports manifests with flags, flag, or gameFlag, as well as raw bitmask vectors.
  */
 export function hasGameFlag(
-  manifest:
-    | { readonly flag?: string | undefined; readonly gameFlag?: string | undefined }
+  manifestOrFlags:
+    | {
+        readonly flags?: number | undefined
+        readonly flag?: number | string | undefined
+        readonly gameFlag?: number | string | undefined
+      }
+    | number
     | undefined
     | null,
-  flag: string,
+  flag: GameFlagsBit | number | string,
 ): boolean {
-  if (!manifest) return false
-  return manifest.flag === flag || manifest.gameFlag === flag
+  if (manifestOrFlags == null) return false
+
+  let bit: number
+  if (typeof flag === 'string') {
+    bit = (GameFlags as Record<string, number>)[flag] ?? 0
+    if (bit === 0) return false
+  } else {
+    bit = flag
+    if (bit === 0) return false
+  }
+
+  if (typeof manifestOrFlags === 'number') {
+    return (manifestOrFlags & bit) === bit
+  }
+
+  // Check numeric vector on manifest.flags
+  if (typeof manifestOrFlags.flags === 'number') {
+    return (manifestOrFlags.flags & bit) === bit
+  }
+
+  // Check flag / gameFlag properties (number, string, or alias)
+  const candidate = manifestOrFlags.flag ?? manifestOrFlags.gameFlag
+  if (candidate === undefined) return false
+
+  const candidateVector = parseGameFlags(candidate)
+  return (candidateVector & bit) === bit
 }
+
+/**
+ * Returns a new game bitmask vector with the specified flag bit set.
+ */
+export function enableGameFlag(
+  flags: number | undefined | null,
+  flag: GameFlagsBit | number | string,
+): number {
+  const bit = typeof flag === 'string' ? (GameFlags as Record<string, number>)[flag] ?? 0 : flag
+  return (Number(flags) || 0) | bit
+}
+
+/**
+ * Returns a new game bitmask vector with the specified flag bit cleared.
+ */
+export function disableGameFlag(
+  flags: number | undefined | null,
+  flag: GameFlagsBit | number | string,
+): number {
+  const bit = typeof flag === 'string' ? (GameFlags as Record<string, number>)[flag] ?? 0 : flag
+  return (Number(flags) || 0) & ~bit
+}
+
+/**
+ * Checks whether ALL flags in the game requirement mask are set.
+ */
+export function hasAllGameFlags(
+  flags: number | undefined | null,
+  mask: number,
+): boolean {
+  if (mask === 0) return true
+  const vector = Number(flags) || 0
+  return (vector & mask) === mask
+}
+
+/**
+ * Checks whether ANY of the flags in the game requirement mask are set.
+ */
+export function hasAnyGameFlag(
+  flags: number | undefined | null,
+  mask: number,
+): boolean {
+  if (mask === 0) return false
+  const vector = Number(flags) || 0
+  return (vector & mask) !== 0
+}
+
