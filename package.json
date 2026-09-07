@@ -26,8 +26,11 @@
     "test:shop": "esbuild scripts/test-card-jitsu-shop.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/test-shop.mjs --log-level=warning && node node_modules/.tmp/test-shop.mjs",
     "test:progression": "vitest run tests/progression.test.ts"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
-    "@nixlabs/game-core": "file:./packages/game-core",
+    "@nixlabs/game-core": "*",
     "@nixlabs-games/avoid-the-spikes": "git+https://github.com/okaythi/game-avoid-the-spikes.git",
     "@nixlabs-games/pong": "git+https://github.com/okaythi/game-pong.git",
     "@nixlabs-games/fl-tron-3": "git+https://github.com/okaythi/game-fl-tron-3.git",
