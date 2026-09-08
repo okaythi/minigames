@@ -30,6 +30,10 @@
         "../game-fl-tron-3/src/index.ts",
         "./node_modules/@nixlabs-games/fl-tron-3/src/index.ts"
       ],
+      "@nixlabs-games/tetris": [
+        "../game-tetris/src/index.ts",
+        "./node_modules/@nixlabs-games/tetris/src/index.ts"
+      ],
       "react": ["./node_modules/@types/react"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
       "react-dom": ["./node_modules/@types/react-dom"]

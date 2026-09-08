@@ -280,7 +280,7 @@ npm run dev
    npm run validate:games
    npm run typecheck
    \`\`\`
-\`
+`
 fs.writeFileSync(path.join(targetDir, 'README.md'), readmeMd)
 
 // Git initialization

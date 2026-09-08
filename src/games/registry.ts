@@ -6,6 +6,7 @@ import { avoidTheSpikesPlugin } from '@nixlabs-games/avoid-the-spikes'
 
 import { pongPlugin } from '@nixlabs-games/pong'
 import { flTron3Plugin } from '@nixlabs-games/fl-tron-3'
+import { tetrisPlugin } from '@nixlabs-games/tetris'
 import { manifest as cardJitsuManifest } from './card-jitsu/manifest'
 import { cardJitsuProfileCard } from './card-jitsu/profile-card'
 
@@ -44,6 +45,7 @@ export const PLUGINS: readonly GamePlugin[] = [
   avoidTheSpikesPlugin,
   pongPlugin,
   flTron3Plugin,
+  tetrisPlugin,
   {
     manifest: cardJitsuManifest,
     Component: CardJitsu,

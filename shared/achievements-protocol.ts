@@ -136,9 +136,16 @@ export type AchievementId =
   | 'cj_plays_champion'
   | 'cj_plays_legend'
   | 'cj_pack_cracker'
+  // Tetris
+  | 'tetris_first_line'
+  | 'tetris_clear_tetris'
+  | 'tetris_b2b'
+  | 'tetris_tspin'
+  | 'tetris_level_10'
+  | 'tetris_perfect_clear'
 
 /** Pillar grouping for display purposes. */
-export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu'
+export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu' | 'tetris'
 
 /** Static definition of an achievement — never changes at runtime. */
 export interface AchievementDef {

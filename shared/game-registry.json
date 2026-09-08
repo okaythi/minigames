@@ -22,5 +22,11 @@
     "title": "Card-Jitsu",
     "enabled": true,
     "source": { "type": "local", "path": "./card-jitsu" }
+  },
+  {
+    "slug": "tetris",
+    "title": "Tetris",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/tetris" }
   }
 ]

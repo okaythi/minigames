@@ -22,6 +22,7 @@ export default defineConfig({
       '@nixlabs-games/avoid-the-spikes': resolveGameEntry('@nixlabs-games/avoid-the-spikes', '../game-avoid-the-spikes/src/index.ts'),
       '@nixlabs-games/pong': resolveGameEntry('@nixlabs-games/pong', '../game-pong/src/index.ts'),
       '@nixlabs-games/fl-tron-3': resolveGameEntry('@nixlabs-games/fl-tron-3', '../game-fl-tron-3/src/index.ts'),
+      '@nixlabs-games/tetris': resolveGameEntry('@nixlabs-games/tetris', '../game-tetris/src/index.ts'),
     },
   },
   build: {
