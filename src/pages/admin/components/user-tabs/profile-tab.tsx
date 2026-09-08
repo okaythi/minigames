@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { type AdminUserDetail, updateUserProfileData } from '../../../../services/admin-api'
+import { AdminChangePill } from '../admin-change-pill'
 
 interface ProfileTabProps {
   readonly detail: AdminUserDetail
   readonly onRefresh: () => void
-  readonly showToast: (msg: string, type?: 'ok' | 'err') => void
+  readonly showToast: (msg: string, type?: 'ok' | 'err' | 'info') => void
+  readonly onDirtyChange?: (isDirty: boolean) => void
 }
 
-export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
+export function ProfileTab({ detail, onRefresh, showToast, onDirtyChange }: ProfileTabProps) {
   const { user } = detail
   const [username, setUsername] = useState(user.username)
   const [nickname, setNickname] = useState(user.nickname || '')
@@ -15,30 +17,64 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
   const [country, setCountry] = useState(user.registeredInCountry || '')
   const [regIp, setRegIp] = useState(user.registeredIp || '')
   const [lastIp, setLastIp] = useState(user.lastLoginIp || '')
-  const [isVpn, setIsVpn] = useState(user.lastLoginIpIsVpn)
-  const [isPioneer, setIsPioneer] = useState(user.legacyUser ?? false)
-  const [isDeveloper, setIsDeveloper] = useState(user.developer ?? false)
+  const [isVpn, setIsVpn] = useState(Boolean(user.lastLoginIpIsVpn))
+  const [isPioneer, setIsPioneer] = useState(Boolean(user.legacyUser))
+  const [isDeveloper, setIsDeveloper] = useState(Boolean(user.developer))
   const [candy, setCandy] = useState<number>(user.candy ?? 0)
   const [newPassword, setNewPassword] = useState('')
   const [clearPfp, setClearPfp] = useState(false)
   const [auditReason, setAuditReason] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
-  useEffect(() => {
+  const resetToClean = () => {
     setUsername(user.username)
     setNickname(user.nickname || '')
     setNicknameCount(user.nicknameChangedCount ?? 0)
     setCountry(user.registeredInCountry || '')
     setRegIp(user.registeredIp || '')
     setLastIp(user.lastLoginIp || '')
-    setIsVpn(user.lastLoginIpIsVpn)
-    setIsPioneer(user.legacyUser ?? false)
-    setIsDeveloper(user.developer ?? false)
+    setIsVpn(Boolean(user.lastLoginIpIsVpn))
+    setIsPioneer(Boolean(user.legacyUser))
+    setIsDeveloper(Boolean(user.developer))
     setCandy(user.candy ?? 0)
+    setNewPassword('')
+    setClearPfp(false)
+    setAuditReason('')
+  }
+
+  useEffect(() => {
+    resetToClean()
   }, [user])
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const hasChanges =
+    username.trim().toLowerCase() !== user.username.toLowerCase() ||
+    nickname.trim() !== (user.nickname || '').trim() ||
+    nicknameCount !== (user.nicknameChangedCount ?? 0) ||
+    country.trim() !== (user.registeredInCountry || '').trim() ||
+    regIp.trim() !== (user.registeredIp || '').trim() ||
+    lastIp.trim() !== (user.lastLoginIp || '').trim() ||
+    Boolean(isVpn) !== Boolean(user.lastLoginIpIsVpn) ||
+    Boolean(isPioneer) !== Boolean(user.legacyUser) ||
+    Boolean(isDeveloper) !== Boolean(user.developer) ||
+    candy !== (user.candy ?? 0) ||
+    clearPfp === true ||
+    newPassword.trim().length > 0
+
+  useEffect(() => {
+    onDirtyChange?.(hasChanges)
+  }, [hasChanges, onDirtyChange])
+
+  const handleDiscard = () => {
+    resetToClean()
+    showToast('Unsaved profile edits discarded', 'info')
+  }
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!hasChanges) {
+      showToast('No changes to save', 'info')
+      return
+    }
     setIsSaving(true)
     const effectiveReason = auditReason.trim() || 'Administrative profile update via Admin Console'
     try {
@@ -214,11 +250,15 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-        <button type="submit" className="nx-admin-btn nx-admin-btn-primary" disabled={isSaving}>
-          {isSaving ? 'Saving Changes...' : 'Save Profile Updates'}
-        </button>
-      </div>
+      <AdminChangePill
+        hasChanges={hasChanges}
+        isSaving={isSaving}
+        onSave={() => handleSave()}
+        onDiscard={handleDiscard}
+        saveLabel="Save Profile Updates"
+        discardLabel="Discard"
+        message="Unsaved profile changes"
+      />
     </form>
   )
 }

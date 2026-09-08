@@ -11,6 +11,7 @@ import { AdminRestrictedCard } from './components/admin-restricted-card'
 import { PromptDialog } from '../../components/ui/prompt-dialog'
 import { FeedbackToast, type ToastMessage } from '../../components/ui/feedback-toast'
 import './admin-common.css'
+import './components/admin-change-pill.css'
 
 export function AdminGamesPage() {
   const [authorized, setAuthorized] = useState<boolean>(isGamesAdmin())
@@ -229,28 +230,31 @@ export function AdminGamesPage() {
                     </td>
                     <td>
                       {isEditing ? (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
                           <button
                             type="button"
-                            className="nx-admin-btn nx-admin-btn-primary nx-admin-btn-sm"
+                            className="nx-pill-btn nx-pill-btn-discard"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem' }}
+                            onClick={cancelEdit}
+                            disabled={saving}
+                          >
+                            Discard
+                          </button>
+                          <button
+                            type="button"
+                            className="nx-pill-btn nx-pill-btn-save"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
                             onClick={() => handlePromptSave(g.slug)}
                             disabled={saving}
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </button>
-                          <button
-                            type="button"
-                            className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm"
-                            onClick={cancelEdit}
-                            disabled={saving}
-                          >
-                            Cancel
-                          </button>
                         </div>
                       ) : (
                         <button
                           type="button"
-                          className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm"
+                          className="nx-pill-btn nx-pill-btn-discard"
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', background: 'var(--nx-sand)', color: 'var(--nx-ink)' }}
                           onClick={() => startEdit(g)}
                         >
                           Configure

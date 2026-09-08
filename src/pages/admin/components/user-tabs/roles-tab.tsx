@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { type AdminUserDetail, updateUserFlags } from '../../../../services/admin-api'
 import { isUsersAdmin, isPlatformAdmin } from '../../../../services/auth-api'
 import { UserFlags, hasFlag, enableFlag, disableFlag, FLAGS_METADATA } from '../../../../../shared/flags'
+import { AdminChangePill } from '../admin-change-pill'
 
 interface RolesTabProps {
   readonly detail: AdminUserDetail
   readonly onRefresh: () => void
-  readonly showToast: (msg: string, type?: 'ok' | 'err') => void
+  readonly showToast: (msg: string, type?: 'ok' | 'err' | 'info') => void
+  readonly onDirtyChange?: (isDirty: boolean) => void
 }
 
 const ALL_FLAGS_LIST = [
@@ -23,26 +25,39 @@ const ALL_FLAGS_LIST = [
   { bit: UserFlags.TEST_ACCOUNT, key: 'TEST_ACCOUNT', badge: 'TEST' },
 ]
 
-export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
+export function RolesTab({ detail, onRefresh, showToast, onDirtyChange }: RolesTabProps) {
   const { user } = detail
   const canManageFlags = isUsersAdmin() || isPlatformAdmin()
   const [currentFlags, setCurrentFlags] = useState<number>(user.flags)
   const [auditReason, setAuditReason] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
+  const hasChanges = currentFlags !== user.flags
+
   useEffect(() => {
     setCurrentFlags(user.flags)
+    setAuditReason('')
   }, [user.flags])
+
+  useEffect(() => {
+    onDirtyChange?.(hasChanges)
+  }, [hasChanges, onDirtyChange])
 
   const toggleFlag = (bit: number) => {
     if (!canManageFlags) return
     setCurrentFlags((prev) => (hasFlag(prev, bit) ? disableFlag(prev, bit) : enableFlag(prev, bit)))
   }
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (currentFlags === user.flags) {
-      showToast('No flag changes to save', 'ok')
+  const handleDiscard = () => {
+    setCurrentFlags(user.flags)
+    setAuditReason('')
+    showToast('Unsaved role and flag changes discarded', 'info')
+  }
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!hasChanges) {
+      showToast('No flag changes to save', 'info')
       return
     }
 
@@ -119,8 +134,8 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
       </div>
 
       {canManageFlags && (
-        <div style={{ borderTop: '1px solid var(--nx-line)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div className="nx-admin-form-group">
+        <>
+          <div className="nx-admin-form-group" style={{ borderTop: '1px solid var(--nx-line)', paddingTop: '1rem' }}>
             <label className="nx-admin-label">Audit Reason (Optional)</label>
             <input
               type="text"
@@ -130,16 +145,17 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
               onChange={(e) => setAuditReason(e.target.value)}
             />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="submit"
-              className="nx-admin-btn nx-admin-btn-primary"
-              disabled={isSaving || currentFlags === user.flags}
-            >
-              {isSaving ? 'Saving...' : 'Save Role & Flag Changes'}
-            </button>
-          </div>
-        </div>
+
+          <AdminChangePill
+            hasChanges={hasChanges}
+            isSaving={isSaving}
+            onSave={() => handleSave()}
+            onDiscard={handleDiscard}
+            saveLabel="Save Role & Flag Changes"
+            discardLabel="Discard"
+            message="Unsaved flag changes"
+          />
+        </>
       )}
     </form>
   )

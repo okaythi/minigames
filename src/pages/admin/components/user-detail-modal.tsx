@@ -6,12 +6,13 @@ import { ModerationTab } from './user-tabs/moderation-tab'
 import { LifecycleTab } from './user-tabs/lifecycle-tab'
 import { SessionsTab } from './user-tabs/sessions-tab'
 import { NotesTab } from './user-tabs/notes-tab'
+import { ConfirmDialog } from '../../../components/ui/confirm-dialog'
 
 interface UserDetailModalProps {
   readonly detail: AdminUserDetail
   readonly onClose: () => void
   readonly onRefresh: () => void
-  readonly showFeedback: (msg: string, type?: 'ok' | 'err') => void
+  readonly showFeedback: (msg: string, type?: 'ok' | 'err' | 'info') => void
 }
 
 type TabKey = 'overview' | 'profile' | 'roles' | 'moderation' | 'sessions' | 'notes' | 'lifecycle'
@@ -24,9 +25,39 @@ export function UserDetailModal({
 }: UserDetailModalProps) {
   const { user, notes, sessions } = detail
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
+  const [isTabDirty, setIsTabDirty] = useState(false)
+  const [pendingNav, setPendingNav] = useState<{ type: 'tab'; target: TabKey } | { type: 'close' } | null>(null)
+
+  const handleTabClick = (target: TabKey) => {
+    if (target === activeTab) return
+    if (isTabDirty) {
+      setPendingNav({ type: 'tab', target })
+      return
+    }
+    setActiveTab(target)
+  }
+
+  const handleCloseAttempt = () => {
+    if (isTabDirty) {
+      setPendingNav({ type: 'close' })
+      return
+    }
+    onClose()
+  }
+
+  const handleConfirmDiscard = () => {
+    setIsTabDirty(false)
+    if (!pendingNav) return
+    if (pendingNav.type === 'tab') {
+      setActiveTab(pendingNav.target)
+    } else if (pendingNav.type === 'close') {
+      onClose()
+    }
+    setPendingNav(null)
+  }
 
   return (
-    <div className="nx-admin-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="nx-admin-modal-overlay" onClick={handleCloseAttempt} role="dialog" aria-modal="true">
       <div className="nx-admin-modal" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="nx-admin-modal-header">
@@ -55,7 +86,7 @@ export function UserDetailModal({
               <span>Registered: {new Date(user.createdOn * 1000).toLocaleDateString()}</span>
             </div>
           </div>
-          <button type="button" className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm" onClick={onClose}>
+          <button type="button" className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm" onClick={handleCloseAttempt}>
             ✕
           </button>
         </div>
@@ -65,7 +96,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
+            onClick={() => handleTabClick('overview')}
             role="tab"
             aria-selected={activeTab === 'overview'}
           >
@@ -74,7 +105,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            onClick={() => handleTabClick('profile')}
             role="tab"
             aria-selected={activeTab === 'profile'}
           >
@@ -83,7 +114,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'roles' ? 'active' : ''}`}
-            onClick={() => setActiveTab('roles')}
+            onClick={() => handleTabClick('roles')}
             role="tab"
             aria-selected={activeTab === 'roles'}
           >
@@ -92,7 +123,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'moderation' ? 'active' : ''}`}
-            onClick={() => setActiveTab('moderation')}
+            onClick={() => handleTabClick('moderation')}
             role="tab"
             aria-selected={activeTab === 'moderation'}
           >
@@ -101,7 +132,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'sessions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sessions')}
+            onClick={() => handleTabClick('sessions')}
             role="tab"
             aria-selected={activeTab === 'sessions'}
           >
@@ -110,7 +141,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'notes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('notes')}
+            onClick={() => handleTabClick('notes')}
             role="tab"
             aria-selected={activeTab === 'notes'}
           >
@@ -119,7 +150,7 @@ export function UserDetailModal({
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'lifecycle' ? 'active' : ''}`}
-            onClick={() => setActiveTab('lifecycle')}
+            onClick={() => handleTabClick('lifecycle')}
             role="tab"
             aria-selected={activeTab === 'lifecycle'}
           >
@@ -182,14 +213,14 @@ export function UserDetailModal({
                 <button
                   type="button"
                   className="nx-admin-btn nx-admin-btn-secondary"
-                  onClick={() => setActiveTab('profile')}
+                  onClick={() => handleTabClick('profile')}
                 >
                   Edit User Details
                 </button>
                 <button
                   type="button"
                   className="nx-admin-btn nx-admin-btn-secondary"
-                  onClick={() => setActiveTab('moderation')}
+                  onClick={() => handleTabClick('moderation')}
                 >
                   Manage Moderation
                 </button>
@@ -203,6 +234,7 @@ export function UserDetailModal({
               detail={detail}
               onRefresh={onRefresh}
               showToast={showFeedback}
+              onDirtyChange={setIsTabDirty}
             />
           )}
 
@@ -212,6 +244,7 @@ export function UserDetailModal({
               detail={detail}
               onRefresh={onRefresh}
               showToast={showFeedback}
+              onDirtyChange={setIsTabDirty}
             />
           )}
 
@@ -232,6 +265,17 @@ export function UserDetailModal({
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!pendingNav}
+        title="Unsaved Changes"
+        message="You have unsaved changes in this tab that will be lost. Would you like to discard them or keep editing?"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        danger
+        onConfirm={handleConfirmDiscard}
+        onCancel={() => setPendingNav(null)}
+      />
     </div>
   )
 }

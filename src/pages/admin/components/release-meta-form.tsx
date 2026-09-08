@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import type { ReleaseAggregate, UpdateReleaseMetaInput } from '../../../engine/updates/types'
 import { AuthorPicker } from '../../../components/ui/author-picker'
+import { AdminChangePill } from './admin-change-pill'
 
 interface ReleaseMetaFormProps {
   readonly release: ReleaseAggregate
@@ -19,7 +20,7 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
+  const resetToClean = () => {
     setGlobalVersion(release.meta.globalVersion)
     setTitle(release.meta.title)
     setHeadline(release.meta.headline)
@@ -27,7 +28,20 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
     setAuthorUsername(release.meta.authorUsername ?? '')
     setIsAuthorValid(true)
     setStatus(release.meta.status)
+    setError(null)
+  }
+
+  useEffect(() => {
+    resetToClean()
   }, [release.meta])
+
+  const hasChanges =
+    globalVersion.trim() !== release.meta.globalVersion ||
+    title.trim() !== release.meta.title ||
+    headline.trim() !== release.meta.headline ||
+    releaseDate.trim() !== release.meta.releaseDate ||
+    authorUsername.trim() !== (release.meta.authorUsername ?? '') ||
+    status !== release.meta.status
 
   const headlineLength = headline.length
   const isHeadlineOverLimit = headlineLength > 80
@@ -167,11 +181,15 @@ export function ReleaseMetaForm({ release, onSave }: ReleaseMetaFormProps) {
       {error && <div className="nx-form-error">⚠️ {error}</div>}
       {success && <div className="nx-form-success">✅ Release metadata saved successfully!</div>}
 
-      <div className="nx-form-actions">
-        <button type="submit" className="nx-btn nx-btn-primary" disabled={saving || isHeadlineOverLimit}>
-          {saving ? 'Saving...' : 'Update Release Metadata'}
-        </button>
-      </div>
+      <AdminChangePill
+        hasChanges={hasChanges}
+        isSaving={saving}
+        onSave={() => handleSubmit(new Event('submit') as unknown as FormEvent)}
+        onDiscard={resetToClean}
+        saveLabel="Update Metadata"
+        discardLabel="Discard"
+        message="Unsaved metadata changes"
+      />
     </form>
   )
 }

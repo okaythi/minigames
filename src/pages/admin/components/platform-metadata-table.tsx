@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PromptDialog } from '../../../components/ui/prompt-dialog'
+import './admin-change-pill.css'
 
 interface PlatformMetadataTableProps {
   readonly metadata: Record<string, { value: string | null; updatedBy: string | null; updatedAt: number }>
@@ -132,26 +133,29 @@ export function PlatformMetadataTable({
                       </td>
                       <td>
                         {isEditing ? (
-                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
                             <button
                               type="button"
-                              className="nx-admin-btn nx-admin-btn-primary nx-admin-btn-sm"
-                              onClick={() => handleStartSave(key, editingValue)}
+                              className="nx-pill-btn nx-pill-btn-discard"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem' }}
+                              onClick={() => setEditingKey(null)}
                             >
-                              Save
+                              Discard
                             </button>
                             <button
                               type="button"
-                              className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm"
-                              onClick={() => setEditingKey(null)}
+                              className="nx-pill-btn nx-pill-btn-save"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                              onClick={() => handleStartSave(key, editingValue)}
                             >
-                              Cancel
+                              Save
                             </button>
                           </div>
                         ) : (
                           <button
                             type="button"
-                            className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm"
+                            className="nx-pill-btn nx-pill-btn-discard"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', background: 'var(--nx-sand)', color: 'var(--nx-ink)' }}
                             onClick={() => {
                               setEditingKey(key)
                               setEditingValue(data.value || '')

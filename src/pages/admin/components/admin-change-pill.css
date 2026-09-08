@@ -1,0 +1,147 @@
+/**
+ * Nixlabs Admin — Change Detection Pill Bar
+ * Floating glassmorphic dock with capsule Save & Discard pills
+ */
+
+.nx-change-pill-dock {
+  position: sticky;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  margin: 1rem auto 0;
+  width: fit-content;
+  max-width: 94%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.75rem 0.45rem 1rem;
+  background: rgba(35, 35, 36, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  transform: translateY(0);
+  opacity: 1;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nx-change-pill-dock[data-visible='false'] {
+  transform: translateY(16px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  height: 0;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.nx-change-pill-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #faf7f2;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.nx-change-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nx-orange, #f6821f);
+  box-shadow: 0 0 8px rgba(246, 130, 31, 0.8);
+  animation: nx-pill-pulse 2s infinite ease-in-out;
+}
+
+@keyframes nx-pill-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.75;
+  }
+}
+
+.nx-change-pill-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+  outline: none;
+  width: 170px;
+  transition: all 0.15s ease;
+}
+
+.nx-change-pill-input:focus {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--nx-orange, #f6821f);
+  width: 210px;
+}
+
+.nx-change-pill-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.nx-change-pill-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nx-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.nx-pill-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.nx-pill-btn-discard {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f2ece2;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.nx-pill-btn-discard:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.nx-pill-btn-save {
+  background: var(--nx-orange, #f6821f);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(246, 130, 31, 0.35);
+}
+
+.nx-pill-btn-save:hover:not(:disabled) {
+  background: var(--nx-orange-deep, #d96c12);
+  box-shadow: 0 3px 10px rgba(246, 130, 31, 0.5);
+  transform: translateY(-1px);
+}
+
+.nx-pill-btn-save:active:not(:disabled) {
+  transform: translateY(0);
+}

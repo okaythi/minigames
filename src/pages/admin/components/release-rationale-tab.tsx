@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { ReleaseAggregate } from '../../../engine/updates/types'
 import { ArcadeTextEditor } from '../../../components/ui/rich-editor/arcade-text-editor'
+import { AdminChangePill } from './admin-change-pill'
 
 interface ReleaseRationaleTabProps {
   readonly release: ReleaseAggregate
@@ -8,12 +9,19 @@ interface ReleaseRationaleTabProps {
 }
 
 export function ReleaseRationaleTab({ release, onSave }: ReleaseRationaleTabProps) {
-  const [rationaleContent, setRationaleContent] = useState(release.rationale?.content || '')
+  const initialContent = release.rationale?.content || ''
+  const [rationaleContent, setRationaleContent] = useState(initialContent)
   const [savingRationale, setSavingRationale] = useState(false)
 
   useEffect(() => {
     setRationaleContent(release.rationale?.content || '')
   }, [release.rationale])
+
+  const hasChanges = rationaleContent.trim() !== initialContent.trim()
+
+  const handleDiscard = () => {
+    setRationaleContent(initialContent)
+  }
 
   const handleSave = async () => {
     setSavingRationale(true)
@@ -36,16 +44,17 @@ export function ReleaseRationaleTab({ release, onSave }: ReleaseRationaleTabProp
         minHeight={220}
         placeholder="Describe design decisions, why certain mechanics changed..."
       />
-      <div className="nx-form-actions" style={{ marginTop: '14px' }}>
-        <button
-          type="button"
-          className="nx-btn nx-btn-primary"
-          onClick={handleSave}
-          disabled={savingRationale}
-        >
-          {savingRationale ? 'Saving...' : 'Save Developer Rationale'}
-        </button>
-      </div>
+
+      <AdminChangePill
+        hasChanges={hasChanges}
+        isSaving={savingRationale}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        saveLabel="Save Rationale"
+        discardLabel="Discard"
+        message="Unsaved rationale text"
+      />
     </div>
   )
 }
+
