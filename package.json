@@ -37,6 +37,7 @@
     "@nixlabs-games/avoid-the-spikes": "git+https://github.com/okaythi/game-avoid-the-spikes.git",
     "@nixlabs-games/pong": "git+https://github.com/okaythi/game-pong.git",
     "@nixlabs-games/fl-tron-3": "git+https://github.com/okaythi/game-fl-tron-3.git",
+    "@nixlabs-games/tetris": "git+https://github.com/okaythi/game-tetris.git",
     "@ruffle-rs/ruffle": "^0.5.0",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
