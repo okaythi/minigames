@@ -7,6 +7,16 @@ export const onRequest = async (context: {
   env: Env
   next: (input?: Request | string, init?: RequestInit) => Promise<Response>
 }): Promise<Response> => {
+  const url = new URL(context.request.url)
+  const path = url.pathname.toLowerCase()
+
+  // Prevent direct pages.dev bypass for admin UI and admin APIs by redirecting to the Zero-Trust-protected custom domain
+  if (url.hostname.endsWith('.pages.dev')) {
+    if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
+      return Response.redirect(`https://minigames.nixlabs.tech${url.pathname}${url.search}`, 302)
+    }
+  }
+
   const userAgent = context.request.headers.get('user-agent') || ''
   const isBot =
     /discordbot|twitterbot|facebookexternalhit|telegrambot|slackbot|linkedinbot|whatsapp|skypeuripreview|embedly|quora link preview|outbrain|pinterest|vkshare|w3c_validator/i.test(
