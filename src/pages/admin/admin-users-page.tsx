@@ -23,6 +23,7 @@ export function AdminUsersPage() {
   // Users Directory state
   const [users, setUsers] = useState<AdminUserListItem[]>([])
   const [totalUsers, setTotalUsers] = useState(0)
+  const [metrics, setMetrics] = useState({ total: 0, active: 0, banned: 0 })
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'banned'>('all')
   const [loadingUsers, setLoadingUsers] = useState(false)
@@ -57,6 +58,7 @@ export function AdminUsersPage() {
       })
       setUsers(res.users)
       setTotalUsers(res.total)
+      if (res.metrics) setMetrics(res.metrics)
     } catch (err: any) {
       showToast(err.message || 'Failed to load user directory', 'err')
     } finally {
@@ -114,8 +116,6 @@ export function AdminUsersPage() {
     )
   }
 
-  const activeCount = users.filter((u) => !u.accountLocked).length
-  const lockedCount = users.filter((u) => u.accountLocked).length
   const openReportsCount = reports.filter((r) => r.status === 'open').length
 
   return (
@@ -128,24 +128,26 @@ export function AdminUsersPage() {
         <AdminNavBar activeTab="users" />
       </div>
 
-      <div className="nx-admin-stats-grid">
-        <div className="nx-admin-stat-card">
-          <span className="nx-admin-stat-card-label">Total Accounts</span>
-          <span className="nx-admin-stat-card-value">{totalUsers}</span>
+      <div className="nx-admin-pills-vertical">
+        <div className="nx-admin-pill">
+          <span className="nx-admin-pill-label">Total Accounts</span>
+          <span className="nx-admin-pill-value">{metrics.total}</span>
         </div>
-        <div className="nx-admin-stat-card">
-          <span className="nx-admin-stat-card-label">Active (Sample)</span>
-          <span className="nx-admin-stat-card-value">{activeCount}</span>
-        </div>
-        <div className="nx-admin-stat-card">
-          <span className="nx-admin-stat-card-label">Banned / Locked</span>
-          <span className="nx-admin-stat-card-value" style={{ color: lockedCount > 0 ? 'var(--nx-red)' : undefined }}>
-            {lockedCount}
+        <div className="nx-admin-pill">
+          <span className="nx-admin-pill-label">Active</span>
+          <span className="nx-admin-pill-value" style={{ color: 'var(--nx-green)' }}>
+            {metrics.active}
           </span>
         </div>
-        <div className="nx-admin-stat-card">
-          <span className="nx-admin-stat-card-label">Open Reports</span>
-          <span className="nx-admin-stat-card-value" style={{ color: openReportsCount > 0 ? 'var(--nx-orange)' : undefined }}>
+        <div className="nx-admin-pill">
+          <span className="nx-admin-pill-label">Banned / Locked</span>
+          <span className="nx-admin-pill-value" style={{ color: metrics.banned > 0 ? 'var(--nx-red)' : undefined }}>
+            {metrics.banned}
+          </span>
+        </div>
+        <div className="nx-admin-pill">
+          <span className="nx-admin-pill-label">Open Reports</span>
+          <span className="nx-admin-pill-value" style={{ color: openReportsCount > 0 ? 'var(--nx-orange)' : undefined }}>
             {openReportsCount}
           </span>
         </div>

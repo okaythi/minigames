@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/d1'
-import { like, or, eq } from 'drizzle-orm'
+import { like, or, eq, sql } from 'drizzle-orm'
 import { users } from '../../../../src/db/schema'
 import { parseFlags, hasFlag } from '../../../../shared/flags'
 import { toDisplayId } from '../../../../shared/snowflake'
@@ -47,7 +47,12 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     query = query.where(conditions[0]!) as any
   }
 
-  const allMatched = await query.all()
+  const [allMatched, totalAll, activeAll, bannedAll] = await Promise.all([
+    query.all(),
+    db.select({ count: sql<number>`count(*)` }).from(users).get(),
+    db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.accountLocked, 0)).get(),
+    db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.accountLocked, 1)).get(),
+  ])
 
   // Apply flag filter in memory if provided
   let filtered = allMatched
@@ -84,6 +89,11 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
     ok: true,
     users: mappedUsers,
     total,
+    metrics: {
+      total: totalAll?.count ?? total,
+      active: activeAll?.count ?? 0,
+      banned: bannedAll?.count ?? 0,
+    },
     limit,
     offset,
   })

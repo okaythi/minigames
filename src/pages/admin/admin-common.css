@@ -66,6 +66,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nx-admin-nav-tab:hover {
@@ -79,36 +81,39 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-/* Metric Stats Grid */
-.nx-admin-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.nx-admin-stat-card {
-  background: var(--nx-card, #fffdf9);
-  border: 1px solid var(--nx-line, #e6e0d6);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
+/* Vertical 4 Smaller Pills */
+.nx-admin-pills-vertical {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: fit-content;
+  min-width: 220px;
+  max-width: 320px;
 }
 
-.nx-admin-stat-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.nx-admin-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  background: var(--nx-card, #fffdf9);
+  border: 1px solid var(--nx-line, #e6e0d6);
+  border-radius: 9999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.8125rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.nx-admin-pill-label {
+  font-weight: 500;
   color: var(--nx-slate, #6f6d6a);
 }
 
-.nx-admin-stat-val {
-  font-size: 1.5rem;
+.nx-admin-pill-value {
   font-weight: 700;
-  color: var(--nx-ink, #232324);
   font-family: ui-monospace, monospace;
+  color: var(--nx-ink, #232324);
+  font-size: 0.875rem;
 }
 
 /* Card Containers */
@@ -282,4 +287,3 @@
   padding: 0.2rem 0.5rem;
   font-size: 0.75rem;
 }
-

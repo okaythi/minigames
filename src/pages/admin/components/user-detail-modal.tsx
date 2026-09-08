@@ -61,19 +61,13 @@ export function UserDetailModal({
         </div>
 
         {/* Navigation Tab Strip */}
-        <div
-          style={{
-            padding: '0.75rem 1.25rem 0',
-            display: 'flex',
-            gap: '0.35rem',
-            borderBottom: '1px solid var(--nx-line)',
-            overflowX: 'auto',
-          }}
-        >
+        <div className="nx-admin-modal-tabs" role="tablist">
           <button
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
+            role="tab"
+            aria-selected={activeTab === 'overview'}
           >
             Overview
           </button>
@@ -81,6 +75,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
+            role="tab"
+            aria-selected={activeTab === 'profile'}
           >
             Profile &amp; PII
           </button>
@@ -88,6 +84,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'roles' ? 'active' : ''}`}
             onClick={() => setActiveTab('roles')}
+            role="tab"
+            aria-selected={activeTab === 'roles'}
           >
             Roles &amp; Flags
           </button>
@@ -95,6 +93,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'moderation' ? 'active' : ''}`}
             onClick={() => setActiveTab('moderation')}
+            role="tab"
+            aria-selected={activeTab === 'moderation'}
           >
             Moderation ({detail.moderationActions.length})
           </button>
@@ -102,6 +102,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'sessions' ? 'active' : ''}`}
             onClick={() => setActiveTab('sessions')}
+            role="tab"
+            aria-selected={activeTab === 'sessions'}
           >
             Sessions ({sessions.filter((s) => s.isActive).length})
           </button>
@@ -109,6 +111,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'notes' ? 'active' : ''}`}
             onClick={() => setActiveTab('notes')}
+            role="tab"
+            aria-selected={activeTab === 'notes'}
           >
             Staff Notes ({notes.length})
           </button>
@@ -116,6 +120,8 @@ export function UserDetailModal({
             type="button"
             className={`nx-admin-nav-tab ${activeTab === 'lifecycle' ? 'active' : ''}`}
             onClick={() => setActiveTab('lifecycle')}
+            role="tab"
+            aria-selected={activeTab === 'lifecycle'}
           >
             Lifecycle &amp; Danger
           </button>
