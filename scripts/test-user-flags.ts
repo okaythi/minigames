@@ -33,6 +33,9 @@ assert(FLAGS_METADATA[UserFlags.USER_DEVELOPER].description === 'Labs Developer'
 assert(FLAGS_METADATA[UserFlags.USER_PIONEER].description === 'Labs Pioneer', 'USER_PIONEER description')
 assert(FLAGS_METADATA[UserFlags.STAFF].description === 'Nixlabs Staff', 'STAFF description')
 assert(FLAGS_METADATA[UserFlags.CMS_EDITOR].description === 'Update Notes Editor', 'CMS_EDITOR description')
+assert(FLAGS_METADATA[UserFlags.USERS_ADMIN].description === 'Manage Users and Moderation', 'USERS_ADMIN description')
+assert(FLAGS_METADATA[UserFlags.GAMES_ADMIN].description === 'Manage Games and Flags', 'GAMES_ADMIN description')
+assert(FLAGS_METADATA[UserFlags.PLATFORM_ADMIN].description === 'Platform and Role Admin', 'PLATFORM_ADMIN description')
 
 // Word count check (<= 4 words)
 for (const [bit, def] of Object.entries(FLAGS_METADATA)) {
@@ -89,7 +92,9 @@ assert(parseFlags('{"USER_PIONEER":{"enabled":true}}') === 2, 'parseFlags legacy
 console.log('🧪 Running Game Flags Bitmask system unit tests...')
 assert(GameFlags.NONE === 0, 'GameFlags.NONE === 0')
 assert(GameFlags.GAME_BETA === 1, 'GameFlags.GAME_BETA === 1')
+assert(GameFlags.FEATURED === 2, 'GameFlags.FEATURED === 2')
 assert(GAME_FLAGS_METADATA[GameFlags.GAME_BETA].description === 'Early Access Beta', 'GAME_BETA metadata description')
+assert(GAME_FLAGS_METADATA[GameFlags.FEATURED].description === 'Featured Showcase Game', 'FEATURED metadata description')
 
 // Game Flags bitwise ops
 let gflags = GameFlags.NONE

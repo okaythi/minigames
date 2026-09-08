@@ -7,6 +7,9 @@ export const ROUTES = {
   updates: '/updates',
   settings: '/settings',
   adminUpdates: '/admin/updates',
+  adminUsers: '/admin/users',
+  adminGames: '/admin/games',
+  adminPlatform: '/admin/platform',
   game: (slug: string): string => `/games/${slug}`,
   userProfile: (username: string): string => `/users/${username}`,
   userFriends: (username: string): string => `/users/${username}/friends`,
@@ -32,6 +35,18 @@ export function parseRoute(pathname: string, search: string): Route {
 
   if (path === '/admin/updates') {
     return { name: 'admin-updates', query: readQuery(search) }
+  }
+
+  if (path === '/admin/users') {
+    return { name: 'admin-users', query: readQuery(search) }
+  }
+
+  if (path === '/admin/games') {
+    return { name: 'admin-games', query: readQuery(search) }
+  }
+
+  if (path === '/admin/platform') {
+    return { name: 'admin-platform', query: readQuery(search) }
   }
 
 

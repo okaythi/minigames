@@ -24,7 +24,9 @@
     "test:chat": "esbuild scripts/test-chat-engine.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/test-chat.mjs --log-level=warning && node node_modules/.tmp/test-chat.mjs",
     "test:card-jitsu": "esbuild scripts/test-rules.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/test-rules.mjs --log-level=warning && node node_modules/.tmp/test-rules.mjs",
     "test:shop": "esbuild scripts/test-card-jitsu-shop.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/test-shop.mjs --log-level=warning && node node_modules/.tmp/test-shop.mjs",
-    "test:progression": "vitest run tests/progression.test.ts"
+    "test:progression": "vitest run tests/progression.test.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "backfill:snowflakes": "tsx scripts/backfill-snowflakes.ts"
   },
   "workspaces": [
     "packages/*"

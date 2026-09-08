@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm'
 import { users } from '../../../src/db/schema'
 import { UserProfileUpdateSchema } from '../../../shared/auth-protocol'
 import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
+import { toDisplayId } from '../../../shared/snowflake'
+import { identifySession } from '../../../shared/session'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -13,9 +15,18 @@ interface PagesContext {
   readonly env: StatsEnv & { NIXLABS_DB: D1Database; ASSETS_BUCKET: R2Bucket }
 }
 
-export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
+async function resolvePlayerId(request: Request, env: PagesContext['env']): Promise<string | null> {
+  const db = drizzle(env.NIXLABS_DB)
+  const sessionPlayerId = await identifySession(request, db)
+  if (sessionPlayerId) return sessionPlayerId
+
   const store = storeFor(env)
   const { playerId } = await identifyPlayer(request, store)
+  return playerId
+}
+
+export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
+  const playerId = await resolvePlayerId(request, env)
   if (!playerId) {
     return badRequest('unauthorized')
   }
@@ -23,8 +34,8 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
   const db = drizzle(env.NIXLABS_DB)
   const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
   
-  if (!user) {
-    return badRequest('unauthorized')
+  if (!user || user.accountLocked === 1) {
+    return jsonResponse(401, { ok: false, error: 'Unauthorized: user account invalid or locked' })
   }
 
   const flags = parseFlags(user.flags)
@@ -40,13 +51,14 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
       flags,
       nicknameChangedCount: user.nicknameChangedCount,
       createdOn: user.createdOn,
+      snowflakeId: user.snowflakeId ?? null,
+      displaySnowflakeId: user.snowflakeId ? toDisplayId(user.snowflakeId) : null,
     },
   })
 }
 
 export const onRequestPut = async ({ request, env }: PagesContext): Promise<Response> => {
-  const store = storeFor(env)
-  const { playerId } = await identifyPlayer(request, store)
+  const playerId = await resolvePlayerId(request, env)
   if (!playerId) {
     return badRequest('unauthorized')
   }
@@ -59,7 +71,7 @@ export const onRequestPut = async ({ request, env }: PagesContext): Promise<Resp
 
   const db = drizzle(env.NIXLABS_DB)
   const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
-  if (!user) {
+  if (!user || user.accountLocked === 1) {
     return badRequest('unauthorized')
   }
 
@@ -76,8 +88,7 @@ export const onRequestPut = async ({ request, env }: PagesContext): Promise<Resp
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
-  const store = storeFor(env)
-  const { playerId } = await identifyPlayer(request, store)
+  const playerId = await resolvePlayerId(request, env)
   if (!playerId) {
     return badRequest('unauthorized')
   }

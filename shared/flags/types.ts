@@ -18,6 +18,9 @@ export const UserFlags = {
   USER_FRIENDS_MAX:      1 << 5, // Bit 5 (0010 0000) = 32
   TEST_ACCOUNT:          1 << 6, // Bit 6 (0100 0000) = 64
   USER_MESSAGES_BLOCKED: 1 << 7, // Bit 7 (1000 0000) = 128
+  USERS_ADMIN:           1 << 8, // Bit 8 = 256 — manage users, restrictions, notes
+  GAMES_ADMIN:           1 << 9, // Bit 9 = 512 — manage games, game flags
+  PLATFORM_ADMIN:        1 << 10, // Bit 10 = 1024 — platform metadata, audit log, grant other admin bits
 } as const
 
 export type UserFlagsBit = (typeof UserFlags)[keyof typeof UserFlags]
@@ -60,6 +63,7 @@ export interface FlagDefinition<TDesc extends string = string> {
 export const GameFlags = {
   NONE: 0,
   GAME_BETA: 1 << 0, // Bit 0 (0001) = 1
+  FEATURED:  1 << 1, // Bit 1 (0010) = 2
 } as const
 
 export type GameFlagsBit = (typeof GameFlags)[keyof typeof GameFlags]

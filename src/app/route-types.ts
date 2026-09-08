@@ -12,6 +12,9 @@ export type Route =
   | { readonly name: 'user-friends'; readonly username: string; readonly query: QueryParams }
   | { readonly name: 'settings'; readonly query: QueryParams }
   | { readonly name: 'admin-updates'; readonly query: QueryParams }
+  | { readonly name: 'admin-users'; readonly query: QueryParams }
+  | { readonly name: 'admin-games'; readonly query: QueryParams }
+  | { readonly name: 'admin-platform'; readonly query: QueryParams }
   | { readonly name: 'not-found'; readonly path: string; readonly query: QueryParams }
 
 

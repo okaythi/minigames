@@ -28,7 +28,11 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
 
   const isUpdates = route.name === 'updates'
   const isGames = route.name === 'home'
-  const isAdminUpdates = route.name === 'admin-updates'
+  const isAdmin =
+    route.name === 'admin-updates' ||
+    route.name === 'admin-users' ||
+    route.name === 'admin-games' ||
+    route.name === 'admin-platform'
 
   return (
     <>
@@ -53,11 +57,11 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
             </Link>
             {hasCmsAccess && (
               <Link
-                to={ROUTES.adminUpdates}
+                to={ROUTES.adminUsers}
                 className="nx-nav-link nx-nav-link-cms"
-                data-active={isAdminUpdates ? 'true' : undefined}
+                data-active={isAdmin ? 'true' : undefined}
               >
-                CMS Tool
+                Admin
               </Link>
             )}
             <NotificationBell />

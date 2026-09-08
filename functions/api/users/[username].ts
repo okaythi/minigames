@@ -3,6 +3,7 @@ import { eq, sql, or, and, inArray } from 'drizzle-orm'
 import { users, players, playerGames, gameStats, playerAchievements, playerDailyActivity, friendships, userPresence, userPrivacySettings, cjNinja, cjCard } from '../../../src/db/schema'
 import type { UserPublicProfileResponse, UserGameStat, Badge, ActivityItem, FriendSummary } from '../../../shared/auth-protocol'
 import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
+import { toDisplayId } from '../../../shared/snowflake'
 import { ACHIEVEMENT_DEFS } from '../../../shared/achievement-defs'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -365,6 +366,8 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
     flags,
     nicknameChangedCount: user.nicknameChangedCount,
     createdOn: user.createdOn,
+    snowflakeId: user.snowflakeId ?? null,
+    displaySnowflakeId: user.snowflakeId ? toDisplayId(user.snowflakeId) : null,
     totalPlays,
     totalCandy,
     recordsHeld,

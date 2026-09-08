@@ -48,6 +48,18 @@ export const FLAGS_METADATA = {
     name: 'Messaging Suspended',
     description: 'Direct Messaging Suspended',
   }),
+  [UserFlags.USERS_ADMIN]: defineFlag({
+    name: 'Users Admin',
+    description: 'Manage Users and Moderation',
+  }),
+  [UserFlags.GAMES_ADMIN]: defineFlag({
+    name: 'Games Admin',
+    description: 'Manage Games and Flags',
+  }),
+  [UserFlags.PLATFORM_ADMIN]: defineFlag({
+    name: 'Platform Admin',
+    description: 'Platform and Role Admin',
+  }),
 } as const
 
 export const FLAGS = FLAGS_METADATA
@@ -59,6 +71,10 @@ export const GAME_FLAGS_METADATA = {
   [GameFlags.GAME_BETA]: defineFlag({
     name: 'Beta',
     description: 'Early Access Beta',
+  }),
+  [GameFlags.FEATURED]: defineFlag({
+    name: 'Featured',
+    description: 'Featured Showcase Game',
   }),
 } as const
 

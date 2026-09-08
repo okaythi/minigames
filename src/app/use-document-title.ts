@@ -22,6 +22,12 @@ export function titleForRoute(route: Route): string {
       return `Settings · ${SITE_TITLE}`
     case 'admin-updates':
       return `Update Notes CMS · ${SITE_TITLE}`
+    case 'admin-users':
+      return `Users & Moderation · ${SITE_TITLE}`
+    case 'admin-games':
+      return `Games Management · ${SITE_TITLE}`
+    case 'admin-platform':
+      return `Platform Administration · ${SITE_TITLE}`
     case 'user-profile':
       return `@${route.username} · ${SITE_TITLE}`
     case 'user-friends':

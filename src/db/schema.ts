@@ -60,6 +60,7 @@ export const users = sqliteTable('users', {
   registeredIp: text('registered_ip'),
   developer: integer('developer').default(0).notNull(),
   flags: integer('flags').default(0).notNull(),
+  snowflakeId: text('snowflake_id').unique(),
 })
 
 export const systemConfig = sqliteTable('system_config', {
@@ -292,4 +293,7 @@ export const cjNinjaColors = sqliteTable(
     pk: primaryKey({ columns: [table.userId, table.colorId] }),
   }),
 )
+
+export * from './admin-schema'
+
 

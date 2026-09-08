@@ -43,6 +43,8 @@ export interface UserProfileResponse {
   flags: UserFlags
   nicknameChangedCount: number
   createdOn: number
+  snowflakeId?: string | null | undefined
+  displaySnowflakeId?: string | null | undefined
 }
 
 export interface UserGameStat {
@@ -115,6 +117,8 @@ export interface UserPublicProfileResponse {
   flags: UserFlags
   nicknameChangedCount: number
   createdOn: number
+  snowflakeId?: string | null | undefined
+  displaySnowflakeId?: string | null | undefined
   totalPlays: number
   totalCandy: number
   recordsHeld: number

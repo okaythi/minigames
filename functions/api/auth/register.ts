@@ -8,6 +8,8 @@ import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
 import { serializePlayerCookie } from '../../../shared/player-cookie'
+import { nextSnowflake } from '../../../shared/snowflake'
+import { createSession, extractSessionMeta, serializeSessionCookie } from '../../../shared/session'
 import { storeFor, type StatsEnv } from '../stats/store-for'
 
 interface PagesContext {
@@ -33,7 +35,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
   }
 
   const store = storeFor(env)
-  let { playerId, cookie } = await identifyPlayer(request, store)
+  let { playerId } = await identifyPlayer(request, store)
   
   const now = Math.floor(Date.now() / 1000)
   const cf = request.cf as any
@@ -62,6 +64,9 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     }
   }
 
+  // Creator 0 = self_registration
+  const snowflakeId = nextSnowflake(0)
+
   await db.insert(users).values({
     playerId,
     username,
@@ -76,6 +81,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     lastLoginIp: ip,
     lastLoginIpIsVpn: isVpn,
     registeredIp: ip,
+    snowflakeId,
   })
 
   // Auto-award Claimed Identity achievement on account creation
@@ -90,11 +96,16 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     // Ignore if already present
   }
 
-  // We set a new HttpOnly session cookie, but since the playerId cookie is already HttpOnly
-  // and acts as the unique session identifier for D1, we might just reuse the same cookie.
-  // We'll return success and the cookie to be re-planted.
-  if (!cookie) {
-    cookie = serializePlayerCookie(playerId)
-  }
-  return jsonResponse(200, { ok: true, username }, { cookie })
+  // Create active session
+  const meta = await extractSessionMeta(request)
+  const sessionToken = await createSession(db, playerId, meta)
+
+  const response = jsonResponse(
+    200,
+    { ok: true, username, snowflakeId },
+    { cookie: serializeSessionCookie(sessionToken) },
+  )
+  response.headers.append('set-cookie', serializePlayerCookie(playerId))
+
+  return response
 }

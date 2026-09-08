@@ -6,6 +6,7 @@ import { users } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { serializePlayerCookie } from '../../../shared/player-cookie'
+import { createSession, extractSessionMeta, serializeSessionCookie } from '../../../shared/session'
 
 interface PagesContext {
   readonly request: Request
@@ -32,6 +33,11 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     return badRequest('invalid username or password')
   }
 
+  // Enforce account lockout check before issuing session tokens
+  if (user.accountLocked === 1) {
+    return jsonResponse(403, { ok: false, error: 'Account is suspended or locked' })
+  }
+
   const now = Math.floor(Date.now() / 1000)
   const cf = request.cf as any
   const ip = request.headers.get('cf-connecting-ip') || null
@@ -44,7 +50,16 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
     lastLoginIpIsVpn: isVpn,
   }).where(eq(users.playerId, user.playerId))
 
-  const cookie = serializePlayerCookie(user.playerId)
+  // Create revocable session record
+  const meta = await extractSessionMeta(request)
+  const sessionToken = await createSession(db, user.playerId, meta)
 
-  return jsonResponse(200, { ok: true, username }, { cookie })
+  const response = jsonResponse(
+    200,
+    { ok: true, username },
+    { cookie: serializeSessionCookie(sessionToken) },
+  )
+  response.headers.append('set-cookie', serializePlayerCookie(user.playerId))
+
+  return response
 }

@@ -53,6 +53,30 @@ export function isCmsEditor(): boolean {
   )
 }
 
+export function isUsersAdmin(): boolean {
+  if (!cachedCurrentUser) return false
+  return (
+    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
+    hasFlag(cachedCurrentUser.flags, UserFlags.USERS_ADMIN)
+  )
+}
+
+export function isGamesAdmin(): boolean {
+  if (!cachedCurrentUser) return false
+  return (
+    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
+    hasFlag(cachedCurrentUser.flags, UserFlags.GAMES_ADMIN)
+  )
+}
+
+export function isPlatformAdmin(): boolean {
+  if (!cachedCurrentUser) return false
+  return (
+    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
+    hasFlag(cachedCurrentUser.flags, UserFlags.PLATFORM_ADMIN)
+  )
+}
+
 /**
  * Evaluates whether the user can see beta games.
  * IF USER HAS FLAG "STAFF" THEN "canSeeBetaGames" EVALUATES TO TRUE.

@@ -7,6 +7,9 @@ import { UserProfilePage } from '../pages/user-profile'
 import { UserFriendsPage } from '../pages/friends-page'
 import { SettingsPage } from '../pages/settings'
 import { AdminUpdatesPage } from '../pages/admin/admin-updates-page'
+import { AdminUsersPage } from '../pages/admin/admin-users-page'
+import { AdminGamesPage } from '../pages/admin/admin-games-page'
+import { AdminPlatformPage } from '../pages/admin/admin-platform-page'
 import { useDocumentTitle } from './use-document-title'
 import { useRouter } from './router'
 
@@ -32,6 +35,12 @@ export function AppRoutes() {
       return <SettingsPage />
     case 'admin-updates':
       return <AdminUpdatesPage />
+    case 'admin-users':
+      return <AdminUsersPage />
+    case 'admin-games':
+      return <AdminGamesPage />
+    case 'admin-platform':
+      return <AdminPlatformPage />
     case 'user-profile':
       return <UserProfilePage username={route.username} />
     case 'user-friends':
