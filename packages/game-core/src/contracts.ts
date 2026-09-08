@@ -122,6 +122,13 @@ export interface GameMechanic {
   readonly title: string
   readonly body: string
 }
+export const GameFlags = {
+  NONE: 0,
+  GAME_BETA: 1 << 0,
+  FEATURED: 1 << 1,
+} as const
+
+export type GameFlagsBit = (typeof GameFlags)[keyof typeof GameFlags]
 
 export interface GameManifest {
   readonly slug: string

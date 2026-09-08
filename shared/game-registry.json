@@ -27,6 +27,7 @@
     "slug": "tetris",
     "title": "Tetris",
     "enabled": true,
+    "flags": 1,
     "source": { "type": "package", "name": "@nixlabs-games/tetris" }
   }
 ]

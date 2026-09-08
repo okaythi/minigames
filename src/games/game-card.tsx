@@ -3,6 +3,7 @@ import { ROUTES } from '../app/parse-route'
 import { Tag } from '../components/ui/tag'
 import { compactCount } from '../lib/format'
 import { useGameStats } from '../services/stats/stats-provider'
+import { hasGameFlag, GameFlags } from '../../shared/flags'
 import type { GameManifest, GameStatus } from './types'
 import './game-card.css'
 
@@ -46,7 +47,11 @@ export function GameCard({ manifest }: { readonly manifest: GameManifest }) {
           <h3 className="nx-card-title">
             <Link to={ROUTES.game(manifest.slug)}>{manifest.title}</Link>
           </h3>
-          {manifest.status !== 'playable' && <Tag>{STATUS_LABEL[manifest.status]}</Tag>}
+          {hasGameFlag(manifest, GameFlags.GAME_BETA) ? (
+            <Tag>Beta</Tag>
+          ) : (
+            manifest.status !== 'playable' && <Tag>{STATUS_LABEL[manifest.status]}</Tag>
+          )}
         </div>
 
         <p className="nx-card-desc">{manifest.description}</p>
