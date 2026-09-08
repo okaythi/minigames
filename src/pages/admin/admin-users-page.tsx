@@ -128,7 +128,7 @@ export function AdminUsersPage() {
         <AdminNavBar activeTab="users" />
       </div>
 
-      <div className="nx-admin-pills-vertical">
+      <div className="nx-admin-pills-row">
         <div className="nx-admin-pill">
           <span className="nx-admin-pill-label">Total Accounts</span>
           <span className="nx-admin-pill-value">{metrics.total}</span>
