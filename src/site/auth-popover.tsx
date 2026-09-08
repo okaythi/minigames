@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
-import { login, register, logout, getMe, getCurrentUser, subscribeAuth } from '../services/auth-api'
+import { login, register, logout, getMe, getCurrentUser, subscribeAuth, getDefaultAdminRoute } from '../services/auth-api'
 import { openChat } from '../services/social-api'
 import type { UserProfileResponse } from '../../shared/auth-protocol'
 import { hasFlag, UserFlags, FLAGS_METADATA } from '../../shared/flags'
@@ -190,18 +190,17 @@ export function AuthPopover() {
                   <span>Settings & Avatar</span>
                 </button>
 
-                {hasFlag(user.flags, UserFlags.STAFF) && hasFlag(user.flags, UserFlags.CMS_EDITOR) && (
+                {hasFlag(user.flags, UserFlags.STAFF) && (
                   <button
                     type="button"
                     className="nx-user-menu-item"
                     onClick={() => {
-
                       setIsOpen(false)
-                      navigate(ROUTES.adminUpdates)
+                      navigate(getDefaultAdminRoute())
                     }}
                   >
-                    <span className="nx-user-menu-item-icon">🛠️</span>
-                    <span>Update Notes CMS</span>
+                    <span className="nx-user-menu-item-icon">🛡️</span>
+                    <span>Admin Panel</span>
                   </button>
                 )}
               </div>

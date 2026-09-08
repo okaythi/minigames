@@ -16,45 +16,55 @@ interface PagesContext {
 }
 
 async function resolvePlayerId(request: Request, env: PagesContext['env']): Promise<string | null> {
-  const db = drizzle(env.NIXLABS_DB)
-  const sessionPlayerId = await identifySession(request, db)
-  if (sessionPlayerId) return sessionPlayerId
+  try {
+    const db = drizzle(env.NIXLABS_DB)
+    const sessionPlayerId = await identifySession(request, db)
+    if (sessionPlayerId) return sessionPlayerId
 
-  const store = storeFor(env)
-  const { playerId } = await identifyPlayer(request, store)
-  return playerId
+    const store = storeFor(env)
+    const { playerId } = await identifyPlayer(request, store)
+    return playerId
+  } catch (err) {
+    console.error('[users/me resolvePlayerId] error:', err)
+    return null
+  }
 }
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
-  const playerId = await resolvePlayerId(request, env)
-  if (!playerId) {
-    return badRequest('unauthorized')
+  try {
+    const playerId = await resolvePlayerId(request, env)
+    if (!playerId) {
+      return badRequest('unauthorized')
+    }
+
+    const db = drizzle(env.NIXLABS_DB)
+    const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
+    
+    if (!user || user.accountLocked === 1) {
+      return jsonResponse(401, { ok: false, error: 'Unauthorized: user account invalid or locked' })
+    }
+
+    const flags = parseFlags(user.flags)
+
+    return jsonResponse(200, {
+      ok: true,
+      profile: {
+        username: user.username,
+        nickname: user.nickname,
+        pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
+        legacyUser: hasFlag(flags, UserFlags.USER_PIONEER) || user.legacyUser === 1,
+        developer: hasFlag(flags, UserFlags.USER_DEVELOPER) || user.developer === 1,
+        flags,
+        nicknameChangedCount: user.nicknameChangedCount,
+        createdOn: user.createdOn,
+        snowflakeId: user.snowflakeId ?? null,
+        displaySnowflakeId: user.snowflakeId ? toDisplayId(user.snowflakeId) : null,
+      },
+    })
+  } catch (err: any) {
+    console.error('[users/me onRequestGet] error:', err)
+    return jsonResponse(500, { ok: false, error: err?.message || 'Failed to fetch user profile' })
   }
-
-  const db = drizzle(env.NIXLABS_DB)
-  const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
-  
-  if (!user || user.accountLocked === 1) {
-    return jsonResponse(401, { ok: false, error: 'Unauthorized: user account invalid or locked' })
-  }
-
-  const flags = parseFlags(user.flags)
-
-  return jsonResponse(200, {
-    ok: true,
-    profile: {
-      username: user.username,
-      nickname: user.nickname,
-      pfpUrl: user.pfpR2Key ? `/api/assets/pfp/${user.pfpR2Key}` : null,
-      legacyUser: hasFlag(flags, UserFlags.USER_PIONEER) || user.legacyUser === 1,
-      developer: hasFlag(flags, UserFlags.USER_DEVELOPER) || user.developer === 1,
-      flags,
-      nicknameChangedCount: user.nicknameChangedCount,
-      createdOn: user.createdOn,
-      snowflakeId: user.snowflakeId ?? null,
-      displaySnowflakeId: user.snowflakeId ? toDisplayId(user.snowflakeId) : null,
-    },
-  })
 }
 
 export const onRequestPut = async ({ request, env }: PagesContext): Promise<Response> => {

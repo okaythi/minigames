@@ -8,6 +8,7 @@ import type {
 } from '../../shared/auth-protocol'
 import { UserFlags, hasFlag } from '../../shared/flags'
 import { resetLocalCounters } from './stats/local-counters'
+import { ROUTES } from '../app/parse-route'
 
 let cachedCurrentUser: UserProfileResponse | null = null
 const authListeners = new Set<() => void>()
@@ -75,6 +76,25 @@ export function isPlatformAdmin(): boolean {
     hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
     hasFlag(cachedCurrentUser.flags, UserFlags.PLATFORM_ADMIN)
   )
+}
+
+export function canAccessAdmin(): boolean {
+  if (!cachedCurrentUser) return false
+  return (
+    isStaff() ||
+    isUsersAdmin() ||
+    isGamesAdmin() ||
+    isPlatformAdmin() ||
+    isCmsEditor()
+  )
+}
+
+export function getDefaultAdminRoute(): string {
+  if (isUsersAdmin()) return ROUTES.adminUsers
+  if (isGamesAdmin()) return ROUTES.adminGames
+  if (isPlatformAdmin()) return ROUTES.adminPlatform
+  if (isCmsEditor()) return ROUTES.adminUpdates
+  return ROUTES.adminUsers
 }
 
 /**

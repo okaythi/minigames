@@ -89,36 +89,45 @@ export async function identifySession(
   request: Request,
   db: DrizzleD1Database,
 ): Promise<string | null> {
-  const cookieHeader = request.headers.get('cookie')
-  const token = readCookie(cookieHeader, SESSION_COOKIE_NAME)
+  try {
+    const cookieHeader = request.headers.get('cookie')
+    const token = readCookie(cookieHeader, SESSION_COOKIE_NAME)
 
-  if (token) {
-    const session = await db.select().from(sessions).where(eq(sessions.token, token)).get()
-    if (!session || session.revokedAt !== null || session.expiresAt < Date.now()) {
-      return null
+    if (token) {
+      const session = await db.select().from(sessions).where(eq(sessions.token, token)).get()
+      if (!session || session.revokedAt !== null || session.expiresAt < Date.now()) {
+        return null
+      }
+
+      const user = await db.select().from(users).where(eq(users.playerId, session.playerId)).get()
+      if (!user || user.accountLocked === 1) {
+        return null
+      }
+
+      return session.playerId
     }
 
-    const user = await db.select().from(users).where(eq(users.playerId, session.playerId)).get()
-    if (!user || user.accountLocked === 1) {
-      return null
+    // Grace fallback for legacy logged-in users
+    const legacyPlayerId = readCookie(cookieHeader, PLAYER_COOKIE_NAME)
+    if (legacyPlayerId) {
+      const user = await db.select().from(users).where(eq(users.playerId, legacyPlayerId)).get()
+      if (user && user.accountLocked !== 1) {
+        // Mint a session transparently in the background
+        try {
+          const meta = await extractSessionMeta(request)
+          await createSession(db, user.playerId, meta)
+        } catch (sessionErr) {
+          console.error('[identifySession] failed to mint background session:', sessionErr)
+        }
+        return user.playerId
+      }
     }
 
-    return session.playerId
+    return null
+  } catch (err) {
+    console.error('[identifySession] database error:', err)
+    return null
   }
-
-  // Grace fallback for legacy logged-in users
-  const legacyPlayerId = readCookie(cookieHeader, PLAYER_COOKIE_NAME)
-  if (legacyPlayerId) {
-    const user = await db.select().from(users).where(eq(users.playerId, legacyPlayerId)).get()
-    if (user && user.accountLocked !== 1) {
-      // Mint a session transparently in the background
-      const meta = await extractSessionMeta(request)
-      await createSession(db, user.playerId, meta)
-      return user.playerId
-    }
-  }
-
-  return null
 }
 
 /**

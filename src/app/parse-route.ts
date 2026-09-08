@@ -37,7 +37,7 @@ export function parseRoute(pathname: string, search: string): Route {
     return { name: 'admin-updates', query: readQuery(search) }
   }
 
-  if (path === '/admin/users') {
+  if (path === '/admin' || path === '/admin/users') {
     return { name: 'admin-users', query: readQuery(search) }
   }
 

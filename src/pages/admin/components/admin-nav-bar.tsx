@@ -48,7 +48,7 @@ export function AdminNavBar({ activeTab }: AdminNavBarProps) {
           to={ROUTES.adminUpdates}
           className={`nx-admin-nav-tab ${activeTab === 'updates' ? 'active' : ''}`}
         >
-          📝 Patch Notes
+          📝 CMS Tool
         </Link>
       )}
     </div>

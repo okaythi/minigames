@@ -9,7 +9,7 @@ import { PlayerSearchBar } from './search/player-search-bar'
 import { AuthPopover } from './auth-popover'
 import { NotificationBell } from './notification-bell'
 import { TopBanner } from './top-banner'
-import { isStaff, isCmsEditor, subscribeAuth } from '../services/auth-api'
+import { canAccessAdmin, getDefaultAdminRoute, subscribeAuth } from '../services/auth-api'
 import './site-header.css'
 
 interface SiteHeaderProps {
@@ -18,10 +18,14 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ manifests }: SiteHeaderProps) {
   const { route } = useRouter()
-  const [hasCmsAccess, setHasCmsAccess] = useState(isStaff() || isCmsEditor())
+  const [hasAdminAccess, setHasAdminAccess] = useState(() => canAccessAdmin())
+  const [adminRoute, setAdminRoute] = useState(() => getDefaultAdminRoute())
 
   useEffect(() => {
-    const update = () => setHasCmsAccess(isStaff() || isCmsEditor())
+    const update = () => {
+      setHasAdminAccess(canAccessAdmin())
+      setAdminRoute(getDefaultAdminRoute())
+    }
     update()
     return subscribeAuth(update)
   }, [])
@@ -55,10 +59,10 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
             <Link to={ROUTES.updates} className="nx-nav-link" data-active={isUpdates ? 'true' : undefined}>
               Updates
             </Link>
-            {hasCmsAccess && (
+            {hasAdminAccess && (
               <Link
-                to={ROUTES.adminUsers}
-                className="nx-nav-link nx-nav-link-cms"
+                to={adminRoute}
+                className="nx-nav-link nx-nav-link-admin"
                 data-active={isAdmin ? 'true' : undefined}
               >
                 Admin

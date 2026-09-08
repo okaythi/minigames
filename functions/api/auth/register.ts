@@ -18,94 +18,99 @@ interface PagesContext {
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
-  const json = await readJsonBody(request)
-  const result = UserRegisterSchema.safeParse(json)
-  if (!result.success) {
-    return badRequest('invalid payload')
-  }
-
-  const { username, password } = result.data
-  const { hash, salt } = await hashPassword(password)
-  const db = drizzle(env.NIXLABS_DB)
-
-  // Check if username taken
-  const existingUser = await db.select().from(users).where(eq(users.username, username)).get()
-  if (existingUser) {
-    return badRequest('username taken')
-  }
-
-  const store = storeFor(env)
-  let { playerId } = await identifyPlayer(request, store)
-  
-  const now = Math.floor(Date.now() / 1000)
-  const cf = request.cf as any
-  const country = cf?.country || null
-  const ip = request.headers.get('cf-connecting-ip') || null
-  const asOrg = (cf?.asOrganization || '').toLowerCase()
-  const isVpn = /vpn|hosting|datacenter|digitalocean|aws|mullvad/i.test(asOrg) ? 1 : 0
-
-  let legacyUser = 1
-  if (!playerId) {
-    // Generate new UUID for the new user
-    playerId = crypto.randomUUID()
-    legacyUser = 0
-    // We must insert a blank player row because `users.player_id` references `players.id`
-    await db.insert(players).values({
-      id: playerId,
-      firstSeen: now,
-      lastSeen: now,
-      candy: 0,
-    })
-  } else {
-    // Check if they are already registered
-    const alreadyLinked = await db.select().from(users).where(eq(users.playerId, playerId)).get()
-    if (alreadyLinked) {
-      return badRequest('device already linked to an account')
-    }
-  }
-
-  // Creator 0 = self_registration
-  const snowflakeId = nextSnowflake(0)
-
-  await db.insert(users).values({
-    playerId,
-    username,
-    passwordHash: hash,
-    passwordSalt: salt,
-    createdOn: now,
-    lastLoggedIn: now,
-    registeredInCountry: country,
-    legacyUser,
-    flags: legacyUser === 1 ? UserFlags.USER_PIONEER : UserFlags.NONE,
-    accountLocked: 0,
-    lastLoginIp: ip,
-    lastLoginIpIsVpn: isVpn,
-    registeredIp: ip,
-    snowflakeId,
-  })
-
-  // Auto-award Claimed Identity achievement on account creation
   try {
-    await db.insert(playerAchievements).values({
+    const json = await readJsonBody(request)
+    const result = UserRegisterSchema.safeParse(json)
+    if (!result.success) {
+      return badRequest('invalid payload')
+    }
+
+    const { username, password } = result.data
+    const { hash, salt } = await hashPassword(password)
+    const db = drizzle(env.NIXLABS_DB)
+
+    // Check if username taken
+    const existingUser = await db.select().from(users).where(eq(users.username, username)).get()
+    if (existingUser) {
+      return badRequest('username taken')
+    }
+
+    const store = storeFor(env)
+    let { playerId } = await identifyPlayer(request, store)
+    
+    const now = Math.floor(Date.now() / 1000)
+    const cf = request.cf as any
+    const country = cf?.country || null
+    const ip = request.headers.get('cf-connecting-ip') || null
+    const asOrg = (cf?.asOrganization || '').toLowerCase()
+    const isVpn = /vpn|hosting|datacenter|digitalocean|aws|mullvad/i.test(asOrg) ? 1 : 0
+
+    let legacyUser = 1
+    if (!playerId) {
+      // Generate new UUID for the new user
+      playerId = crypto.randomUUID()
+      legacyUser = 0
+      // We must insert a blank player row because `users.player_id` references `players.id`
+      await db.insert(players).values({
+        id: playerId,
+        firstSeen: now,
+        lastSeen: now,
+        candy: 0,
+      })
+    } else {
+      // Check if they are already registered
+      const alreadyLinked = await db.select().from(users).where(eq(users.playerId, playerId)).get()
+      if (alreadyLinked) {
+        return badRequest('device already linked to an account')
+      }
+    }
+
+    // Creator 0 = self_registration
+    const snowflakeId = nextSnowflake(0)
+
+    await db.insert(users).values({
       playerId,
-      id: 'identity_claimed',
-      progress: 1,
-      unlockedAt: now,
+      username,
+      passwordHash: hash,
+      passwordSalt: salt,
+      createdOn: now,
+      lastLoggedIn: now,
+      registeredInCountry: country,
+      legacyUser,
+      flags: legacyUser === 1 ? UserFlags.USER_PIONEER : UserFlags.NONE,
+      accountLocked: 0,
+      lastLoginIp: ip,
+      lastLoginIpIsVpn: isVpn,
+      registeredIp: ip,
+      snowflakeId,
     })
-  } catch {
-    // Ignore if already present
+
+    // Auto-award Claimed Identity achievement on account creation
+    try {
+      await db.insert(playerAchievements).values({
+        playerId,
+        id: 'identity_claimed',
+        progress: 1,
+        unlockedAt: now,
+      })
+    } catch {
+      // Ignore if already present
+    }
+
+    // Create active session
+    const meta = await extractSessionMeta(request)
+    const sessionToken = await createSession(db, playerId, meta)
+
+    const response = jsonResponse(
+      200,
+      { ok: true, username, snowflakeId },
+      { cookie: serializeSessionCookie(sessionToken) },
+    )
+    response.headers.append('set-cookie', serializePlayerCookie(playerId))
+
+    return response
+  } catch (err: any) {
+    console.error('[auth/register] error:', err)
+    return jsonResponse(500, { ok: false, error: err?.message || 'Registration failed' })
   }
-
-  // Create active session
-  const meta = await extractSessionMeta(request)
-  const sessionToken = await createSession(db, playerId, meta)
-
-  const response = jsonResponse(
-    200,
-    { ok: true, username, snowflakeId },
-    { cookie: serializeSessionCookie(sessionToken) },
-  )
-  response.headers.append('set-cookie', serializePlayerCookie(playerId))
-
-  return response
 }
