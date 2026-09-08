@@ -14,20 +14,86 @@ import type {
 } from './admin-types'
 import { triggerSessionRevoked } from './auth-api'
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    if (res.status === 401) {
-      triggerSessionRevoked()
+export class CloudflareAccessRequiredError extends Error {
+  constructor(message = 'Cloudflare Zero Trust authentication required. Please reload the page.') {
+    super(message)
+    this.name = 'CloudflareAccessRequiredError'
+  }
+}
+
+export function isCloudflareAccessError(err: unknown): boolean {
+  if (err instanceof CloudflareAccessRequiredError) return true
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase()
+    return (
+      msg.includes('cloudflare') ||
+      msg.includes('zero trust') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('access required')
+    )
+  }
+  return false
+}
+
+async function adminFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init)
+  } catch (err: unknown) {
+    // A CORS error typically occurs when Cloudflare Zero Trust attempts to redirect
+    // an unauthenticated AJAX fetch request to the external Access login URL.
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new CloudflareAccessRequiredError(
+        'Cloudflare Zero Trust authentication required or network request blocked. Please reload the page to log in.',
+      )
     }
-    const text = await res.text()
-    try {
-      const parsed = JSON.parse(text)
-      throw new Error(parsed.error || `HTTP Error ${res.status}`)
-    } catch {
+    throw err
+  }
+}
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') || ''
+  const isHtml = contentType.includes('text/html')
+
+  if (isHtml) {
+    // Cloudflare Zero Trust challenges or login pages are returned as HTML
+    throw new CloudflareAccessRequiredError(
+      'Cloudflare Zero Trust login session required. Please reload the page to authenticate.',
+    )
+  }
+
+  const text = await res.text()
+  let parsed: any = null
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    if (text.includes('<!doctype') || text.includes('<html') || text.includes('Cloudflare')) {
+      throw new CloudflareAccessRequiredError(
+        'Cloudflare Zero Trust session required. Please reload the page to authenticate.',
+      )
+    }
+    if (!res.ok) {
       throw new Error(text || `HTTP Error ${res.status}`)
     }
+    throw new Error('Invalid JSON response from server')
   }
-  return res.json() as Promise<T>
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      // Only revoke application session if it is genuinely the Nixlabs backend stating
+      // that the user session is expired or invalid
+      const errorMsg = typeof parsed?.error === 'string' ? parsed.error : ''
+      if (
+        errorMsg.toLowerCase().includes('session') ||
+        errorMsg.toLowerCase().includes('unauthorized') ||
+        errorMsg.toLowerCase().includes('locked')
+      ) {
+        triggerSessionRevoked()
+      }
+    }
+    throw new Error(parsed?.error || `HTTP Error ${res.status}`)
+  }
+
+  return parsed as T
 }
 
 export async function fetchAdminUsers(params: {
@@ -44,12 +110,12 @@ export async function fetchAdminUsers(params: {
   if (params.limit !== undefined) query.set('limit', String(params.limit))
   if (params.offset !== undefined) query.set('offset', String(params.offset))
 
-  const res = await fetch(`/api/admin/users?${query.toString()}`)
+  const res = await adminFetch(`/api/admin/users?${query.toString()}`)
   return handleResponse(res)
 }
 
 export async function fetchAdminUser(id: string): Promise<AdminUserDetail> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`)
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}`)
   return handleResponse(res)
 }
 
@@ -57,7 +123,7 @@ export async function applyModerationAction(
   id: string,
   payload: { actionType: string; reason: string; durationSeconds?: number | null | undefined },
 ): Promise<{ ok: boolean; actionId: number }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/moderation-action`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/moderation-action`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -69,7 +135,7 @@ export async function liftModerationAction(
   id: string,
   payload: { actionId?: number | undefined; actionType?: string | undefined; reason: string },
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/lift`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/lift`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -81,7 +147,7 @@ export async function addStaffNote(
   id: string,
   body: string,
 ): Promise<{ ok: boolean; note: unknown }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/notes`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ body }),
@@ -93,7 +159,7 @@ export async function revokeUserSession(
   id: string,
   token: string,
 ): Promise<{ ok: boolean; isCurrentSessionRevoked?: boolean }> {
-  const res = await fetch(
+  const res = await adminFetch(
     `/api/admin/users/${encodeURIComponent(id)}/sessions/${encodeURIComponent(token)}/revoke`,
     {
       method: 'POST',
@@ -107,7 +173,7 @@ export async function updateUserFlags(
   flags: number,
   reason?: string | undefined,
 ): Promise<{ ok: boolean; flags: number }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/flags`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/flags`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flags, reason }),
@@ -136,7 +202,7 @@ export async function updateUserProfileData(
   id: string,
   payload: UpdateUserProfilePayload,
 ): Promise<{ ok: boolean; targetPlayerId: string; updated: Record<string, any> }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -148,7 +214,7 @@ export async function scheduleUserDeletion(
   id: string,
   payload: { scheduledAt?: number | undefined; reason: string },
 ): Promise<{ ok: boolean; scheduledAt: number }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'schedule', ...payload }),
@@ -160,7 +226,7 @@ export async function cancelUserDeletion(
   id: string,
   reason: string,
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'cancel', reason }),
@@ -173,7 +239,7 @@ export async function deleteUserImmediate(
   confirmationUsername: string,
   reason: string,
 ): Promise<{ ok: boolean; deletedPlayerId: string; username: string }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirmationUsername, reason }),
@@ -184,7 +250,7 @@ export async function deleteUserImmediate(
 export async function fetchUserDismissables(
   id: string,
 ): Promise<{ ok: boolean; dismissables: Array<{ id: number; key: string; dismissedAt: number }> }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`)
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`)
   return handleResponse(res)
 }
 
@@ -193,7 +259,7 @@ export async function resetUserDismissable(
   key: string,
   reason?: string | undefined,
 ): Promise<{ ok: boolean; resetKey: string }> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`, {
+  const res = await adminFetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'reset', key, reason }),
@@ -211,7 +277,7 @@ export async function fetchModerationReports(params: {
   if (params.limit !== undefined) query.set('limit', String(params.limit))
   if (params.offset !== undefined) query.set('offset', String(params.offset))
 
-  const res = await fetch(`/api/admin/users/moderation-reports?${query.toString()}`)
+  const res = await adminFetch(`/api/admin/users/moderation-reports?${query.toString()}`)
   return handleResponse(res)
 }
 
@@ -219,7 +285,7 @@ export async function resolveModerationReport(
   reportId: string,
   payload: { resolutionAction: string; details?: string | undefined },
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(
+  const res = await adminFetch(
     `/api/admin/users/moderation-reports/${encodeURIComponent(reportId)}/resolve`,
     {
       method: 'POST',
@@ -231,7 +297,7 @@ export async function resolveModerationReport(
 }
 
 export async function fetchAdminGames(): Promise<{ ok: boolean; games: AdminGameItem[] }> {
-  const res = await fetch('/api/admin/games')
+  const res = await adminFetch('/api/admin/games')
   return handleResponse(res)
 }
 
@@ -239,7 +305,7 @@ export async function updateGameOverride(
   slug: string,
   payload: { status: string; flags: number; reason?: string | undefined },
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/admin/games/${encodeURIComponent(slug)}/override`, {
+  const res = await adminFetch(`/api/admin/games/${encodeURIComponent(slug)}/override`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -248,7 +314,7 @@ export async function updateGameOverride(
 }
 
 export async function fetchPlatformMetadata(): Promise<PlatformMetadataResponse> {
-  const res = await fetch('/api/admin/platform/metadata')
+  const res = await adminFetch('/api/admin/platform/metadata')
   return handleResponse(res)
 }
 
@@ -257,7 +323,7 @@ export async function updatePlatformMetadata(
   value: string,
   reason?: string | undefined,
 ): Promise<{ ok: boolean; key: string; value: string }> {
-  const res = await fetch('/api/admin/platform/metadata', {
+  const res = await adminFetch('/api/admin/platform/metadata', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, value, reason }),
@@ -281,6 +347,6 @@ export async function fetchAuditLog(params: {
   if (params.limit !== undefined) query.set('limit', String(params.limit))
   if (params.offset !== undefined) query.set('offset', String(params.offset))
 
-  const res = await fetch(`/api/admin/platform/audit-log?${query.toString()}`)
+  const res = await adminFetch(`/api/admin/platform/audit-log?${query.toString()}`)
   return handleResponse(res)
 }

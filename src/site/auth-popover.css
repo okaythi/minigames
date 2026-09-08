@@ -131,6 +131,8 @@
   border: none;
   background: transparent;
   color: var(--nx-ink);
+  text-decoration: none;
+  box-sizing: border-box;
   font-family: var(--nx-font-sans);
   font-size: 13.5px;
   font-weight: 500;

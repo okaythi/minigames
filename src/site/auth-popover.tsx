@@ -191,17 +191,16 @@ export function AuthPopover() {
                 </button>
 
                 {hasFlag(user.flags, UserFlags.STAFF) && (
-                  <button
-                    type="button"
+                  <a
+                    href={getDefaultAdminRoute()}
                     className="nx-user-menu-item"
                     onClick={() => {
                       setIsOpen(false)
-                      navigate(getDefaultAdminRoute())
                     }}
                   >
                     <span className="nx-user-menu-item-icon">🛡️</span>
                     <span>Admin Panel</span>
-                  </button>
+                  </a>
                 )}
               </div>
 

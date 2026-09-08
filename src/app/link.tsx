@@ -28,6 +28,19 @@ export function Link({ to, children, onNavigate, onClick, ...rest }: LinkProps) 
     ) {
       return
     }
+    // Cloudflare Zero Trust (Cloudflare One) protects the /admin area at the edge.
+    // Transitioning from non-admin to admin must be a full browser navigation
+    // so Cloudflare One can intercept the document request and prompt for login.
+    const isTargetAdmin = to === '/admin' || to.startsWith('/admin/') || to.startsWith('/admin?')
+    const isCurrentAdmin =
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'))
+
+    if (isTargetAdmin && !isCurrentAdmin) {
+      onNavigate?.()
+      return
+    }
+
     event.preventDefault()
     onNavigate?.()
     navigate(to)

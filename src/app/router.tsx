@@ -41,6 +41,22 @@ export function RouterProvider({ children }: { readonly children: ReactNode }) {
     ) {
       return
     }
+
+    const isTargetAdmin = url.pathname === '/admin' || url.pathname.startsWith('/admin/')
+    const isCurrentAdmin =
+      window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
+
+    // If entering an admin route from outside /admin, trigger full browser navigation
+    // to allow Cloudflare One's Zero Trust policy to challenge/authenticate the user.
+    if (isTargetAdmin && !isCurrentAdmin) {
+      if (options?.replace === true) {
+        window.location.replace(url.pathname + url.search)
+      } else {
+        window.location.assign(url.pathname + url.search)
+      }
+      return
+    }
+
     if (options?.replace === true) {
       window.history.replaceState({}, '', url.pathname + url.search)
     } else {

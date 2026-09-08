@@ -60,13 +60,13 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
               Updates
             </Link>
             {hasAdminAccess && (
-              <Link
-                to={adminRoute}
+              <a
+                href={adminRoute}
                 className="nx-nav-link nx-nav-link-admin"
                 data-active={isAdmin ? 'true' : undefined}
               >
                 Admin
-              </Link>
+              </a>
             )}
             <NotificationBell />
             <AuthPopover />
