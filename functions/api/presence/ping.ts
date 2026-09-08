@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1'
 import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import { and, eq, isNull } from 'drizzle-orm'
-import { users, userPresence, messages, friendships } from '../../../src/db/schema'
+import { users, userPresence, messages, friendships, userNotifications } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
 import { identifyPlayer } from '../stats/identity'
@@ -15,6 +15,7 @@ interface PagesContext {
 interface NotificationCounts {
   readonly friendRequests: number
   readonly newMessages: number
+  readonly systemNotifications: number
 }
 
 /**
@@ -28,7 +29,7 @@ async function getNotificationCounts(
   playerId: string,
 ): Promise<NotificationCounts> {
   try {
-    const [pending, unread] = await Promise.all([
+    const [pending, unread, sysNotifs] = await Promise.all([
       db
         .select({ id: friendships.requesterId })
         .from(friendships)
@@ -45,14 +46,20 @@ async function getNotificationCounts(
           ),
         )
         .all(),
+      db
+        .select({ id: userNotifications.id })
+        .from(userNotifications)
+        .where(and(eq(userNotifications.playerId, playerId), isNull(userNotifications.readAt)))
+        .all(),
     ])
     return {
       friendRequests: pending.length,
       newMessages: new Set(unread.map((u) => u.conversationId)).size,
+      systemNotifications: sysNotifs.length,
     }
   } catch {
     // A broken count must never fail the heartbeat itself.
-    return { friendRequests: 0, newMessages: 0 }
+    return { friendRequests: 0, newMessages: 0, systemNotifications: 0 }
   }
 }
 

@@ -1,6 +1,8 @@
+@import './admin-modal.css';
+
 /**
- * Shared Admin Aesthetic — Adhering to Nixlabs Brand Guidelines
- * Warm tactile paper-and-ink foundation, crisp hairlines, and arcade tokens.
+ * Professional Enterprise Admin Styling — Nixlabs Command Center
+ * Clean typographic discipline, precise structural hairlines, and high-density readouts.
  */
 
 .nx-admin-layout {
@@ -15,8 +17,8 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1rem;
-  padding-bottom: 1rem;
+  gap: 1.25rem;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--nx-line, #e6e0d6);
 }
 
@@ -28,7 +30,7 @@
 
 .nx-admin-header-title h1 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.022em;
   color: var(--nx-ink, #232324);
@@ -37,28 +39,33 @@
 .nx-admin-header-title p {
   margin: 0;
   color: var(--nx-slate, #6f6d6a);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
 }
 
+/* Tab Navigation Strip */
 .nx-admin-nav-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   background: var(--nx-sand, #f2ece2);
-  padding: 0.25rem;
-  border-radius: 8px;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--nx-line, #e6e0d6);
 }
 
 .nx-admin-nav-tab {
   border: none;
   background: transparent;
-  padding: 0.4rem 0.85rem;
-  font-size: 0.875rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--nx-slate, #6f6d6a);
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .nx-admin-nav-tab:hover {
@@ -68,59 +75,82 @@
 .nx-admin-nav-tab.active,
 .nx-admin-nav-tab[data-active='true'] {
   background: var(--nx-card, #fffdf9);
-  color: var(--nx-orange, #f6821f);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  color: var(--nx-ink, #232324);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Metric Stats Grid */
+.nx-admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.nx-admin-stat-card {
+  background: var(--nx-card, #fffdf9);
+  border: 1px solid var(--nx-line, #e6e0d6);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nx-admin-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--nx-slate, #6f6d6a);
+}
+
+.nx-admin-stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--nx-ink, #232324);
+  font-family: ui-monospace, monospace;
 }
 
 /* Card Containers */
 .nx-admin-card {
   background: var(--nx-card, #fffdf9);
   border: 1px solid var(--nx-line, #e6e0d6);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-/* Filters & Controls Bar */
+/* Toolbar & Filters */
 .nx-admin-toolbar {
   display: flex;
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
-.nx-admin-input {
+.nx-admin-input,
+.nx-admin-select {
   background: var(--nx-paper, #faf7f2);
   border: 1px solid var(--nx-line, #e6e0d6);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  border-radius: 5px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8125rem;
   color: var(--nx-ink, #232324);
   outline: none;
   transition: border-color 0.15s ease;
 }
 
-.nx-admin-input:focus {
+.nx-admin-input:focus,
+.nx-admin-select:focus {
   border-color: var(--nx-orange, #f6821f);
-}
-
-.nx-admin-select {
-  background: var(--nx-paper, #faf7f2);
-  border: 1px solid var(--nx-line, #e6e0d6);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--nx-ink, #232324);
-  outline: none;
-  cursor: pointer;
+  background: var(--nx-card, #fffdf9);
 }
 
 /* Administrative Data Tables */
 .nx-admin-table-wrap {
   width: 100%;
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--nx-line, #e6e0d6);
 }
 
@@ -128,22 +158,22 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .nx-admin-table th {
   background: var(--nx-sand, #f2ece2);
-  padding: 0.65rem 0.85rem;
+  padding: 0.6rem 0.85rem;
   font-weight: 600;
   color: var(--nx-slate, #6f6d6a);
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--nx-line, #e6e0d6);
 }
 
 .nx-admin-table td {
-  padding: 0.75rem 0.85rem;
+  padding: 0.7rem 0.85rem;
   border-bottom: 1px solid var(--nx-line, #e6e0d6);
   color: var(--nx-ink, #232324);
   vertical-align: middle;
@@ -154,19 +184,20 @@
 }
 
 .nx-admin-table tr:hover td {
-  background: rgba(246, 130, 31, 0.02);
+  background: rgba(35, 35, 36, 0.02);
 }
 
-/* Badges & Tags */
+/* Status Badges */
 .nx-admin-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 3px;
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .nx-admin-badge[data-variant='neutral'] {
@@ -191,19 +222,19 @@
 
 .nx-admin-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
-/* Action Buttons */
+/* Buttons */
 .nx-admin-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.45rem 0.85rem;
+  padding: 0.4rem 0.75rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.15s ease;
@@ -211,11 +242,20 @@
 }
 
 .nx-admin-btn-primary {
-  background: var(--nx-orange, #f6821f);
+  background: var(--nx-ink, #232324);
   color: #ffffff;
 }
 
 .nx-admin-btn-primary:hover {
+  background: #000000;
+}
+
+.nx-admin-btn-orange {
+  background: var(--nx-orange, #f6821f);
+  color: #ffffff;
+}
+
+.nx-admin-btn-orange:hover {
   background: var(--nx-orange-deep, #d96c12);
 }
 
@@ -239,64 +279,7 @@
 }
 
 .nx-admin-btn-sm {
-  padding: 0.25rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   font-size: 0.75rem;
 }
 
-/* Modal Overlay */
-.nx-admin-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(35, 35, 36, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.nx-admin-modal {
-  background: var(--nx-card, #fffdf9);
-  border: 1px solid var(--nx-line, #e6e0d6);
-  border-radius: 12px;
-  max-width: 640px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-}
-
-.nx-admin-modal-header {
-  padding: 1.25rem;
-  border-bottom: 1px solid var(--nx-line, #e6e0d6);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nx-admin-modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: -0.022em;
-}
-
-.nx-admin-modal-body {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.nx-admin-modal-footer {
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--nx-line, #e6e0d6);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  background: var(--nx-paper, #faf7f2);
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-}

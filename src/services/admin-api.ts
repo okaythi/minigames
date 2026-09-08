@@ -16,6 +16,13 @@ export interface AdminUserListItem {
   readonly lastLoginIp: string | null
   readonly lastLoginIpIsVpn: boolean
   readonly registeredInCountry: string | null
+  readonly registeredIp?: string | null | undefined
+  readonly nicknameChangedCount?: number | undefined
+  readonly legacyUser?: boolean | undefined
+  readonly developer?: boolean | undefined
+  readonly candy?: number | undefined
+  readonly scheduledDeletionAt?: number | null | undefined
+  readonly scheduledDeletionReason?: string | null | undefined
 }
 
 export interface AdminUserDetail {
@@ -47,6 +54,11 @@ export interface AdminUserDetail {
     readonly ipHash: string | null
     readonly isActive: boolean
   }>
+  readonly dismissables?: Array<{
+    readonly id: number
+    readonly key: string
+    readonly dismissedAt: number
+  }> | undefined
   readonly reportsCount: number
   readonly openReportsCount: number
 }
@@ -191,6 +203,92 @@ export async function updateUserFlags(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flags, reason }),
+  })
+  return handleResponse(res)
+}
+
+export interface UpdateUserProfilePayload {
+  readonly username?: string | undefined
+  readonly nickname?: string | null | undefined
+  readonly nicknameChangedCount?: number | undefined
+  readonly registeredInCountry?: string | null | undefined
+  readonly registeredIp?: string | null | undefined
+  readonly lastLoginIp?: string | null | undefined
+  readonly lastLoginIpIsVpn?: boolean | undefined
+  readonly legacyUser?: boolean | undefined
+  readonly developer?: boolean | undefined
+  readonly accountLocked?: boolean | undefined
+  readonly candy?: number | undefined
+  readonly clearPfp?: boolean | undefined
+  readonly newPassword?: string | undefined
+  readonly auditReason: string
+}
+
+export async function updateUserProfileData(
+  id: string,
+  payload: UpdateUserProfilePayload,
+): Promise<{ ok: boolean; targetPlayerId: string; updated: Record<string, any> }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(res)
+}
+
+export async function scheduleUserDeletion(
+  id: string,
+  payload: { scheduledAt?: number | undefined; reason: string },
+): Promise<{ ok: boolean; scheduledAt: number }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'schedule', ...payload }),
+  })
+  return handleResponse(res)
+}
+
+export async function cancelUserDeletion(
+  id: string,
+  reason: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/schedule-deletion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'cancel', reason }),
+  })
+  return handleResponse(res)
+}
+
+export async function deleteUserImmediate(
+  id: string,
+  confirmationUsername: string,
+  reason: string,
+): Promise<{ ok: boolean; deletedPlayerId: string; username: string }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirmationUsername, reason }),
+  })
+  return handleResponse(res)
+}
+
+export async function fetchUserDismissables(
+  id: string,
+): Promise<{ ok: boolean; dismissables: Array<{ id: number; key: string; dismissedAt: number }> }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`)
+  return handleResponse(res)
+}
+
+export async function resetUserDismissable(
+  id: string,
+  key: string,
+  reason?: string | undefined,
+): Promise<{ ok: boolean; resetKey: string }> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/dismissables`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reset', key, reason }),
   })
   return handleResponse(res)
 }

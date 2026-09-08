@@ -74,3 +74,24 @@ export const creatorRegistry = sqliteTable('creator_registry', {
   label: text('label').notNull().unique(),
   createdAt: integer('created_at').notNull(),
 })
+
+export const userNotifications = sqliteTable('user_notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  playerId: text('player_id')
+    .notNull()
+    .references(() => users.playerId, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'moderation' | 'warning' | 'account' | 'system'
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  readAt: integer('read_at'),
+  createdAt: integer('created_at').notNull(),
+})
+
+export const userDismissables = sqliteTable('user_dismissables', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  playerId: text('player_id')
+    .notNull()
+    .references(() => users.playerId, { onDelete: 'cascade' }),
+  key: text('key').notNull(),
+  dismissedAt: integer('dismissed_at').notNull(),
+})

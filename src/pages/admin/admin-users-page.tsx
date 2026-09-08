@@ -12,6 +12,8 @@ import {
 import { AdminNavBar } from './components/admin-nav-bar'
 import { AdminRestrictedCard } from './components/admin-restricted-card'
 import { UserDetailModal } from './components/user-detail-modal'
+import { ModerationReportsTable } from './components/moderation-reports-table'
+import { FeedbackToast, type ToastMessage } from '../../components/ui/feedback-toast'
 import './admin-common.css'
 
 export function AdminUsersPage() {
@@ -23,7 +25,7 @@ export function AdminUsersPage() {
   const [totalUsers, setTotalUsers] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'banned'>('all')
-  const [loading, setLoading] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null)
 
   // Reports state
@@ -31,8 +33,8 @@ export function AdminUsersPage() {
   const [reportFilter, setReportFilter] = useState<'open' | 'resolved' | 'all'>('open')
   const [loadingReports, setLoadingReports] = useState(false)
 
-  // Feedback banner
-  const [feedback, setFeedback] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  // Native toast feedback
+  const [toast, setToast] = useState<ToastMessage | null>(null)
 
   useEffect(() => {
     setAuthorized(isUsersAdmin())
@@ -41,13 +43,12 @@ export function AdminUsersPage() {
     })
   }, [])
 
-  const showFeedback = (msg: string, type: 'ok' | 'err' = 'ok') => {
-    setFeedback({ msg, type })
-    setTimeout(() => setFeedback(null), 3500)
+  const showToast = (message: string, type: 'ok' | 'err' | 'info' = 'ok') => {
+    setToast({ id: String(Date.now()), message, type })
   }
 
   const loadUsers = async () => {
-    setLoading(true)
+    setLoadingUsers(true)
     try {
       const res = await fetchAdminUsers({
         q: searchQuery,
@@ -57,9 +58,9 @@ export function AdminUsersPage() {
       setUsers(res.users)
       setTotalUsers(res.total)
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to load users', 'err')
+      showToast(err.message || 'Failed to load user directory', 'err')
     } finally {
-      setLoading(false)
+      setLoadingUsers(false)
     }
   }
 
@@ -69,7 +70,7 @@ export function AdminUsersPage() {
       const res = await fetchModerationReports({ status: reportFilter, limit: 50 })
       setReports(res.reports)
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to load reports', 'err')
+      showToast(err.message || 'Failed to load moderation reports', 'err')
     } finally {
       setLoadingReports(false)
     }
@@ -89,19 +90,17 @@ export function AdminUsersPage() {
       const detail = await fetchAdminUser(id)
       setSelectedUserDetail(detail)
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to load user details', 'err')
+      showToast(err.message || 'Failed to load user details', 'err')
     }
   }
 
-  const handleResolveReport = async (reportId: string) => {
-    const action = window.prompt('Resolution action taken (e.g. "Warned user", "Account locked", "No action needed"):')
-    if (!action || !action.trim()) return
+  const handleResolveReport = async (reportId: string, action: string) => {
     try {
-      await resolveModerationReport(reportId, { resolutionAction: action.trim() })
-      showFeedback('Report resolved!', 'ok')
+      await resolveModerationReport(reportId, { resolutionAction: action })
+      showToast('Report resolved successfully', 'ok')
       void loadReports()
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to resolve report', 'err')
+      showToast(err.message || 'Failed to resolve report', 'err')
     }
   }
 
@@ -115,29 +114,42 @@ export function AdminUsersPage() {
     )
   }
 
+  const activeCount = users.filter((u) => !u.accountLocked).length
+  const lockedCount = users.filter((u) => u.accountLocked).length
+  const openReportsCount = reports.filter((r) => r.status === 'open').length
+
   return (
     <div className="nx-page nx-admin-layout">
       <div className="nx-admin-header">
         <div className="nx-admin-header-title">
-          <h1>Users & Moderation</h1>
+          <h1>Users &amp; Moderation</h1>
           <p>Inspect accounts, enforce discipline, view active sessions, and review player reports.</p>
         </div>
         <AdminNavBar activeTab="users" />
       </div>
 
-      {feedback && (
-        <div
-          style={{
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            background: feedback.type === 'ok' ? 'rgba(31, 157, 91, 0.1)' : 'rgba(216, 67, 61, 0.1)',
-            color: feedback.type === 'ok' ? 'var(--nx-green-deep)' : 'var(--nx-red)',
-            fontWeight: 600,
-          }}
-        >
-          {feedback.msg}
+      <div className="nx-admin-stats-grid">
+        <div className="nx-admin-stat-card">
+          <span className="nx-admin-stat-card-label">Total Accounts</span>
+          <span className="nx-admin-stat-card-value">{totalUsers}</span>
         </div>
-      )}
+        <div className="nx-admin-stat-card">
+          <span className="nx-admin-stat-card-label">Active (Sample)</span>
+          <span className="nx-admin-stat-card-value">{activeCount}</span>
+        </div>
+        <div className="nx-admin-stat-card">
+          <span className="nx-admin-stat-card-label">Banned / Locked</span>
+          <span className="nx-admin-stat-card-value" style={{ color: lockedCount > 0 ? 'var(--nx-red)' : undefined }}>
+            {lockedCount}
+          </span>
+        </div>
+        <div className="nx-admin-stat-card">
+          <span className="nx-admin-stat-card-label">Open Reports</span>
+          <span className="nx-admin-stat-card-value" style={{ color: openReportsCount > 0 ? 'var(--nx-orange)' : undefined }}>
+            {openReportsCount}
+          </span>
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--nx-line)', paddingBottom: '0.5rem' }}>
         <button
@@ -145,14 +157,14 @@ export function AdminUsersPage() {
           className={`nx-admin-nav-tab ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
         >
-          👥 User Directory ({totalUsers})
+          User Directory ({totalUsers})
         </button>
         <button
           type="button"
           className={`nx-admin-nav-tab ${activeTab === 'reports' ? 'active' : ''}`}
           onClick={() => setActiveTab('reports')}
         >
-          🚨 Moderation Reports ({reports.filter((r) => r.status === 'open').length} Open)
+          Moderation Reports ({openReportsCount} Open)
         </button>
       </div>
 
@@ -166,19 +178,24 @@ export function AdminUsersPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void loadUsers()}
-              style={{ minWidth: '300px' }}
+              style={{ minWidth: '320px' }}
             />
             <select
               className="nx-admin-select"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'banned')}
             >
               <option value="all">All Accounts</option>
               <option value="active">Active Only</option>
               <option value="banned">Banned / Locked Only</option>
             </select>
-            <button type="button" className="nx-admin-btn nx-admin-btn-primary" onClick={loadUsers} disabled={loading}>
-              {loading ? 'Searching...' : 'Search'}
+            <button
+              type="button"
+              className="nx-admin-btn nx-admin-btn-primary"
+              onClick={loadUsers}
+              disabled={loadingUsers}
+            >
+              {loadingUsers ? 'Searching...' : 'Search'}
             </button>
           </div>
 
@@ -189,7 +206,7 @@ export function AdminUsersPage() {
                   <th>User</th>
                   <th>Snowflake ID</th>
                   <th>Status</th>
-                  <th>Flags Bitmask</th>
+                  <th>Flags</th>
                   <th>Joined</th>
                   <th>Action</th>
                 </tr>
@@ -197,8 +214,8 @@ export function AdminUsersPage() {
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--nx-slate)' }}>
-                      {loading ? 'Loading users...' : 'No users found.'}
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--nx-slate)' }}>
+                      {loadingUsers ? 'Loading accounts...' : 'No users found.'}
                     </td>
                   </tr>
                 ) : (
@@ -206,22 +223,34 @@ export function AdminUsersPage() {
                     <tr key={u.playerId}>
                       <td>
                         <strong>@{u.username}</strong>
-                        {u.nickname && <span style={{ color: 'var(--nx-slate)', marginLeft: '0.25rem' }}>({u.nickname})</span>}
+                        {u.nickname && (
+                          <span style={{ color: 'var(--nx-slate)', marginLeft: '0.35rem', fontSize: '0.8125rem' }}>
+                            ({u.nickname})
+                          </span>
+                        )}
                       </td>
                       <td>
                         <span className="nx-admin-mono">{u.displaySnowflakeId || '—'}</span>
                       </td>
                       <td>
                         {u.accountLocked ? (
-                          <span className="nx-admin-badge" data-variant="red">BANNED</span>
+                          <span className="nx-admin-badge" data-variant="red">
+                            LOCKED
+                          </span>
                         ) : (
-                          <span className="nx-admin-badge" data-variant="green">Active</span>
+                          <span className="nx-admin-badge" data-variant="green">
+                            ACTIVE
+                          </span>
                         )}
                       </td>
                       <td>
                         <span className="nx-admin-mono">{u.flags}</span>
                       </td>
-                      <td>{new Date(u.createdOn * 1000).toLocaleDateString()}</td>
+                      <td>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--nx-slate)' }}>
+                          {new Date(u.createdOn * 1000).toLocaleDateString()}
+                        </span>
+                      </td>
                       <td>
                         <button
                           type="button"
@@ -239,89 +268,15 @@ export function AdminUsersPage() {
           </div>
         </div>
       ) : (
-        <div className="nx-admin-card">
-          <div className="nx-admin-toolbar">
-            <select
-              className="nx-admin-select"
-              value={reportFilter}
-              onChange={(e) => setReportFilter(e.target.value as any)}
-            >
-              <option value="open">Open Reports</option>
-              <option value="resolved">Resolved Reports</option>
-              <option value="all">All Reports</option>
-            </select>
-            <button type="button" className="nx-admin-btn nx-admin-btn-secondary" onClick={loadReports} disabled={loadingReports}>
-              Refresh
-            </button>
-          </div>
-
-          <div className="nx-admin-table-wrap">
-            <table className="nx-admin-table">
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Reported User</th>
-                  <th>Reporter</th>
-                  <th>Reason</th>
-                  <th>Details</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--nx-slate)' }}>
-                      {loadingReports ? 'Loading reports...' : 'No reports found.'}
-                    </td>
-                  </tr>
-                ) : (
-                  reports.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        {r.status === 'open' ? (
-                          <span className="nx-admin-badge" data-variant="orange">Open</span>
-                        ) : (
-                          <span className="nx-admin-badge" data-variant="green">Resolved</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="nx-admin-btn nx-admin-btn-secondary nx-admin-btn-sm"
-                          onClick={() => openUserDetail(r.reportedUserId)}
-                        >
-                          @{r.reportedUsername}
-                        </button>
-                      </td>
-                      <td>@{r.reporterUsername}</td>
-                      <td><strong>{r.reason}</strong></td>
-                      <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.details || '—'}
-                      </td>
-                      <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        {r.status === 'open' ? (
-                          <button
-                            type="button"
-                            className="nx-admin-btn nx-admin-btn-primary nx-admin-btn-sm"
-                            onClick={() => handleResolveReport(r.id)}
-                          >
-                            Resolve
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--nx-slate)' }}>
-                            {r.resolutionAction}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ModerationReportsTable
+          reports={reports}
+          loading={loadingReports}
+          reportFilter={reportFilter}
+          onFilterChange={setReportFilter}
+          onRefresh={loadReports}
+          onResolve={handleResolveReport}
+          onOpenUser={openUserDetail}
+        />
       )}
 
       {selectedUserDetail && (
@@ -329,9 +284,11 @@ export function AdminUsersPage() {
           detail={selectedUserDetail}
           onClose={() => setSelectedUserDetail(null)}
           onRefresh={() => openUserDetail(selectedUserDetail.user.playerId)}
-          showFeedback={showFeedback}
+          showFeedback={(msg, type) => showToast(msg, type === 'err' ? 'err' : 'ok')}
         />
       )}
+
+      <FeedbackToast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   )
 }

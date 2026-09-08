@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
-import { isCmsEditor, getCurrentUser, subscribeAuth } from '../../services/auth-api'
+import { isCmsEditor, subscribeAuth } from '../../services/auth-api'
 import { useUpdateEditor } from '../../engine/updates/hooks'
 import type { ReleaseId, UpdateReleaseMetaInput } from '../../engine/updates/types'
 import { ReleaseMetaForm } from './components/release-meta-form'
+import { ReleaseRationaleTab } from './components/release-rationale-tab'
 import { ReleaseItemsList } from './components/release-items-list'
 import { ReleasePreviewPane } from './components/release-preview-pane'
 import { ReleaseSidebar } from './components/release-sidebar'
 import { CreateDraftModal } from './components/create-draft-modal'
-import { ArcadeTextEditor } from '../../components/ui/rich-editor/arcade-text-editor'
-import { Link } from '../../app/link'
-import { ROUTES } from '../../app/parse-route'
+import { AdminRestrictedCard } from './components/admin-restricted-card'
+import { ConfirmDialog } from '../../components/ui/confirm-dialog'
+import { FeedbackToast, type ToastMessage } from '../../components/ui/feedback-toast'
 import './admin-updates-page.css'
 
 export function AdminUpdatesPage() {
@@ -17,9 +18,11 @@ export function AdminUpdatesPage() {
   const [selectedReleaseId, setSelectedReleaseId] = useState<ReleaseId | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<'meta' | 'rationale' | 'items' | 'preview'>('meta')
   const [isCreatingDraft, setIsCreatingDraft] = useState(false)
-  const [rationaleContent, setRationaleContent] = useState('')
-  const [savingRationale, setSavingRationale] = useState(false)
-  const [feedback, setFeedback] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+
+  // Dialog state
+  const [confirmPublish, setConfirmPublish] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const {
     drafts,
@@ -49,56 +52,17 @@ export function AdminUpdatesPage() {
     }
   }, [drafts, selectedReleaseId])
 
-  useEffect(() => {
-    if (activeRelease?.rationale) {
-      setRationaleContent(activeRelease.rationale.content)
-    } else {
-      setRationaleContent('')
-    }
-  }, [activeRelease])
-
-  const showFeedback = (msg: string, type: 'ok' | 'err' = 'ok') => {
-    setFeedback({ msg, type })
-    setTimeout(() => setFeedback(null), 3000)
+  const showToast = (message: string, type: 'ok' | 'err' | 'info' = 'ok') => {
+    setToast({ id: String(Date.now()), message, type })
   }
 
   if (!authorized) {
-    const user = getCurrentUser()
     return (
-      <div className="nx-admin-restricted-page nx-page">
-        <div className="nx-restricted-card">
-          <div className="nx-restricted-icon">🛡️</div>
-          <h1 className="nx-restricted-title">Lab Staff Access Required</h1>
-          <p className="nx-restricted-text">
-            Access to the Update Notes CMS is restricted to verified Nixlabs staff holding both the{' '}
-            <code className="nx-md-inline-code">STAFF</code> and{' '}
-            <code className="nx-md-inline-code">CMS_EDITOR</code> flags.
-          </p>
-          {user ? (
-            <p className="nx-restricted-user">
-              Signed in as <strong>@{user.username}</strong> (Missing required platform flags).
-            </p>
-          ) : (
-            <p className="nx-restricted-user">You are currently not signed in.</p>
-          )}
-          <div className="nx-restricted-actions">
-            <Link to={ROUTES.home} className="nx-btn nx-btn-secondary">
-              Back to Arcade
-            </Link>
-            {!user && (
-              <button
-                type="button"
-                className="nx-btn nx-btn-primary"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('nx:open-auth'))
-                }}
-              >
-                Sign In
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <AdminRestrictedCard
+        title="Lab Staff Access Required"
+        requiredFlags="CMS_EDITOR"
+        panelName="Update Notes CMS"
+      />
     )
   }
 
@@ -116,50 +80,45 @@ export function AdminUpdatesPage() {
       authorUsername: input.authorUsername,
     })
     setSelectedReleaseId(draftId)
-    showFeedback('Draft release created successfully!')
+    showToast('Draft release created successfully')
   }
 
   const handleSaveMeta = async (patch: UpdateReleaseMetaInput) => {
     if (!selectedReleaseId) return
     await updateMeta(selectedReleaseId, patch)
-    showFeedback('Metadata updated!')
+    showToast('Metadata updated')
   }
 
-  const handleSaveRationale = async () => {
+  const handleSaveRationale = async (content: string) => {
     if (!selectedReleaseId) return
-    setSavingRationale(true)
     try {
-      await setRationale(selectedReleaseId, rationaleContent)
-      showFeedback('Developer rationale saved!')
+      await setRationale(selectedReleaseId, content)
+      showToast('Developer rationale saved')
     } catch (err: unknown) {
-      showFeedback(err instanceof Error ? err.message : 'Failed to save rationale', 'err')
-    } finally {
-      setSavingRationale(false)
+      showToast(err instanceof Error ? err.message : 'Failed to save rationale', 'err')
     }
   }
 
-  const handlePublish = async () => {
+  const handleConfirmPublishAction = async () => {
     if (!selectedReleaseId || !activeRelease) return
-    if (!window.confirm(`Publish release v${activeRelease.meta.globalVersion} live to players?`)) return
-
+    setConfirmPublish(false)
     try {
       await publish(selectedReleaseId)
-      showFeedback(`Release v${activeRelease.meta.globalVersion} is now LIVE!`)
+      showToast(`Release v${activeRelease.meta.globalVersion} is now LIVE!`)
     } catch (err: unknown) {
-      showFeedback(err instanceof Error ? err.message : 'Publish failed', 'err')
+      showToast(err instanceof Error ? err.message : 'Publish failed', 'err')
     }
   }
 
-  const handleDelete = async () => {
+  const handleConfirmDeleteAction = async () => {
     if (!selectedReleaseId || !activeRelease) return
-    if (!window.confirm(`Permanently delete draft v${activeRelease.meta.globalVersion}?`)) return
-
+    setConfirmDelete(false)
     try {
       await deleteDraft(selectedReleaseId)
       setSelectedReleaseId(undefined)
-      showFeedback('Draft deleted.')
+      showToast('Draft deleted')
     } catch (err: unknown) {
-      showFeedback(err instanceof Error ? err.message : 'Delete failed', 'err')
+      showToast(err instanceof Error ? err.message : 'Delete failed', 'err')
     }
   }
 
@@ -179,10 +138,6 @@ export function AdminUpdatesPage() {
           </button>
         </div>
       </header>
-
-      {feedback && (
-        <div className={`nx-admin-feedback nx-feedback-${feedback.type}`}>{feedback.msg}</div>
-      )}
 
       <CreateDraftModal
         isOpen={isCreatingDraft}
@@ -216,18 +171,30 @@ export function AdminUpdatesPage() {
 
                 <div className="nx-workspace-actions">
                   {activeRelease.meta.status !== 'published' && (
-                    <button type="button" className="nx-btn nx-btn-publish" onClick={() => void handlePublish()}>
-                      🚀 Publish Live
+                    <button
+                      type="button"
+                      className="nx-btn nx-btn-publish"
+                      onClick={() => setConfirmPublish(true)}
+                    >
+                      Publish Live
                     </button>
                   )}
                   {activeRelease.meta.status === 'published' && (
-                    <button type="button" className="nx-btn nx-btn-secondary" onClick={() => void archive(activeRelease.meta.id)}>
-                      📦 Archive
+                    <button
+                      type="button"
+                      className="nx-btn nx-btn-secondary"
+                      onClick={() => void archive(activeRelease.meta.id)}
+                    >
+                      Archive
                     </button>
                   )}
                   {activeRelease.meta.status !== 'published' && (
-                    <button type="button" className="nx-btn nx-btn-danger" onClick={() => void handleDelete()}>
-                      🗑️ Delete Draft
+                    <button
+                      type="button"
+                      className="nx-btn nx-btn-danger"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete Draft
                     </button>
                   )}
                 </div>
@@ -275,28 +242,7 @@ export function AdminUpdatesPage() {
               )}
 
               {activeTab === 'rationale' && (
-                <div className="nx-tab-content">
-                  <p className="nx-section-desc">
-                    Explain the design rationale, physics intentions, and balance considerations behind this release.
-                  </p>
-                  <ArcadeTextEditor
-                    label="Developer Rationale (Markdown, Media & Domain Tags Supported)"
-                    value={rationaleContent}
-                    onChange={setRationaleContent}
-                    minHeight={220}
-                    placeholder="Describe design decisions, why certain mechanics changed..."
-                  />
-                  <div className="nx-form-actions" style={{ marginTop: '14px' }}>
-                    <button
-                      type="button"
-                      className="nx-btn nx-btn-primary"
-                      onClick={() => void handleSaveRationale()}
-                      disabled={savingRationale}
-                    >
-                      {savingRationale ? 'Saving...' : 'Save Developer Rationale'}
-                    </button>
-                  </div>
-                </div>
+                <ReleaseRationaleTab release={activeRelease} onSave={handleSaveRationale} />
               )}
 
               {activeTab === 'items' && (
@@ -306,7 +252,7 @@ export function AdminUpdatesPage() {
                   onUpdateItem={updateItem}
                   onRemoveItem={removeItem}
                   onReorderItems={(orderedIds) => reorderItems(activeRelease.meta.id, orderedIds)}
-                  onFeedback={showFeedback}
+                  onFeedback={(msg, type) => showToast(msg, type === 'err' ? 'err' : 'ok')}
                 />
               )}
 
@@ -319,6 +265,27 @@ export function AdminUpdatesPage() {
           )}
         </main>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmPublish}
+        title="Publish Release Live"
+        message={`Are you sure you want to publish release v${activeRelease?.meta.globalVersion} live to players? This will immediately syndicate to all players.`}
+        confirmLabel="Publish Live"
+        onConfirm={handleConfirmPublishAction}
+        onCancel={() => setConfirmPublish(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        title="Delete Release Draft"
+        message={`Permanently delete draft v${activeRelease?.meta.globalVersion}? This cannot be undone.`}
+        confirmLabel="Delete Draft"
+        danger
+        onConfirm={handleConfirmDeleteAction}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
+      <FeedbackToast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   )
 }

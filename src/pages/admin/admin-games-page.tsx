@@ -8,19 +8,22 @@ import {
 import { GameFlags, hasGameFlag, enableGameFlag, disableGameFlag } from '../../../shared/flags'
 import { AdminNavBar } from './components/admin-nav-bar'
 import { AdminRestrictedCard } from './components/admin-restricted-card'
+import { PromptDialog } from '../../components/ui/prompt-dialog'
+import { FeedbackToast, type ToastMessage } from '../../components/ui/feedback-toast'
 import './admin-common.css'
 
 export function AdminGamesPage() {
   const [authorized, setAuthorized] = useState<boolean>(isGamesAdmin())
   const [games, setGames] = useState<AdminGameItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [feedback, setFeedback] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
 
   // In-flight edits
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [editStatus, setEditStatus] = useState<string>('published')
   const [editFlags, setEditFlags] = useState<number>(0)
   const [saving, setSaving] = useState(false)
+  const [pendingSaveSlug, setPendingSaveSlug] = useState<string | null>(null)
 
   useEffect(() => {
     setAuthorized(isGamesAdmin())
@@ -29,9 +32,8 @@ export function AdminGamesPage() {
     })
   }, [])
 
-  const showFeedback = (msg: string, type: 'ok' | 'err' = 'ok') => {
-    setFeedback({ msg, type })
-    setTimeout(() => setFeedback(null), 3500)
+  const showToast = (message: string, type: 'ok' | 'err' = 'ok') => {
+    setToast({ id: String(Date.now()), message, type })
   }
 
   const loadGames = async () => {
@@ -40,7 +42,7 @@ export function AdminGamesPage() {
       const res = await fetchAdminGames()
       setGames(res.games)
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to load games', 'err')
+      showToast(err.message || 'Failed to load games', 'err')
     } finally {
       setLoading(false)
     }
@@ -62,9 +64,14 @@ export function AdminGamesPage() {
     setEditingSlug(null)
   }
 
-  const handleSave = async (slug: string) => {
-    const reason = window.prompt('Audit reason for updating this game override:')
-    if (reason === null) return
+  const handlePromptSave = (slug: string) => {
+    setPendingSaveSlug(slug)
+  }
+
+  const handleConfirmSave = async (reason: string) => {
+    if (!pendingSaveSlug) return
+    const slug = pendingSaveSlug
+    setPendingSaveSlug(null)
     setSaving(true)
     try {
       await updateGameOverride(slug, {
@@ -72,11 +79,11 @@ export function AdminGamesPage() {
         flags: editFlags,
         reason: reason.trim() || undefined,
       })
-      showFeedback(`Overrides for '${slug}' updated!`, 'ok')
+      showToast(`Game '${slug}' configuration updated successfully`, 'ok')
       setEditingSlug(null)
       void loadGames()
     } catch (err: any) {
-      showFeedback(err.message || 'Failed to save game override', 'err')
+      showToast(err.message || 'Failed to save game override', 'err')
     } finally {
       setSaving(false)
     }
@@ -108,24 +115,17 @@ export function AdminGamesPage() {
         <AdminNavBar activeTab="games" />
       </div>
 
-      {feedback && (
-        <div
-          style={{
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            background: feedback.type === 'ok' ? 'rgba(31, 157, 91, 0.1)' : 'rgba(216, 67, 61, 0.1)',
-            color: feedback.type === 'ok' ? 'var(--nx-green-deep)' : 'var(--nx-red)',
-            fontWeight: 600,
-          }}
-        >
-          {feedback.msg}
-        </div>
-      )}
-
       <div className="nx-admin-card">
         <div className="nx-admin-toolbar" style={{ justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '0.9375rem', fontWeight: 600 }}>Registered Arcade Titles ({games.length})</span>
-          <button type="button" className="nx-admin-btn nx-admin-btn-secondary" onClick={loadGames} disabled={loading}>
+          <span style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+            Registered Arcade Titles ({games.length})
+          </span>
+          <button
+            type="button"
+            className="nx-admin-btn nx-admin-btn-secondary"
+            onClick={loadGames}
+            disabled={loading}
+          >
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
@@ -134,7 +134,7 @@ export function AdminGamesPage() {
           <table className="nx-admin-table">
             <thead>
               <tr>
-                <th>Title & Slug</th>
+                <th>Title &amp; Slug</th>
                 <th>Status</th>
                 <th>Active Flags</th>
                 <th>Last Updated</th>
@@ -202,14 +202,18 @@ export function AdminGamesPage() {
                       ) : (
                         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                           {hasGameFlag(g.flags, GameFlags.FEATURED) && (
-                            <span className="nx-admin-badge" data-variant="orange">⭐ Featured</span>
+                            <span className="nx-admin-badge" data-variant="orange">
+                              FEATURED
+                            </span>
                           )}
                           {hasGameFlag(g.flags, GameFlags.GAME_BETA) && (
-                            <span className="nx-admin-badge" data-variant="neutral">Beta</span>
+                            <span className="nx-admin-badge" data-variant="neutral">
+                              BETA
+                            </span>
                           )}
                           {!hasGameFlag(g.flags, GameFlags.FEATURED) &&
                             !hasGameFlag(g.flags, GameFlags.GAME_BETA) && (
-                              <span style={{ color: 'var(--nx-slate)', fontSize: '0.8125rem' }}>None</span>
+                              <span style={{ color: 'var(--nx-slate)', fontSize: '0.8125rem' }}>Standard</span>
                             )}
                         </div>
                       )}
@@ -229,7 +233,7 @@ export function AdminGamesPage() {
                           <button
                             type="button"
                             className="nx-admin-btn nx-admin-btn-primary nx-admin-btn-sm"
-                            onClick={() => handleSave(g.slug)}
+                            onClick={() => handlePromptSave(g.slug)}
                             disabled={saving}
                           >
                             {saving ? 'Saving...' : 'Save'}
@@ -260,6 +264,19 @@ export function AdminGamesPage() {
           </table>
         </div>
       </div>
+
+      <PromptDialog
+        isOpen={!!pendingSaveSlug}
+        title="Audit Reason Required"
+        message={`Provide an operational audit log explanation for updating '${pendingSaveSlug}'.`}
+        inputLabel="Audit Reason"
+        placeholder="e.g. Setting game to maintenance for v2.0 physics patch"
+        confirmLabel="Apply Configuration"
+        onSubmit={handleConfirmSave}
+        onCancel={() => setPendingSaveSlug(null)}
+      />
+
+      <FeedbackToast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   dismissMessageNotification,
+  dismissSystemNotification,
   refreshNotifications,
 } from '../services/notifications-service'
 import { openChat } from '../services/social-api'
@@ -15,7 +16,7 @@ export function NotificationBell() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const currentUser = getCurrentUser()
-  const { friendRequests, messageNotifications, totalCount } = useNotifications()
+  const { friendRequests, messageNotifications, systemNotifications, totalCount } = useNotifications()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -113,6 +114,43 @@ export function NotificationBell() {
               <div className="nx-notif-empty">No notifications at the moment.</div>
             ) : (
               <>
+                {systemNotifications.map((sn) => (
+                  <div
+                    key={`sn_${sn.id}`}
+                    className="nx-notif-item nx-notif-system"
+                    style={{ borderLeft: '3px solid var(--nx-orange)', flexDirection: 'column', alignItems: 'flex-start', padding: '10px 12px' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                      <span
+                        className="nx-admin-badge"
+                        data-variant={sn.type === 'warning' ? 'red' : 'orange'}
+                        style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}
+                      >
+                        {sn.type}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--nx-slate)' }}>
+                        {new Date(sn.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--nx-ink)' }}>
+                      {sn.title}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--nx-slate)', margin: '4px 0 8px', lineHeight: 1.4 }}>
+                      {sn.body}
+                    </div>
+                    <div style={{ alignSelf: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="nx-notif-btn nx-notif-btn-accept"
+                        style={{ padding: '2px 10px', fontSize: '0.75rem' }}
+                        onClick={() => void dismissSystemNotification(sn.id)}
+                      >
+                        Acknowledge
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
                 {friendRequests.map((f) => (
                   <div key={`fr_${f.username}`} className="nx-notif-item nx-notif-friend-req">
                     <div className="nx-notif-avatar">

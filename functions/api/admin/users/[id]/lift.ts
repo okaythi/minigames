@@ -3,6 +3,7 @@ import { eq, or } from 'drizzle-orm'
 import { users, moderationActions } from '../../../../../src/db/schema'
 import { parseFlags, disableFlag, UserFlags } from '../../../../../shared/flags'
 import { writeAudit } from '../../_shared/audit'
+import { dispatchUserNotification } from '../../_shared/notify'
 import { readJsonBody } from '../../../stats/body'
 import { jsonResponse, badRequest } from '../../../stats/respond'
 import type { StatsEnv } from '../../../stats/store-for'
@@ -83,6 +84,14 @@ export const onRequestPost = async ({ request, env, params }: PagesContext): Pro
       actionType,
       targetUsername: user.username,
     },
+  })
+
+  // Dispatch notification to user
+  await dispatchUserNotification(db, {
+    playerId: user.playerId,
+    type: 'moderation',
+    title: 'Account Restriction Lifted',
+    body: `Your restriction (${actionType || 'account standing'}) has been lifted: ${reason.trim()}`,
   })
 
   return jsonResponse(200, { ok: true, targetPlayerId: user.playerId })

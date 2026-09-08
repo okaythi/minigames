@@ -20,15 +20,25 @@ export interface MessageNotificationItem {
   readonly lastMessageSnippet?: string | undefined
 }
 
+export interface UserNotificationItem {
+  readonly id: number
+  readonly type: 'moderation' | 'warning' | 'account' | 'system'
+  readonly title: string
+  readonly body: string
+  readonly createdAt: number
+}
+
 export interface NotificationsSnapshot {
   readonly friendRequests: readonly FriendSummary[]
   readonly messageNotifications: readonly MessageNotificationItem[]
+  readonly systemNotifications: readonly UserNotificationItem[]
   readonly totalCount: number
 }
 
 const emptySnapshot: NotificationsSnapshot = {
   friendRequests: [],
   messageNotifications: [],
+  systemNotifications: [],
   totalCount: 0,
 }
 
@@ -69,12 +79,16 @@ export async function refreshNotifications(force = false): Promise<void> {
   refreshInflight = (async () => {
     lastRefreshAt = Date.now()
     try {
-      const [friendsRes, convos] = await Promise.all([
+      const [friendsRes, convos, notifsRes] = await Promise.all([
         getMyFriends(),
         chatEngine.refreshConversations(force),
+        fetch('/api/notifications')
+          .then((r) => (r.ok ? r.json() : { notifications: [] }))
+          .catch(() => ({ notifications: [] })),
       ])
 
       const friendRequests = friendsRes.pendingIncoming || []
+      const systemNotifications: UserNotificationItem[] = notifsRes?.notifications || []
 
       const messageNotifications: MessageNotificationItem[] = convos
         .filter(
@@ -94,7 +108,8 @@ export async function refreshNotifications(force = false): Promise<void> {
       currentSnapshot = {
         friendRequests,
         messageNotifications,
-        totalCount: friendRequests.length + messageNotifications.length,
+        systemNotifications,
+        totalCount: friendRequests.length + messageNotifications.length + systemNotifications.length,
       }
       notifyListeners()
     } catch {
@@ -112,18 +127,32 @@ export async function refreshNotifications(force = false): Promise<void> {
  * refresh. The chat engine also learns about new messages here — it is the
  * single place ping counts are interpreted.
  */
-let lastPingCounts: PresencePingResult | null = null
+let lastPingCounts: (PresencePingResult & { systemNotifications?: number | undefined }) | null = null
 
-export function applyPingCounts(counts: PresencePingResult | null): void {
+export function applyPingCounts(counts: (PresencePingResult & { systemNotifications?: number | undefined }) | null): void {
   if (!counts) return
   const changed =
     lastPingCounts === null ||
     lastPingCounts.friendRequests !== counts.friendRequests ||
-    lastPingCounts.newMessages !== counts.newMessages
+    lastPingCounts.newMessages !== counts.newMessages ||
+    (counts.systemNotifications !== undefined && lastPingCounts.systemNotifications !== counts.systemNotifications)
   lastPingCounts = counts
   if (changed) {
     chatEngine.applyNewMessageHint(counts.newMessages)
     void refreshNotifications()
+  }
+}
+
+export async function dismissSystemNotification(id: number): Promise<void> {
+  try {
+    await fetch(`/api/notifications/${id}/read`, { method: 'POST' })
+  } finally {
+    currentSnapshot = {
+      ...currentSnapshot,
+      systemNotifications: currentSnapshot.systemNotifications.filter((n) => n.id !== id),
+      totalCount: Math.max(0, currentSnapshot.totalCount - 1),
+    }
+    notifyListeners()
   }
 }
 

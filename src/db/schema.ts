@@ -61,6 +61,8 @@ export const users = sqliteTable('users', {
   developer: integer('developer').default(0).notNull(),
   flags: integer('flags').default(0).notNull(),
   snowflakeId: text('snowflake_id').unique(),
+  scheduledDeletionAt: integer('scheduled_deletion_at'),
+  scheduledDeletionReason: text('scheduled_deletion_reason'),
 })
 
 export const systemConfig = sqliteTable('system_config', {
@@ -295,5 +297,3 @@ export const cjNinjaColors = sqliteTable(
 )
 
 export * from './admin-schema'
-
-

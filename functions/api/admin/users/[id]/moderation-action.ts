@@ -4,6 +4,7 @@ import { users, moderationActions } from '../../../../../src/db/schema'
 import { parseFlags, enableFlag, UserFlags } from '../../../../../shared/flags'
 import { revokeAllUserSessions } from '../../../../../shared/session'
 import { writeAudit } from '../../_shared/audit'
+import { dispatchUserNotification } from '../../_shared/notify'
 import { readJsonBody } from '../../../stats/body'
 import { jsonResponse, badRequest } from '../../../stats/respond'
 import type { StatsEnv } from '../../../stats/store-for'
@@ -97,6 +98,23 @@ export const onRequestPost = async ({ request, env, params }: PagesContext): Pro
       expiresAt,
     },
   })
+
+  // Dispatch notification to user (except ban actions)
+  if (actionType !== 'ban') {
+    const title =
+      actionType === 'warn'
+        ? 'Official Account Warning'
+        : actionType === 'mute'
+          ? 'Account Mute Imposed'
+          : 'Friend Interactions Blocked'
+    const expiryStr = expiresAt ? ` (Expires ${new Date(expiresAt).toLocaleDateString()})` : ' (Permanent)'
+    await dispatchUserNotification(db, {
+      playerId: user.playerId,
+      type: actionType === 'warn' ? 'warning' : 'moderation',
+      title,
+      body: `Staff action applied: ${reason.trim()}${expiryStr}`,
+    })
+  }
 
   return jsonResponse(200, {
     ok: true,

@@ -19,7 +19,11 @@ export function AdminRestrictedCard({
   return (
     <div className="nx-admin-restricted-page nx-page">
       <div className="nx-restricted-card">
-        <div className="nx-restricted-icon">🛡️</div>
+        <div className="nx-restricted-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--nx-orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
         <h1 className="nx-restricted-title">{title}</h1>
         <p className="nx-restricted-text">
           Access to {panelName} is restricted to verified Nixlabs staff holding the{' '}

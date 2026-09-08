@@ -24,7 +24,7 @@ export function AdminNavBar({ activeTab }: AdminNavBarProps) {
           to={ROUTES.adminUsers}
           className={`nx-admin-nav-tab ${activeTab === 'users' ? 'active' : ''}`}
         >
-          👥 Users
+          Users
         </Link>
       )}
       {canGames && (
@@ -32,7 +32,7 @@ export function AdminNavBar({ activeTab }: AdminNavBarProps) {
           to={ROUTES.adminGames}
           className={`nx-admin-nav-tab ${activeTab === 'games' ? 'active' : ''}`}
         >
-          🎮 Games
+          Games
         </Link>
       )}
       {canPlatform && (
@@ -40,7 +40,7 @@ export function AdminNavBar({ activeTab }: AdminNavBarProps) {
           to={ROUTES.adminPlatform}
           className={`nx-admin-nav-tab ${activeTab === 'platform' ? 'active' : ''}`}
         >
-          ⚙️ Platform
+          Platform
         </Link>
       )}
       {canCms && (
@@ -48,7 +48,7 @@ export function AdminNavBar({ activeTab }: AdminNavBarProps) {
           to={ROUTES.adminUpdates}
           className={`nx-admin-nav-tab ${activeTab === 'updates' ? 'active' : ''}`}
         >
-          📝 CMS Tool
+          CMS Tool
         </Link>
       )}
     </div>
