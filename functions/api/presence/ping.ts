@@ -3,9 +3,9 @@ import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import { and, eq, isNull } from 'drizzle-orm'
 import { users, userPresence, messages, friendships, userNotifications } from '../../../src/db/schema'
 import { readJsonBody } from '../stats/body'
-import { badRequest, jsonResponse } from '../stats/respond'
-import { identifyPlayer } from '../stats/identity'
-import { storeFor, type StatsEnv } from '../stats/store-for'
+import { jsonResponse } from '../stats/respond'
+import { identifySessionDetailed, serializeClearSessionCookie } from '../../../shared/session'
+import type { StatsEnv } from '../stats/store-for'
 
 interface PagesContext {
   readonly request: Request
@@ -64,16 +64,33 @@ async function getNotificationCounts(
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
-  const store = storeFor(env)
-  const { playerId } = await identifyPlayer(request, store)
-  if (!playerId) {
-    return badRequest('unauthorized')
+  const db = drizzle(env.NIXLABS_DB)
+  const sessionDetail = await identifySessionDetailed(request, db)
+
+  if (sessionDetail.status === 'revoked' || sessionDetail.status === 'expired') {
+    return jsonResponse(
+      401,
+      { ok: false, error: 'Session revoked', sessionRevoked: true },
+      { cookie: serializeClearSessionCookie() },
+    )
   }
 
-  const db = drizzle(env.NIXLABS_DB)
+  if (sessionDetail.status !== 'valid' || !sessionDetail.playerId) {
+    return jsonResponse(
+      401,
+      { ok: false, error: 'Unauthorized: active session required', sessionRevoked: true },
+      { cookie: serializeClearSessionCookie() },
+    )
+  }
+
+  const playerId = sessionDetail.playerId
   const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
-  if (!user) {
-    return badRequest('unauthorized')
+  if (!user || user.accountLocked === 1) {
+    return jsonResponse(
+      401,
+      { ok: false, error: 'Unauthorized: user account invalid or locked', sessionRevoked: true },
+      { cookie: serializeClearSessionCookie() },
+    )
   }
 
   const body = (await readJsonBody(request)) as {

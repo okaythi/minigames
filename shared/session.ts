@@ -78,33 +78,43 @@ export async function createSession(
   return token
 }
 
+export type SessionStatus = 'valid' | 'revoked' | 'expired' | 'missing' | 'locked'
+
+export interface DetailedSessionResult {
+  readonly status: SessionStatus
+  readonly playerId: string | null
+  readonly token: string | null
+}
+
 /**
- * Identifies the current player from session cookies.
- *
- * Implements a one-time migration grace path:
- * If `session_token` is absent but the legacy `player_id` cookie is present
- * and resolves to a real, unlocked user, transparently mints a new session.
+ * Detailed session evaluation: differentiates between valid, revoked, expired, locked, and missing.
  */
-export async function identifySession(
+export async function identifySessionDetailed(
   request: Request,
   db: DrizzleD1Database,
-): Promise<string | null> {
+): Promise<DetailedSessionResult> {
   try {
     const cookieHeader = request.headers.get('cookie')
     const token = readCookie(cookieHeader, SESSION_COOKIE_NAME)
 
     if (token) {
       const session = await db.select().from(sessions).where(eq(sessions.token, token)).get()
-      if (!session || session.revokedAt !== null || session.expiresAt < Date.now()) {
-        return null
+      if (!session) {
+        return { status: 'missing', playerId: null, token }
+      }
+      if (session.revokedAt !== null) {
+        return { status: 'revoked', playerId: session.playerId, token }
+      }
+      if (session.expiresAt < Date.now()) {
+        return { status: 'expired', playerId: session.playerId, token }
       }
 
       const user = await db.select().from(users).where(eq(users.playerId, session.playerId)).get()
       if (!user || user.accountLocked === 1) {
-        return null
+        return { status: 'locked', playerId: session.playerId, token }
       }
 
-      return session.playerId
+      return { status: 'valid', playerId: session.playerId, token }
     }
 
     // Grace fallback for legacy logged-in users
@@ -112,22 +122,29 @@ export async function identifySession(
     if (legacyPlayerId) {
       const user = await db.select().from(users).where(eq(users.playerId, legacyPlayerId)).get()
       if (user && user.accountLocked !== 1) {
-        // Mint a session transparently in the background
-        try {
-          const meta = await extractSessionMeta(request)
-          await createSession(db, user.playerId, meta)
-        } catch (sessionErr) {
-          console.error('[identifySession] failed to mint background session:', sessionErr)
-        }
-        return user.playerId
+        return { status: 'valid', playerId: user.playerId, token: null }
+      }
+      if (user && user.accountLocked === 1) {
+        return { status: 'locked', playerId: user.playerId, token: null }
       }
     }
 
-    return null
+    return { status: 'missing', playerId: null, token: null }
   } catch (err) {
-    console.error('[identifySession] database error:', err)
-    return null
+    console.error('[identifySessionDetailed] database error:', err)
+    return { status: 'missing', playerId: null, token: null }
   }
+}
+
+/**
+ * Identifies the current player from session cookies.
+ */
+export async function identifySession(
+  request: Request,
+  db: DrizzleD1Database,
+): Promise<string | null> {
+  const res = await identifySessionDetailed(request, db)
+  return res.status === 'valid' ? res.playerId : null
 }
 
 /**

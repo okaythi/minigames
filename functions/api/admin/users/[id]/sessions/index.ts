@@ -4,6 +4,8 @@ import { users, sessions } from '../../../../../../src/db/schema'
 import { jsonResponse, badRequest } from '../../../../stats/respond'
 import type { StatsEnv } from '../../../../stats/store-for'
 import { requireUsersAdmin } from '../../_auth'
+import { readCookie } from '../../../../../../shared/player-cookie'
+import { SESSION_COOKIE_NAME } from '../../../../../../shared/session'
 
 interface PagesContext {
   readonly request: Request
@@ -17,6 +19,7 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
 
   const db = drizzle(env.NIXLABS_DB)
   const idParam = params.id
+  const callerToken = readCookie(request.headers.get('cookie'), SESSION_COOKIE_NAME)
   const user = await db
     .select()
     .from(users)
@@ -49,6 +52,7 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
     userAgent: s.userAgent,
     ipHash: s.ipHash,
     isActive: s.revokedAt === null && s.expiresAt > now,
+    isCurrent: Boolean(callerToken && s.token === callerToken),
   }))
 
   return jsonResponse(200, {

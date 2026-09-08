@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AdminUserDetail } from '../../../../services/admin-api'
 import { revokeUserSession } from '../../../../services/admin-api'
+import { triggerSessionRevoked } from '../../../../services/auth-api'
 import { ConfirmDialog } from '../../../../components/ui/confirm-dialog'
 
 interface SessionsTabProps {
@@ -13,17 +14,39 @@ export function SessionsTab({ detail, onRefresh, showToast }: SessionsTabProps) 
   const { user, sessions } = detail
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null)
 
+  const isTargetCurrent = Boolean(
+    revokeTarget === 'all'
+      ? sessions.some((s) => s.isCurrent && s.isActive)
+      : sessions.find((s) => s.token === revokeTarget)?.isCurrent,
+  )
+
   const handleConfirmRevoke = async () => {
     if (!revokeTarget) return
+    const target = revokeTarget
+    setRevokeTarget(null)
     try {
-      await revokeUserSession(user.playerId, revokeTarget)
-      showToast(revokeTarget === 'all' ? 'All active sessions terminated' : 'Session revoked', 'ok')
-      setRevokeTarget(null)
+      const res = await revokeUserSession(user.playerId, target)
+      if (res.isCurrentSessionRevoked || isTargetCurrent) {
+        showToast('Current session terminated', 'ok')
+        triggerSessionRevoked()
+        return
+      }
+      showToast(target === 'all' ? 'All active sessions terminated' : 'Session revoked', 'ok')
       onRefresh()
     } catch (err: any) {
       showToast(err.message || 'Failed to revoke session', 'err')
     }
   }
+
+  const confirmTitle = revokeTarget === 'all' ? 'Force Logout All Sessions' : 'Revoke Session'
+  const confirmMessage =
+    revokeTarget === 'all'
+      ? isTargetCurrent
+        ? `Terminate all active login sessions for @${user.username}? This includes your current session and will log you out immediately.`
+        : `Terminate all active login sessions for @${user.username}? The user will be immediately logged out across all devices.`
+      : isTargetCurrent
+        ? 'This is your current active session. Revoking it will log you out of the admin panel immediately.'
+        : 'Revoke this individual session token immediately?'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -55,15 +78,22 @@ export function SessionsTab({ detail, onRefresh, showToast }: SessionsTabProps) 
             {sessions.map((s) => (
               <tr key={s.token}>
                 <td>
-                  {s.isActive ? (
-                    <span className="nx-admin-badge" data-variant="green">
-                      Active
-                    </span>
-                  ) : (
-                    <span className="nx-admin-badge" data-variant="neutral">
-                      Revoked
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                    {s.isActive ? (
+                      <span className="nx-admin-badge" data-variant="green">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="nx-admin-badge" data-variant="neutral">
+                        Revoked
+                      </span>
+                    )}
+                    {s.isCurrent && (
+                      <span className="nx-admin-badge" data-variant="blue">
+                        Current Session
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td>{new Date(s.createdAt).toLocaleString()}</td>
                 <td>{new Date(s.expiresAt).toLocaleDateString()}</td>
@@ -89,12 +119,8 @@ export function SessionsTab({ detail, onRefresh, showToast }: SessionsTabProps) 
 
       <ConfirmDialog
         isOpen={revokeTarget !== null}
-        title={revokeTarget === 'all' ? 'Force Logout All Sessions' : 'Revoke Session'}
-        message={
-          revokeTarget === 'all'
-            ? `Terminate all active login sessions for @${user.username}? The user will be immediately logged out across all devices.`
-            : 'Revoke this individual session token immediately?'
-        }
+        title={confirmTitle}
+        message={confirmMessage}
         danger={true}
         confirmLabel={revokeTarget === 'all' ? 'Force Logout All' : 'Revoke Session'}
         onConfirm={handleConfirmRevoke}

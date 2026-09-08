@@ -19,6 +19,8 @@ import { requireUsersAdmin } from '../_auth'
 import { writeAudit } from '../../_shared/audit'
 import { dispatchUserNotification } from '../../_shared/notify'
 import { buildUserPatch } from './patch-user-helper'
+import { readCookie } from '../../../../../shared/player-cookie'
+import { SESSION_COOKIE_NAME } from '../../../../../shared/session'
 
 interface PagesContext {
   readonly request: Request
@@ -60,6 +62,9 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
 
   const flags = parseFlags(user.flags)
 
+  const callerToken = readCookie(request.headers.get('cookie'), SESSION_COOKIE_NAME)
+  const now = Date.now()
+
   return jsonResponse(200, {
     ok: true,
     user: {
@@ -93,7 +98,8 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
       revokedAt: s.revokedAt,
       userAgent: s.userAgent,
       ipHash: s.ipHash,
-      isActive: s.revokedAt === null && s.expiresAt > Date.now(),
+      isActive: s.revokedAt === null && s.expiresAt > now,
+      isCurrent: Boolean(callerToken && s.token === callerToken),
     })),
     dismissables: dismissablesList,
     reportsCount: reportsList.length,

@@ -22,6 +22,7 @@ import {
   serializeSessionCookie,
   serializeClearSessionCookie,
   hashIp,
+  identifySessionDetailed,
 } from '../shared/session'
 
 function assert(condition: boolean, msg: string) {
@@ -98,6 +99,93 @@ async function run() {
 
   const ipHash = await hashIp('192.168.1.1')
   assert(typeof ipHash === 'string' && ipHash.length === 64, 'IP hash produces 64-char SHA-256 hex string')
+
+  console.log('\n🧪 Testing identifySessionDetailed Session Lifecycle States...')
+  // 1. Missing cookie
+  const reqNoCookie = new Request('http://localhost/')
+  const dummyDb: any = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          get: async () => null,
+        }),
+      }),
+    }),
+  }
+  const resMissing = await identifySessionDetailed(reqNoCookie, dummyDb)
+  assert(resMissing.status === 'missing', 'Missing cookie resolves to status missing')
+
+  // 2. Revoked session
+  const reqRevoked = new Request('http://localhost/', {
+    headers: { cookie: 'session_token=token-revoked' },
+  })
+  const dbRevoked: any = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          get: async () => ({
+            token: 'token-revoked',
+            playerId: 'player-1',
+            revokedAt: Date.now() - 1000,
+            expiresAt: Date.now() + 100000,
+          }),
+        }),
+      }),
+    }),
+  }
+  const resRevoked = await identifySessionDetailed(reqRevoked, dbRevoked)
+  assert(resRevoked.status === 'revoked', 'Revoked session resolves to status revoked')
+  assert(resRevoked.playerId === 'player-1', 'Revoked session preserves playerId for audit')
+
+  // 3. Expired session
+  const reqExpired = new Request('http://localhost/', {
+    headers: { cookie: 'session_token=token-expired' },
+  })
+  const dbExpired: any = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          get: async () => ({
+            token: 'token-expired',
+            playerId: 'player-2',
+            revokedAt: null,
+            expiresAt: Date.now() - 5000,
+          }),
+        }),
+      }),
+    }),
+  }
+  const resExpired = await identifySessionDetailed(reqExpired, dbExpired)
+  assert(resExpired.status === 'expired', 'Expired session resolves to status expired')
+
+  // 4. Valid session
+  const reqValid = new Request('http://localhost/', {
+    headers: { cookie: 'session_token=token-valid' },
+  })
+  let callCount = 0
+  const dbValid: any = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          get: async () => {
+            callCount++
+            if (callCount === 1) {
+              return {
+                token: 'token-valid',
+                playerId: 'player-3',
+                revokedAt: null,
+                expiresAt: Date.now() + 100000,
+              }
+            }
+            return { playerId: 'player-3', accountLocked: 0 }
+          },
+        }),
+      }),
+    }),
+  }
+  const resValid = await identifySessionDetailed(reqValid, dbValid)
+  assert(resValid.status === 'valid', 'Active unrevoked session resolves to status valid')
+  assert(resValid.playerId === 'player-3', 'Valid session returns correct playerId')
 
   console.log('\n✅ All Admin Backend and Snowflake System tests passed successfully!')
 }

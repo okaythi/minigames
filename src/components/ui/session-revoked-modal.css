@@ -1,0 +1,91 @@
+.nx-session-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(35, 35, 36, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 1rem;
+}
+
+.nx-session-modal-card {
+  background: var(--nx-paper, #faf7f2);
+  color: var(--nx-ink, #232324);
+  border: var(--nx-hairline-strong, 1px solid #d4cbbd);
+  border-radius: var(--nx-radius-lg, 12px);
+  box-shadow: 0 16px 36px rgba(35, 35, 36, 0.16);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  animation: nx-session-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes nx-session-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.nx-session-modal-header {
+  padding: 1.125rem 1.25rem 0.5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nx-session-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--nx-ink, #232324);
+  letter-spacing: -0.01em;
+}
+
+.nx-session-modal-body {
+  padding: 0.75rem 1.25rem 1.25rem 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--nx-slate, #67635e);
+}
+
+.nx-session-modal-footer {
+  padding: 0.875rem 1.25rem;
+  background: rgba(0, 0, 0, 0.025);
+  border-top: var(--nx-hairline, 1px solid #e2dad0);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.nx-session-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 1.25rem;
+  border-radius: var(--nx-radius-sm, 6px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--nx-orange, #f6821f);
+  color: #fff;
+  border: 1px solid #e06f10;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.nx-session-modal-btn:hover {
+  background: #e06f10;
+}
+
+.nx-session-modal-btn:active {
+  transform: translateY(1px);
+}

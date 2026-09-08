@@ -1,4 +1,5 @@
 import type { FriendSummary, PrivacySettings } from '../../shared/auth-protocol'
+import { triggerSessionRevoked } from './auth-api'
 
 /**
  * Short-lived shared cache for the friends snapshot. Multiple surfaces want
@@ -149,7 +150,12 @@ export async function pingPresence(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ state, slug, startedAt }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      if (res.status === 401) {
+        triggerSessionRevoked()
+      }
+      return null
+    }
     const data = (await res.json().catch(() => null)) as
       | { notifications?: { friendRequests?: number; newMessages?: number } }
       | null

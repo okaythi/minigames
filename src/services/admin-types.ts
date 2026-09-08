@@ -48,6 +48,7 @@ export interface AdminUserDetail {
     readonly userAgent: string | null
     readonly ipHash: string | null
     readonly isActive: boolean
+    readonly isCurrent?: boolean | undefined
   }>
   readonly dismissables?: Array<{
     readonly id: number

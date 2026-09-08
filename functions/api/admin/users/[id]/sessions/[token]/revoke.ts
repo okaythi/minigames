@@ -1,7 +1,13 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { eq, or } from 'drizzle-orm'
 import { users } from '../../../../../../../src/db/schema'
-import { revokeSession, revokeAllUserSessions } from '../../../../../../../shared/session'
+import {
+  revokeSession,
+  revokeAllUserSessions,
+  serializeClearSessionCookie,
+  SESSION_COOKIE_NAME,
+} from '../../../../../../../shared/session'
+import { readCookie } from '../../../../../../../shared/player-cookie'
 import { writeAudit } from '../../../../_shared/audit'
 import { jsonResponse, badRequest } from '../../../../../stats/respond'
 import type { StatsEnv } from '../../../../../stats/store-for'
@@ -20,6 +26,7 @@ export const onRequestPost = async ({ request, env, params }: PagesContext): Pro
   const db = drizzle(env.NIXLABS_DB)
   const idParam = params.id
   const tokenParam = params.token
+  const callerToken = readCookie(request.headers.get('cookie'), SESSION_COOKIE_NAME)
 
   const user = await db
     .select()
@@ -36,6 +43,10 @@ export const onRequestPost = async ({ request, env, params }: PagesContext): Pro
   if (!user) {
     return badRequest('Target user not found')
   }
+
+  const isCurrentSessionRevoked =
+    (tokenParam === 'all' && user.playerId === auth.user.playerId) ||
+    Boolean(callerToken && tokenParam === callerToken)
 
   if (tokenParam === 'all') {
     await revokeAllUserSessions(db, user.playerId)
@@ -59,5 +70,9 @@ export const onRequestPost = async ({ request, env, params }: PagesContext): Pro
     })
   }
 
-  return jsonResponse(200, { ok: true, targetPlayerId: user.playerId })
+  return jsonResponse(
+    200,
+    { ok: true, targetPlayerId: user.playerId, isCurrentSessionRevoked },
+    isCurrentSessionRevoked ? { cookie: serializeClearSessionCookie() } : {},
+  )
 }

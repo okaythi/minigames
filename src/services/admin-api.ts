@@ -3,16 +3,7 @@
  * Typed methods for interacting with NixLabs Admin Backend.
  */
 
-export type {
-  AdminUserListItem,
-  AdminUserDetail,
-  ModerationReportItem,
-  AdminGameItem,
-  PlatformMetadataResponse,
-  AuditLogItem,
-  AdminUsersResponse,
-} from './admin-types'
-
+export type * from './admin-types'
 import type {
   AdminUserDetail,
   ModerationReportItem,
@@ -21,9 +12,13 @@ import type {
   AuditLogItem,
   AdminUsersResponse,
 } from './admin-types'
+import { triggerSessionRevoked } from './auth-api'
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401) {
+      triggerSessionRevoked()
+    }
     const text = await res.text()
     try {
       const parsed = JSON.parse(text)
@@ -97,7 +92,7 @@ export async function addStaffNote(
 export async function revokeUserSession(
   id: string,
   token: string,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; isCurrentSessionRevoked?: boolean }> {
   const res = await fetch(
     `/api/admin/users/${encodeURIComponent(id)}/sessions/${encodeURIComponent(token)}/revoke`,
     {

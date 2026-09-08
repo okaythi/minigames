@@ -4,44 +4,97 @@ import { users } from '../../../src/db/schema'
 import { UserProfileUpdateSchema } from '../../../shared/auth-protocol'
 import { parseFlags, hasFlag, UserFlags } from '../../../shared/flags'
 import { toDisplayId } from '../../../shared/snowflake'
-import { identifySession } from '../../../shared/session'
+import { identifySessionDetailed, serializeClearSessionCookie } from '../../../shared/session'
 import { readJsonBody } from '../stats/body'
 import { badRequest, jsonResponse } from '../stats/respond'
-import { identifyPlayer } from '../stats/identity'
-import { storeFor, type StatsEnv } from '../stats/store-for'
+import type { StatsEnv } from '../stats/store-for'
 
 interface PagesContext {
   readonly request: Request
   readonly env: StatsEnv & { NIXLABS_DB: D1Database; ASSETS_BUCKET: R2Bucket }
 }
 
-async function resolvePlayerId(request: Request, env: PagesContext['env']): Promise<string | null> {
+type AuthResolveResult =
+  | { readonly ok: true; readonly playerId: string }
+  | { readonly ok: false; readonly response: Response }
+
+async function resolveSessionUser(
+  request: Request,
+  env: PagesContext['env'],
+): Promise<AuthResolveResult> {
   try {
     const db = drizzle(env.NIXLABS_DB)
-    const sessionPlayerId = await identifySession(request, db)
-    if (sessionPlayerId) return sessionPlayerId
+    const sessionDetail = await identifySessionDetailed(request, db)
 
-    const store = storeFor(env)
-    const { playerId } = await identifyPlayer(request, store)
-    return playerId
+    if (sessionDetail.status === 'revoked') {
+      return {
+        ok: false,
+        response: jsonResponse(
+          401,
+          { ok: false, error: 'Session revoked', sessionRevoked: true },
+          { cookie: serializeClearSessionCookie() },
+        ),
+      }
+    }
+
+    if (sessionDetail.status === 'expired') {
+      return {
+        ok: false,
+        response: jsonResponse(
+          401,
+          { ok: false, error: 'Session expired', sessionRevoked: true },
+          { cookie: serializeClearSessionCookie() },
+        ),
+      }
+    }
+
+    if (sessionDetail.status === 'locked') {
+      return {
+        ok: false,
+        response: jsonResponse(
+          403,
+          { ok: false, error: 'Account suspended or locked', sessionRevoked: true },
+          { cookie: serializeClearSessionCookie() },
+        ),
+      }
+    }
+
+    if (sessionDetail.status !== 'valid' || !sessionDetail.playerId) {
+      return {
+        ok: false,
+        response: jsonResponse(
+          401,
+          { ok: false, error: 'Unauthorized: active session required' },
+          { cookie: serializeClearSessionCookie() },
+        ),
+      }
+    }
+
+    return { ok: true, playerId: sessionDetail.playerId }
   } catch (err) {
-    console.error('[users/me resolvePlayerId] error:', err)
-    return null
+    console.error('[users/me resolveSessionUser] error:', err)
+    return {
+      ok: false,
+      response: jsonResponse(500, { ok: false, error: 'Failed to verify session' }),
+    }
   }
 }
 
 export const onRequestGet = async ({ request, env }: PagesContext): Promise<Response> => {
   try {
-    const playerId = await resolvePlayerId(request, env)
-    if (!playerId) {
-      return badRequest('unauthorized')
-    }
+    const auth = await resolveSessionUser(request, env)
+    if (!auth.ok) return auth.response
+    const playerId = auth.playerId
 
     const db = drizzle(env.NIXLABS_DB)
     const user = await db.select().from(users).where(eq(users.playerId, playerId)).get()
-    
+
     if (!user || user.accountLocked === 1) {
-      return jsonResponse(401, { ok: false, error: 'Unauthorized: user account invalid or locked' })
+      return jsonResponse(
+        401,
+        { ok: false, error: 'Unauthorized: user account invalid or locked', sessionRevoked: true },
+        { cookie: serializeClearSessionCookie() },
+      )
     }
 
     const flags = parseFlags(user.flags)
@@ -68,10 +121,9 @@ export const onRequestGet = async ({ request, env }: PagesContext): Promise<Resp
 }
 
 export const onRequestPut = async ({ request, env }: PagesContext): Promise<Response> => {
-  const playerId = await resolvePlayerId(request, env)
-  if (!playerId) {
-    return badRequest('unauthorized')
-  }
+  const auth = await resolveSessionUser(request, env)
+  if (!auth.ok) return auth.response
+  const playerId = auth.playerId
 
   const json = await readJsonBody(request)
   const result = UserProfileUpdateSchema.safeParse(json)
@@ -98,10 +150,9 @@ export const onRequestPut = async ({ request, env }: PagesContext): Promise<Resp
 }
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
-  const playerId = await resolvePlayerId(request, env)
-  if (!playerId) {
-    return badRequest('unauthorized')
-  }
+  const auth = await resolveSessionUser(request, env)
+  if (!auth.ok) return auth.response
+  const playerId = auth.playerId
 
   const contentType = request.headers.get('content-type') || ''
   if (!contentType.includes('image/')) {

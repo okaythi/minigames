@@ -36,57 +36,43 @@ export function getCurrentUser(): UserProfileResponse | null {
   return cachedCurrentUser
 }
 
+export const SESSION_REVOKED_EVENT = 'nx:session-revoked'
+
+export function triggerSessionRevoked(): void {
+  const hadUser = cachedCurrentUser !== null
+  setCachedUser(null)
+  resetLocalCounters()
+  if (hadUser && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SESSION_REVOKED_EVENT))
+  }
+}
+
 export function isCurrentDeveloper(): boolean {
-  if (!cachedCurrentUser) return false
-  return hasFlag(cachedCurrentUser.flags, UserFlags.USER_DEVELOPER) || cachedCurrentUser.developer === true
+  return Boolean(cachedCurrentUser && (hasFlag(cachedCurrentUser.flags, UserFlags.USER_DEVELOPER) || cachedCurrentUser.developer))
 }
 
 export function isStaff(): boolean {
-  if (!cachedCurrentUser) return false
-  return hasFlag(cachedCurrentUser.flags, UserFlags.STAFF)
+  return Boolean(cachedCurrentUser && hasFlag(cachedCurrentUser.flags, UserFlags.STAFF))
 }
 
 export function isCmsEditor(): boolean {
-  if (!cachedCurrentUser) return false
-  return (
-    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
-    hasFlag(cachedCurrentUser.flags, UserFlags.CMS_EDITOR)
-  )
+  return Boolean(cachedCurrentUser && hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) && hasFlag(cachedCurrentUser.flags, UserFlags.CMS_EDITOR))
 }
 
 export function isUsersAdmin(): boolean {
-  if (!cachedCurrentUser) return false
-  return (
-    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
-    hasFlag(cachedCurrentUser.flags, UserFlags.USERS_ADMIN)
-  )
+  return Boolean(cachedCurrentUser && hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) && hasFlag(cachedCurrentUser.flags, UserFlags.USERS_ADMIN))
 }
 
 export function isGamesAdmin(): boolean {
-  if (!cachedCurrentUser) return false
-  return (
-    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
-    hasFlag(cachedCurrentUser.flags, UserFlags.GAMES_ADMIN)
-  )
+  return Boolean(cachedCurrentUser && hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) && hasFlag(cachedCurrentUser.flags, UserFlags.GAMES_ADMIN))
 }
 
 export function isPlatformAdmin(): boolean {
-  if (!cachedCurrentUser) return false
-  return (
-    hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) &&
-    hasFlag(cachedCurrentUser.flags, UserFlags.PLATFORM_ADMIN)
-  )
+  return Boolean(cachedCurrentUser && hasFlag(cachedCurrentUser.flags, UserFlags.STAFF) && hasFlag(cachedCurrentUser.flags, UserFlags.PLATFORM_ADMIN))
 }
 
 export function canAccessAdmin(): boolean {
-  if (!cachedCurrentUser) return false
-  return (
-    isStaff() ||
-    isUsersAdmin() ||
-    isGamesAdmin() ||
-    isPlatformAdmin() ||
-    isCmsEditor()
-  )
+  return isStaff() || isUsersAdmin() || isGamesAdmin() || isPlatformAdmin() || isCmsEditor()
 }
 
 export function getDefaultAdminRoute(): string {
@@ -194,7 +180,11 @@ export async function getMe(force = false): Promise<UserProfileResponse | null> 
       lastMeFetchTime = Date.now()
       const res = await fetch('/api/users/me')
       if (!res.ok) {
-        setCachedUser(null)
+        if (res.status === 401 && cachedCurrentUser) {
+          triggerSessionRevoked()
+        } else {
+          setCachedUser(null)
+        }
         return null
       }
       const data = await res.json()
