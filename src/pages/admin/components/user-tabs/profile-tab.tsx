@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { type AdminUserDetail, updateUserProfileData } from '../../../../services/admin-api'
 
 interface ProfileTabProps {
@@ -24,14 +24,23 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
   const [auditReason, setAuditReason] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
+  useEffect(() => {
+    setUsername(user.username)
+    setNickname(user.nickname || '')
+    setNicknameCount(user.nicknameChangedCount ?? 0)
+    setCountry(user.registeredInCountry || '')
+    setRegIp(user.registeredIp || '')
+    setLastIp(user.lastLoginIp || '')
+    setIsVpn(user.lastLoginIpIsVpn)
+    setIsPioneer(user.legacyUser ?? false)
+    setIsDeveloper(user.developer ?? false)
+    setCandy(user.candy ?? 0)
+  }, [user])
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!auditReason.trim()) {
-      showToast('Audit reason is required for administrative updates', 'err')
-      return
-    }
-
     setIsSaving(true)
+    const effectiveReason = auditReason.trim() || 'Administrative profile update via Admin Console'
     try {
       await updateUserProfileData(user.playerId, {
         username: username.trim() !== user.username ? username.trim() : undefined,
@@ -46,7 +55,7 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
         candy: candy >= 0 ? candy : undefined,
         clearPfp: clearPfp || undefined,
         newPassword: newPassword.trim().length >= 6 ? newPassword.trim() : undefined,
-        auditReason: auditReason.trim(),
+        auditReason: effectiveReason,
       })
       showToast('User record updated successfully', 'ok')
       setAuditReason('')
@@ -195,7 +204,7 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
       </div>
 
       <div className="nx-admin-form-group" style={{ borderTop: '1px solid var(--nx-line)', paddingTop: '1rem' }}>
-        <label className="nx-admin-label">Audit Reason (Required for Ledger)</label>
+        <label className="nx-admin-label">Audit Reason (Optional)</label>
         <input
           type="text"
           className="nx-admin-input"
@@ -206,7 +215,7 @@ export function ProfileTab({ detail, onRefresh, showToast }: ProfileTabProps) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-        <button type="submit" className="nx-admin-btn nx-admin-btn-primary" disabled={isSaving || !auditReason.trim()}>
+        <button type="submit" className="nx-admin-btn nx-admin-btn-primary" disabled={isSaving}>
           {isSaving ? 'Saving Changes...' : 'Save Profile Updates'}
         </button>
       </div>

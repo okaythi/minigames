@@ -108,66 +108,72 @@ export const onRequestGet = async ({ request, env, params }: PagesContext): Prom
 }
 
 export const onRequestPatch = async ({ request, env, params }: PagesContext): Promise<Response> => {
-  const auth = await requireUsersAdmin(request, env)
-  if (!auth.ok) return auth.response
+  try {
+    const auth = await requireUsersAdmin(request, env)
+    if (!auth.ok) return auth.response
 
-  const db = drizzle(env.NIXLABS_DB)
-  const idParam = params.id
-  const user = await db
-    .select()
-    .from(users)
-    .where(
-      or(
-        eq(users.playerId, idParam),
-        eq(users.username, idParam.toLowerCase()),
-        eq(users.snowflakeId, idParam),
-      ),
-    )
-    .get()
+    const db = drizzle(env.NIXLABS_DB)
+    const idParam = params.id
+    const user = await db
+      .select()
+      .from(users)
+      .where(
+        or(
+          eq(users.playerId, idParam),
+          eq(users.username, idParam.toLowerCase()),
+          eq(users.snowflakeId, idParam),
+        ),
+      )
+      .get()
 
-  if (!user) return badRequest('User not found')
+    if (!user) return badRequest('User not found')
 
-  const body = (await readJsonBody(request)) as any
-  const { auditReason } = body || {}
+    const body = (await readJsonBody(request)) as any
+    const { auditReason } = body || {}
 
-  if (!auditReason || typeof auditReason !== 'string' || auditReason.trim().length === 0) {
-    return badRequest('An auditReason is strictly required for administrative user modifications')
+    const reason =
+      typeof auditReason === 'string' && auditReason.trim().length > 0
+        ? auditReason.trim()
+        : 'Administrative profile update via Admin Console'
+
+    const patchResult = await buildUserPatch({ db, user, body })
+    if (patchResult.error) {
+      return badRequest(patchResult.error)
+    }
+
+    const { beforeDiff, afterDiff, userUpdates, candyUpdate } = patchResult
+
+    if (Object.keys(userUpdates).length > 0) {
+      await db.update(users).set(userUpdates).where(eq(users.playerId, user.playerId))
+    }
+
+    if (candyUpdate !== undefined) {
+      await db.update(players).set({ candy: candyUpdate }).where(eq(players.id, user.playerId))
+    }
+
+    // Audit log
+    await writeAudit(db, {
+      actorPlayerId: auth.user.playerId,
+      action: 'user.update_profile',
+      targetType: 'user',
+      targetId: user.playerId,
+      reason,
+      metadata: { before: beforeDiff, after: afterDiff },
+    })
+
+    // In-app notification
+    await dispatchUserNotification(db, {
+      playerId: user.playerId,
+      type: 'account',
+      title: 'Account Details Updated',
+      body: `An administrator updated your account: ${reason}`,
+    })
+
+    return jsonResponse(200, { ok: true, targetPlayerId: user.playerId, updated: afterDiff })
+  } catch (err: any) {
+    console.error('[admin/users onRequestPatch] error:', err)
+    return jsonResponse(500, { ok: false, error: err?.message || 'Failed to update user profile' })
   }
-
-  const patchResult = await buildUserPatch({ db, user, body })
-  if (patchResult.error) {
-    return badRequest(patchResult.error)
-  }
-
-  const { beforeDiff, afterDiff, userUpdates, candyUpdate } = patchResult
-
-  if (Object.keys(userUpdates).length > 0) {
-    await db.update(users).set(userUpdates).where(eq(users.playerId, user.playerId))
-  }
-
-  if (candyUpdate !== undefined) {
-    await db.update(players).set({ candy: candyUpdate }).where(eq(players.id, user.playerId))
-  }
-
-  // Audit log
-  await writeAudit(db, {
-    actorPlayerId: auth.user.playerId,
-    action: 'user.update_profile',
-    targetType: 'user',
-    targetId: user.playerId,
-    reason: auditReason.trim(),
-    metadata: { before: beforeDiff, after: afterDiff },
-  })
-
-  // In-app notification
-  await dispatchUserNotification(db, {
-    playerId: user.playerId,
-    type: 'account',
-    title: 'Account Details Updated',
-    body: `An administrator updated your account: ${auditReason.trim()}`,
-  })
-
-  return jsonResponse(200, { ok: true, targetPlayerId: user.playerId, updated: afterDiff })
 }
 
 export const onRequestDelete = async ({ request, env, params }: PagesContext): Promise<Response> => {

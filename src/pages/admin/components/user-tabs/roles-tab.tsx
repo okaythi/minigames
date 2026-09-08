@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { type AdminUserDetail, updateUserFlags } from '../../../../services/admin-api'
-import { isPlatformAdmin } from '../../../../services/auth-api'
+import { isUsersAdmin, isPlatformAdmin } from '../../../../services/auth-api'
 import { UserFlags, hasFlag, enableFlag, disableFlag, FLAGS_METADATA } from '../../../../../shared/flags'
 
 interface RolesTabProps {
@@ -25,10 +25,14 @@ const ALL_FLAGS_LIST = [
 
 export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
   const { user } = detail
-  const canManageFlags = isPlatformAdmin()
+  const canManageFlags = isUsersAdmin() || isPlatformAdmin()
   const [currentFlags, setCurrentFlags] = useState<number>(user.flags)
   const [auditReason, setAuditReason] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setCurrentFlags(user.flags)
+  }, [user.flags])
 
   const toggleFlag = (bit: number) => {
     if (!canManageFlags) return
@@ -37,14 +41,15 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!auditReason.trim()) {
-      showToast('Audit reason is required when modifying user roles/flags', 'err')
+    if (currentFlags === user.flags) {
+      showToast('No flag changes to save', 'ok')
       return
     }
 
     setIsSaving(true)
+    const effectiveReason = auditReason.trim() || 'Updated roles & flags via Admin Console'
     try {
-      await updateUserFlags(user.playerId, currentFlags, auditReason.trim())
+      await updateUserFlags(user.playerId, currentFlags, effectiveReason)
       showToast('User roles and flags updated successfully', 'ok')
       setAuditReason('')
       onRefresh()
@@ -77,13 +82,16 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
               key={key}
               className="nx-admin-flag-card"
               data-checked={isChecked ? 'true' : undefined}
-              onClick={() => toggleFlag(bit)}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).tagName === 'INPUT') return
+                toggleFlag(bit)
+              }}
             >
               <input
                 type="checkbox"
                 checked={isChecked}
                 disabled={!canManageFlags}
-                onChange={() => {}} // handled by card click
+                onChange={() => toggleFlag(bit)}
                 style={{ marginTop: '3px', cursor: canManageFlags ? 'pointer' : 'default' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
@@ -113,7 +121,7 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
       {canManageFlags && (
         <div style={{ borderTop: '1px solid var(--nx-line)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div className="nx-admin-form-group">
-            <label className="nx-admin-label">Audit Reason (Required)</label>
+            <label className="nx-admin-label">Audit Reason (Optional)</label>
             <input
               type="text"
               className="nx-admin-input"
@@ -126,7 +134,7 @@ export function RolesTab({ detail, onRefresh, showToast }: RolesTabProps) {
             <button
               type="submit"
               className="nx-admin-btn nx-admin-btn-primary"
-              disabled={isSaving || currentFlags === user.flags || !auditReason.trim()}
+              disabled={isSaving || currentFlags === user.flags}
             >
               {isSaving ? 'Saving...' : 'Save Role & Flag Changes'}
             </button>

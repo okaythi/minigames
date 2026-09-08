@@ -198,11 +198,21 @@ export function UserDetailModal({
           )}
 
           {activeTab === 'profile' && (
-            <ProfileTab detail={detail} onRefresh={onRefresh} showToast={showFeedback} />
+            <ProfileTab
+              key={`profile-${user.playerId}-${user.username}-${user.nickname}-${user.candy}-${user.nicknameChangedCount}-${user.registeredInCountry}-${user.developer}-${user.legacyUser}`}
+              detail={detail}
+              onRefresh={onRefresh}
+              showToast={showFeedback}
+            />
           )}
 
           {activeTab === 'roles' && (
-            <RolesTab detail={detail} onRefresh={onRefresh} showToast={showFeedback} />
+            <RolesTab
+              key={`roles-${user.playerId}-${user.flags}`}
+              detail={detail}
+              onRefresh={onRefresh}
+              showToast={showFeedback}
+            />
           )}
 
           {activeTab === 'moderation' && (
