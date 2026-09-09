@@ -29,5 +29,11 @@
     "enabled": true,
     "flags": 1,
     "source": { "type": "package", "name": "@nixlabs-games/tetris" }
+  },
+  {
+    "slug": "blackjack-21",
+    "title": "Blackjack 21",
+    "enabled": true,
+    "source": { "type": "package", "name": "@nixlabs-games/blackjack-21" }
   }
 ]

@@ -143,9 +143,16 @@ export type AchievementId =
   | 'tetris_tspin'
   | 'tetris_level_10'
   | 'tetris_perfect_clear'
+  // Blackjack 21
+  | 'blackjack-21_natural_21'
+  | 'blackjack-21_split_master'
+  | 'blackjack-21_double_trouble'
+  | 'blackjack-21_hot_streak'
+  | 'blackjack-21_high_roller'
+  | 'blackjack-21_outplay_counter'
 
 /** Pillar grouping for display purposes. */
-export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu' | 'tetris'
+export type AchievementPillar = 'platform' | 'avoid-the-spikes' | 'pong' | 'fl-tron-3' | 'card-jitsu' | 'tetris' | 'blackjack-21'
 
 /** Static definition of an achievement — never changes at runtime. */
 export interface AchievementDef {
