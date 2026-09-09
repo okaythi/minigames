@@ -296,4 +296,18 @@ export const cjNinjaColors = sqliteTable(
   }),
 )
 
+export const blackjackSessions = sqliteTable('blackjack_sessions', {
+  playerId: text('player_id')
+    .primaryKey()
+    .references(() => players.id, { onDelete: 'cascade' }),
+  bankroll: integer('bankroll').notNull().default(500),
+  bonusEur: integer('bonus_eur').notNull().default(500),
+  depositedEur: integer('deposited_eur').notNull().default(0),
+  initialTotalEur: integer('initial_total_eur').notNull().default(500),
+  firstTimeGranted: integer('first_time_granted').notNull().default(1),
+  difficulty: text('difficulty').notNull().default('normal'),
+  companionCount: integer('companion_count').notNull().default(2),
+  updatedAt: integer('updated_at').notNull(),
+})
+
 export * from './admin-schema'
