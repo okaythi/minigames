@@ -82,6 +82,12 @@
   aspect-ratio: 21 / 8;
 }
 
+.nx-game[data-slug="blackjack-21"] .nx-game-banner {
+  aspect-ratio: 12 / 8;
+  object-position: center bottom;
+  max-height: 280px;
+}
+
 .nx-game[data-layout="horizontal"] {
   max-width: 1040px;
   margin: 0 auto;
