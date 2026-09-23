@@ -2,6 +2,7 @@ import { eq, and, isNull } from 'drizzle-orm'
 import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import { sessions, users } from '../src/db/schema'
 import { readCookie, PLAYER_COOKIE_NAME } from './player-cookie'
+import { resolveEcosystemPlayer } from './nixlabs-session'
 
 export const SESSION_COOKIE_NAME = 'session_token' as const
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60 // 30 days
@@ -94,6 +95,11 @@ export async function identifySessionDetailed(
   db: DrizzleD1Database,
 ): Promise<DetailedSessionResult> {
   try {
+    const ecosystemPlayerId = await resolveEcosystemPlayer(request, db)
+    if (ecosystemPlayerId) {
+      return { status: 'valid', playerId: ecosystemPlayerId, token: 'ecosystem' }
+    }
+
     const cookieHeader = request.headers.get('cookie')
     const token = readCookie(cookieHeader, SESSION_COOKIE_NAME)
 

@@ -223,6 +223,17 @@ export function AuthPopover() {
             </div>
           ) : (
             <div>
+              <div style={{ marginBottom: '12px' }}>
+                <a
+                  href={`https://accounts.nixlabs.tech/login?r=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                  className="nx-auth-submit"
+                  style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <span>Sign in with Nixlabs SSO</span>
+                  <span>↗</span>
+                </a>
+              </div>
+
               <div className="nx-auth-tabs">
                 <button
                   type="button"
