@@ -73,13 +73,16 @@ export async function resolveEcosystemPlayer(
       candy: 500,
     })
 
-    const allAdminFlags =
-      UserFlags.USER_DEVELOPER |
-      UserFlags.USER_PIONEER |
-      UserFlags.STAFF |
-      UserFlags.USERS_ADMIN |
-      UserFlags.GAMES_ADMIN |
-      UserFlags.PLATFORM_ADMIN
+    const isAdmin = payload.role === 'ADMIN'
+
+    const assignedFlags = isAdmin
+      ? UserFlags.USER_DEVELOPER |
+        UserFlags.USER_PIONEER |
+        UserFlags.STAFF |
+        UserFlags.USERS_ADMIN |
+        UserFlags.GAMES_ADMIN |
+        UserFlags.PLATFORM_ADMIN
+      : UserFlags.USER_PIONEER
 
     await db.insert(users).values({
       playerId: newPlayerId,
@@ -89,8 +92,8 @@ export async function resolveEcosystemPlayer(
       passwordSalt: 'sso_salt',
       createdOn: now,
       lastLoggedIn: now,
-      developer: 1,
-      flags: allAdminFlags,
+      developer: isAdmin ? 1 : 0,
+      flags: assignedFlags,
     })
 
     return newPlayerId
