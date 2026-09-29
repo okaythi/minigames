@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createElement } from 'react'
 import { Link } from '../app/link'
 import { useRouter } from '../app/router'
 import { ROUTES } from '../app/parse-route'
@@ -70,6 +70,7 @@ export function SiteHeader({ manifests }: SiteHeaderProps) {
             )}
             <NotificationBell />
             <AuthPopover />
+            {createElement('nixlabs-account', { placement: 'inline', 'theme-mode': 'fixed-dark', title: 'Nixlabs ecosystem account' })}
           </nav>
         </div>
       </header>

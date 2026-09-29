@@ -126,6 +126,14 @@ button.nx-nav-link[data-active='true'] {
   }
 
   .nx-nav {
+    display: flex;
+    position: fixed;
+    top: 9px;
+    right: 16px;
+    z-index: 1000;
+  }
+
+  .nx-nav > :not(nixlabs-account) {
     display: none;
   }
 }
