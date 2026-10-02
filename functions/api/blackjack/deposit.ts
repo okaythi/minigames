@@ -19,9 +19,10 @@ async function resolvePlayerId(
   request: Request,
   db: DrizzleD1Database,
   store: ReturnType<typeof storeFor>,
+  authSecret: string | undefined,
 ): Promise<string | null> {
   try {
-    const sessionRes = await identifySessionDetailed(request, db)
+    const sessionRes = await identifySessionDetailed(request, db, authSecret)
     if (sessionRes.status === 'valid' && sessionRes.playerId) {
       return sessionRes.playerId
     }
@@ -36,7 +37,7 @@ async function resolvePlayerId(
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
   const db = drizzle(env.NIXLABS_DB)
   const store = storeFor(env)
-  const playerId = await resolvePlayerId(request, db, store)
+  const playerId = await resolvePlayerId(request, db, store, env.AUTH_SECRET)
   if (!playerId) {
     return jsonResponse(401, { ok: false, error: 'unauthorized' })
   }

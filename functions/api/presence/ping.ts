@@ -65,7 +65,7 @@ async function getNotificationCounts(
 
 export const onRequestPost = async ({ request, env }: PagesContext): Promise<Response> => {
   const db = drizzle(env.NIXLABS_DB)
-  const sessionDetail = await identifySessionDetailed(request, db)
+  const sessionDetail = await identifySessionDetailed(request, db, env.AUTH_SECRET)
 
   if (sessionDetail.status === 'revoked' || sessionDetail.status === 'expired') {
     return jsonResponse(

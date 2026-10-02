@@ -14,7 +14,7 @@ interface PagesContext {
 
 export const onRequestPost = async ({ request, env, params }: PagesContext): Promise<Response> => {
   const db = drizzle(env.NIXLABS_DB)
-  const sessionPlayerId = await identifySession(request, db)
+  const sessionPlayerId = await identifySession(request, db, env.AUTH_SECRET)
   let playerId = sessionPlayerId
 
   if (!playerId) {

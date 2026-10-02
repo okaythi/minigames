@@ -29,7 +29,7 @@ export async function requireStaffFlag(
   requiredFlag: UserFlagsBit,
 ): Promise<StaffAuthResult> {
   const db = drizzle(env.NIXLABS_DB)
-  const playerId = await identifySession(request, db)
+  const playerId = await identifySession(request, db, env.AUTH_SECRET)
 
   if (!playerId) {
     return {

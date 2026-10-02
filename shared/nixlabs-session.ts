@@ -20,6 +20,8 @@ export interface NixlabsSessionPayload {
 }
 
 export async function verifyNixlabsToken(token: string, secret: string): Promise<NixlabsSessionPayload | null> {
+  if (!secret || !secret.trim()) return null
+
   const parts = token.split('.')
   if (parts.length !== 2) return null
 
@@ -31,7 +33,7 @@ export async function verifyNixlabsToken(token: string, secret: string): Promise
     const sigBytes = Uint8Array.from(atob(b64Sig), (c) => c.charCodeAt(0))
     const key = await crypto.subtle.importKey(
       'raw',
-      ENCODER.encode(secret || 'default-nixlabs-dev-secret'),
+      ENCODER.encode(secret.trim()), // accounts.nixlabs.tech signs with the trimmed secret
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify']
@@ -52,11 +54,14 @@ export async function resolveEcosystemPlayer(
   db: DrizzleD1Database,
   secret?: string
 ): Promise<string | null> {
+  // Without the shared secret, ecosystem sessions cannot be verified: SSO is off.
+  if (!secret || !secret.trim()) return null
+
   const cookieHeader = request.headers.get('cookie')
   const nixlabsToken = readCookie(cookieHeader, '_nixlabs_session')
   if (!nixlabsToken) return null
 
-  const payload = await verifyNixlabsToken(nixlabsToken, secret || 'default-nixlabs-dev-secret')
+  const payload = await verifyNixlabsToken(nixlabsToken, secret)
   if (!payload || !payload.sub) return null
 
   const username = payload.sub.toLowerCase()
