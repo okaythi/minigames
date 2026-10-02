@@ -93,9 +93,10 @@ export interface DetailedSessionResult {
 export async function identifySessionDetailed(
   request: Request,
   db: DrizzleD1Database,
+  authSecret?: string,
 ): Promise<DetailedSessionResult> {
   try {
-    const ecosystemPlayerId = await resolveEcosystemPlayer(request, db)
+    const ecosystemPlayerId = await resolveEcosystemPlayer(request, db, authSecret)
     if (ecosystemPlayerId) {
       return { status: 'valid', playerId: ecosystemPlayerId, token: 'ecosystem' }
     }
@@ -148,8 +149,9 @@ export async function identifySessionDetailed(
 export async function identifySession(
   request: Request,
   db: DrizzleD1Database,
+  authSecret?: string,
 ): Promise<string | null> {
-  const res = await identifySessionDetailed(request, db)
+  const res = await identifySessionDetailed(request, db, authSecret)
   return res.status === 'valid' ? res.playerId : null
 }
 

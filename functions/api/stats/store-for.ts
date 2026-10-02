@@ -11,6 +11,8 @@ import { d1Store } from './d1-store'
 
 export interface StatsEnv {
   readonly NIXLABS_DB?: D1Database
+  /** Shared with accounts.nixlabs.tech; verifies _nixlabs_session. SSO is off when unset. */
+  readonly AUTH_SECRET?: string
 }
 
 export const storeFor = (env: StatsEnv): StatsStore =>

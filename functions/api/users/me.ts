@@ -24,7 +24,7 @@ async function resolveSessionUser(
 ): Promise<AuthResolveResult> {
   try {
     const db = drizzle(env.NIXLABS_DB)
-    const sessionDetail = await identifySessionDetailed(request, db)
+    const sessionDetail = await identifySessionDetailed(request, db, env.AUTH_SECRET)
 
     if (sessionDetail.status === 'revoked') {
       return {

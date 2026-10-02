@@ -16,7 +16,7 @@ export const onRequestPost = async ({ request, env }: PagesContext): Promise<Res
   const db = drizzle(env.NIXLABS_DB)
 
   // Identify reporter (must be logged in user)
-  let reporterId = await identifySession(request, db)
+  let reporterId = await identifySession(request, db, env.AUTH_SECRET)
   if (!reporterId) {
     const store = storeFor(env)
     const identified = await identifyPlayer(request, store)
