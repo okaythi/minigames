@@ -61,6 +61,8 @@ export const users = sqliteTable('users', {
   developer: integer('developer').default(0).notNull(),
   flags: integer('flags').default(0).notNull(),
   snowflakeId: text('snowflake_id').unique(),
+  // Immutable accounts.nixlabs.tech uid for SSO players (unique when set)
+  nixlabsUid: text('nixlabs_uid'),
   scheduledDeletionAt: integer('scheduled_deletion_at'),
   scheduledDeletionReason: text('scheduled_deletion_reason'),
 })
